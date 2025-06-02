@@ -55,7 +55,7 @@ function M.setup(opts)
     local all_plugins = loader.load_all(opts.paths or {})
     for _, plugin_spec in ipairs(all_plugins) do
         -- Format plugin spec and transform to PlugmanPlugin
-        local Plugin = require("core").normalize_plugin(plugin_spec[1], plugin_spec, "plugin")
+        local Plugin = require("plugman.core").normalize_plugin(plugin_spec[1], plugin_spec, "plugin")
         if Plugin then
             M.add(Plugin)
         end
