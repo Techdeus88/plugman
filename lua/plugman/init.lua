@@ -49,6 +49,14 @@ function M.setup(opts)
     bootstrap.setup(opts.minideps or {})
     -- Setup autocmds for lazy loading
     events.setup()
+    M._setup_done = true
+    logger.info('Plugman initialized successfully')
+    notify.info('Plugman ready!')
+    M.setup_plugins(opts)
+end
+
+function M.setup_plugins(opts)
+    notify.info('Setting up plugins!')
     -- Load plugins from configured directories
     local all_plugins = loader.load_all(opts.paths or {})
     for _, plugin_spec in ipairs(all_plugins) do
@@ -58,10 +66,6 @@ function M.setup(opts)
             M.add(Plugin)
         end
     end
-
-    M._setup_done = true
-    logger.info('Plugman initialized successfully')
-    notify.info('Plugman ready!')
 end
 
 --Add a plugin
