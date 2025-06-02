@@ -57,20 +57,20 @@ function M.load_plugin(name, opts)
             depends = opts.depends,
             monitor = opts.monitor,
             checkout = opts.checkout,
-            hooks = {
-                pre_install = function()
-                    M._pre_install_hook(name, opts.hooks)
-                end,
-                pre_checkout = function()
-                    M._pre_checkout_hook(name, opts.hooks)
-                end,
-                post_install = function()
-                    M._post_install_hook(name, opts.hooks)
-                end,
-                post_checkout = function()
-                    M._post_checkout_hook(name, opts.hooks)
-                end
-            }
+            hooks = opts.hooks,
+                -- pre_install = function()
+                --     M._pre_install_hook(name, opts.hooks)
+                -- end,
+                -- pre_checkout = function()
+                --     M._pre_checkout_hook(name, opts.hooks)
+                -- end,
+                -- post_install = function()
+                --     M._post_install_hook(name, opts.hooks)
+                -- end,
+                -- post_checkout = function()
+                --     M._post_checkout_hook(name, opts.hooks)
+                -- end
+            -- }
         })
 
         if not success then
