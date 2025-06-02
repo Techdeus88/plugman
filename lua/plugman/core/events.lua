@@ -39,8 +39,8 @@ M.TYPES = {
     UI_LEAVE = "UILeave",
 
     -- Custom events
-    PLUGIN_LOAD = "PluginLoad",
-    PLUGIN_UNLOAD = "PluginUnload"
+    -- PLUGIN_LOAD = "PluginLoad",
+    -- PLUGIN_UNLOAD = "PluginUnload"
 }
 ---Setup event system
 function M.setup()
