@@ -248,9 +248,9 @@ function M.load_modules(dir_path)
         return modules
     end
 
-    local name, type = vim.loop.fs_scandir_next(handle)
+    local name, f_type = vim.loop.fs_scandir_next(handle)
     while name do
-        if type == 'file' and name:match('%.lua$') then
+        if f_type == 'file' and name:match('%.lua$') then
             local file_path = dir_path .. '/' .. name
             local module_config = load_module_file(file_path)
             if module_config then
@@ -262,9 +262,8 @@ function M.load_modules(dir_path)
                 end
             end
         end
-        name, type = vim.loop.fs_scandir_next(handle)
+        name, f_type = vim.loop.fs_scandir_next(handle)
     end
-
     return modules
 end
 
@@ -280,9 +279,9 @@ function M.load_plugins(dir_path)
         return plugins
     end
 
-    local name, type = vim.loop.fs_scandir_next(handle)
+    local name, f_type = vim.loop.fs_scandir_next(handle)
     while name do
-        if type == 'file' and name:match('%.lua$') then
+        if f_type == 'file' and name:match('%.lua$') then
             local file_path = dir_path .. '/' .. name
             local plugin_config = load_module_file(file_path)
             if plugin_config then
@@ -299,7 +298,7 @@ function M.load_plugins(dir_path)
                 end
             end
         end
-        name, type = vim.loop.fs_scandir_next(handle)
+        name, f_type = vim.loop.fs_scandir_next(handle)
     end
 
     return plugins
