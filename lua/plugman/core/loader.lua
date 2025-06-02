@@ -2,7 +2,6 @@ local M = {}
 
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
-local utils = require('plugman.utils')
 
 ---Load plugins in priority order
 ---@param plugins table<string, PlugmanPlugin>
