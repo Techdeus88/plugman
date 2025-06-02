@@ -79,6 +79,7 @@ function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     end
 
     result.lazy = result.lazy or true -- lazy by default
+    print(result.name)
     result.path = utils.get_plugin_path(result.name)
 
     return Plugin:new(result)
