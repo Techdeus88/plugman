@@ -20,6 +20,7 @@ M._setup_done = false
 
 ---@class PlugmanPlugin
 ---@field source string Plugin source (GitHub repo, local path, etc.)
+---@field name string Plugin name extracted from source
 ---@field lazy? boolean Whether to lazy load
 ---@field event? string|string[] Events to trigger loading
 ---@field ft? string|string[] Filetypes to trigger loading
@@ -33,6 +34,7 @@ M._setup_done = false
 ---@field post? function Function to run after loading
 ---@field priority? number Load priority (higher = earlier)
 ---@field enabled? boolean Whether plugin is enabled
+---@field require? string Require string for auto initialization and loading
 ---@field config? function|table Plugin configuration
 
 --Setup Plugman with user configuration
@@ -62,13 +64,14 @@ function M.add(source, opts)
         logger.error('Plugman not initialized. Call setup() first.')
         return
     end
-    opts = opts or {}
     -- Handle simple string config
     if type(opts) == 'string' then
         opts = { opts }
+    else
+        opts = opts or {}
     end
-
     local plugin_name = M._get_plugin_name(source)
+
     if opts.source == nil then
         opts.source = source
         opts.name = plugin_name
@@ -84,7 +87,9 @@ function M.add(source, opts)
     -- Handle dependencies first
     if opts.depends then
         for _, dep in ipairs(opts.depends) do
-            local ok, _ = pcall(function() M._load_plugin_immediately(plugin_name, {}) end)
+            local dep_name = M._get_plugin_name(dep)
+
+            local ok, _ = pcall(M._load_plugin_immediately, dep_name, { source = dep, name = dep_name })
             if not ok then
                 if not M._plugins[dep] and not M._loaded[dep] then
                     logger.warn(string.format('Dependency %s not found for %s', dep, plugin_name))
