@@ -7,21 +7,60 @@ local command_callbacks = {}
 local filetype_callbacks = {}
 local key_callbacks = {}
 
+-- Event types
+M.TYPES = {
+    -- Buffer events
+    BUF_ENTER = "BufEnter",
+    BUF_LEAVE = "BufLeave",
+    BUF_WRITE = "BufWrite",
+    BUF_READ = "BufRead",
+
+    -- Vim events
+    VIM_ENTER = "VimEnter",
+    VIM_LEAVE = "VimLeave",
+
+    -- Filetype events
+    FT_DETECT = "FileType",
+
+    -- Command events
+    CMD_ENTER = "CmdlineEnter",
+    CMD_LEAVE = "CmdlineLeave",
+
+    -- Insert events
+    INSERT_ENTER = "InsertEnter",
+    INSERT_LEAVE = "InsertLeave",
+
+    -- Terminal events
+    TERM_OPEN = "TermOpen",
+    TERM_CLOSE = "TermClose",
+
+    -- UI events
+    UI_ENTER = "UIEnter",
+    UI_LEAVE = "UILeave",
+
+    -- Custom events
+    PLUGIN_LOAD = "PluginLoad",
+    PLUGIN_UNLOAD = "PluginUnload"
+}
 ---Setup event system
 function M.setup()
     -- Setup autocmds for events
-    vim.api.nvim_create_autocmd('*', {
-        callback = function(args)
-            M._trigger_event(args.event)
+    for ev_key, event in pairs(M.TYPES) do
+        if ev_key == "FT_DETECT" then
+            -- Setup filetype detection
+            vim.api.nvim_create_autocmd(event, {
+                callback = function(args)
+                    M._trigger_filetype(args.match)
+                end
+            })
+        else
+            vim.api.nvim_create_autocmd(event, {
+                callback = function()
+                    M._trigger_event(event)
+                end
+            })
         end
-    })
-
-    -- Setup filetype detection
-    vim.api.nvim_create_autocmd('FileType', {
-        callback = function(args)
-            M._trigger_filetype(args.match)
-        end
-    })
+    end
 end
 
 ---Register event callback
