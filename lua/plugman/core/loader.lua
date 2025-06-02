@@ -51,7 +51,8 @@ function M.load_plugin(name, opts)
         end
 
         -- Use MiniDeps to add the plugin
-        local success = MiniDeps.add(opts.source, {
+        local success = MiniDeps.add({
+            source = opts.source,
             depends = opts.depends,
             monitor = opts.monitor,
             checkout = opts.checkout,
@@ -98,6 +99,64 @@ function M.load_plugin(name, opts)
     return true
 end
 
+-- Possible hook names:
+--     - <pre_install>   - before creating plugin directory.
+--     - <post_install>  - after  creating plugin directory (before |:packadd|).
+--     - <pre_checkout>  - before making change in existing plugin.
+--     - <post_checkout> - after  making change in existing plugin.
+--   Each hook is executed with the following table as an argument:
+--     - <path> (`string`)   - absolute path to plugin's directory
+--       (might not yet exist on disk).
+--     - <source> (`string`) - resolved <source> from spec.
+--     - <name> (`string`)   - resolved <name> from spec.
+
+---Post install hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._pre_install_hook(name, opts)
+    logger.info(string.format('Pre-install hook for %s', name))
+    notify.info(string.format('Installed %s', name))
+
+    if opts.hooks.pre_install then
+        pcall(opts.hooks.pre_install)
+    end
+end
+
+---Post checkout hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._pre_checkout_hook(name, opts)
+    logger.info(string.format('Pre-checkout hook for %s', name))
+    notify.info(string.format('Updated %s', name))
+
+    if opts.hooks.pre_checkout then
+        pcall(opts.hooks.pre_checkout)
+    end
+end
+
+---Post install hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._post_install_hook(name, opts)
+    logger.info(string.format('Post-install hook for %s', name))
+    notify.info(string.format('Installed %s', name))
+
+    if opts.hooks.post_install then
+        pcall(opts.hooks.post_install)
+    end
+end
+
+---Post checkout hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._post_checkout_hook(name, opts)
+    logger.info(string.format('Post-checkout hook for %s', name))
+    notify.info(string.format('Updated %s', name))
+
+    if opts.hooks.post_checkout then
+        pcall(opts.hooks.post_checkout)
+    end
+end
 
 ---Setup plugin configuration
 ---@param name string Plugin name
