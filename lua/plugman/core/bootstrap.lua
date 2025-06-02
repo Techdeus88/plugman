@@ -43,7 +43,7 @@ local function install_minideps()
 end
 
 ---Setup MiniDeps integration
----@param opts table MiniDeps options
+---@param opts? table|nil MiniDeps options
 function M.setup(opts)
     -- Install MiniDeps: only if unavailable
     install_minideps()

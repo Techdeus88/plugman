@@ -54,7 +54,6 @@ function M.setup(opts)
     for _, plugin_spec in ipairs(all_plugins) do
         -- Format plugin spec and transform to PlugmanPlugin
         local Plugin = require("plugman.core").normalize_plugin(plugin_spec[1], plugin_spec, "plugin")
-        print('Plugin: ' .. vim.inspect(Plugin))
         if Plugin then
             M.add(Plugin)
         end
