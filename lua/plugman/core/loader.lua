@@ -286,10 +286,7 @@ function M.load_plugins(dir_path)
             local plugin_config = load_module_file(file_path)
             if plugin_config then
                 -- If the file returns a single plugin config
-                if plugin_config.source then
-                    table.insert(plugins, plugin_config)
-                    -- If the file returns a table of plugins
-                elseif type(plugin_config) == 'table' then
+                if type(plugin_config) == 'table' then
                     for _, plugin in ipairs(plugin_config) do
                         if plugin.source then
                             table.insert(plugins, plugin)
@@ -308,12 +305,10 @@ end
 ---@param paths table Configuration containing paths
 ---@return table All loaded plugins
 function M.load_all(paths)
-    print(vim.inspect(paths))
     local all_plugins = {}
 
     -- Load from modules directory if configured
     if paths.modules_path then
-        print(vim.inspect(paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
         for _, plugin in ipairs(modules) do
             print(vim.inspect(plugin))
