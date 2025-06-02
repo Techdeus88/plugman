@@ -36,11 +36,9 @@ local function install_minideps()
         if not success then
             logger.error("Failed to install MiniDeps")
         end
-        print("MiniDeps installed successfully")
         -- Add MiniDeps to runtime path
         vim.cmd("packadd mini.deps | helptags ALL")
         vim.cmd.echo('"Installed `mini.deps`" | redraw')
-        vim.notify("MiniDeps is installed", vim.log.levels.INFO, { title = "Plugmam" })
     end
 end
 
