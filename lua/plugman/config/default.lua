@@ -35,5 +35,13 @@ return {
     ui = {
         size = { width = 0.8, height = 0.8 },
         border = 'rounded'
+    },
+
+    -- Plugin and module paths
+    paths = {
+        -- Path to modules directory (for module-based configuration)
+        modules_path = vim.fn.stdpath('config') .. '/lua/modules',
+        -- Path to plugins directory (for individual plugin configurations)
+        plugins_path = vim.fn.stdpath('config') .. '/lua/plugins'
     }
 }

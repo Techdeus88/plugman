@@ -37,7 +37,7 @@ M._setup_done = false
 ---@field require? string Require string for auto initialization and loading
 ---@field config? function|table Plugin configuration
 
---Setup Plugman with user configuration
+---Setup Plugman with user configuration
 ---@param opts? table Configuration options
 function M.setup(opts)
     opts = vim.tbl_deep_extend("force", defaults, opts or {})
@@ -51,62 +51,54 @@ function M.setup(opts)
     -- Setup autocmds for lazy loading
     events.setup()
 
+    -- Load plugins from configured directories
+    local all_plugins = loader.load_all(opts.paths or {})
+    for _, plugin_spec in ipairs(all_plugins) do
+        -- Format plugin spec and transform to PlugmanPlugin
+        local Plugin = require("core").normalize_plugin(plugin_spec[1], plugin_spec, "plugin")
+        if Plugin then
+            M.add(Plugin)
+        end
+    end
+
     M._setup_done = true
     logger.info('Plugman initialized successfully')
     notify.info('Plugman ready!')
 end
 
 --Add a plugin
----@param source string Plugin source
----@param opts? PlugmanPlugin|string Plugin options or simple config string
-function M.add(source, opts)
+---@param plugin PlugmanPlugin plugin
+function M.add(plugin)
     if not M._setup_done then
         logger.error('Plugman not initialized. Call setup() first.')
         return
     end
-    -- Handle simple string config
-    if type(opts) == 'string' then
-        opts = { opts }
-    else
-        opts = opts or {}
-    end
-    local plugin_name = M._get_plugin_name(source)
-
-    if opts.source == nil then
-        opts.source = source
-        opts.name = plugin_name
-    end
-
-    -- Validate plugin
-    if not M._validate_plugin(source, opts) then
-        return
-    end
     -- Store plugin
-    M._plugins[plugin_name] = opts
-
+    M._plugins[plugin.name] = plugin
     -- Handle dependencies first
-    if opts.depends then
-        for _, dep in ipairs(opts.depends) do
-            local dep_name = M._get_plugin_name(dep)
-
-            local ok, _ = pcall(M._load_plugin_immediately, dep_name, { source = dep, name = dep_name })
-            if not ok then
-                if not M._plugins[dep] and not M._loaded[dep] then
-                    logger.warn(string.format('Dependency %s not found for %s', dep, plugin_name))
+    if plugin.depends then
+        for _, dep in ipairs(plugin.depends) do
+            if not M._plugins[dep] and not M._loaded[dep] then
+                local source = type(dep) == "string" and dep or dep[1]
+                local Dep = require("core").normalize_plugin(source, dep, "dependent")
+                local ok, _ = pcall(M._load_plugin_immediately, Dep.name, Dep)
+                if not ok then
+                    logger.warn(string.format('Dependency %s not loaded for %s', Dep.name, plugin.name))
                 end
             end
+            logger.info(string.format("Dependency %s already loaded", dep))
         end
     end
 
     -- Check if should lazy load
-    if M._should_lazy_load(opts) then
-        M._lazy_plugins[plugin_name] = opts
-        M._setup_lazy_loading(plugin_name, opts)
+    if M._should_lazy_load(plugin) then
+        M._lazy_plugins[plugin.name] = plugin
+        M._setup_lazy_loading(plugin.name, plugin)
     else
-        M._load_plugin_immediately(plugin_name, opts)
+        M._load_plugin_immediately(plugin.name, plugin)
     end
 
-    logger.info(string.format('Added plugin: %s', plugin_name))
+    logger.info(string.format('Added plugin: %s', plugin.name))
 end
 
 ---Remove a plugin
