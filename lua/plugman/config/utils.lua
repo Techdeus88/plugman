@@ -22,7 +22,12 @@ function M.validate_plugin(plugin_config)
 end
 
 function M.get_plugin_path(plugin_name)
-    return Config ~= nil and Config.install_path .. '/' .. plugin_name or ""
+    if plugin_name == "plugman" or plugin_name == "mini.deps" then
+        local core_path = vim.fn.stdpath "data" .. "/site/pack/deps/start/"
+        return string.format("%s%s", core_path .. plugin_name) or ""
+    end
+    local opt_path = vim.fn.stdpath "data" .. "/site/pack/deps/opt/"
+    return string.format("%s%s", opt_path .. plugin_name) or ""
 end
 
 function M.split_plugin_name(plugin_source)
