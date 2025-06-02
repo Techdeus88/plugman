@@ -83,7 +83,8 @@ function M.add(plugin)
         for _, dep in ipairs(plugin.depends) do
             if not M._plugins[dep] and not M._loaded[dep] then
                 local source = type(dep) == "string" and dep or dep[1]
-                local Dep = require("core").normalize_plugin(source, dep, "dependent")
+                local Dep = require("[plugman.core").normalize_plugin(source, dep, "dependent")
+                print(vim.inspect(Dep))
                 local ok, _ = pcall(M._load_plugin_immediately, Dep.name, Dep)
                 if not ok then
                     logger.warn(string.format('Dependency %s not loaded for %s', Dep.name, plugin.name))
