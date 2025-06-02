@@ -40,6 +40,7 @@ local path_package = vim.fn.stdpath('data') .. '/site/'
 local mini_path = path_package .. 'pack/deps/start/mini.nvim'
 local plugman_path = path_package .. 'pack/deps/start/plugman.nvim'
 
+```
 if not vim.loop.fs_stat(plugman_path) then
   vim.cmd('echo "Installing `plugman.nvim`" | redraw')
   local clone_cmd = {
@@ -50,7 +51,7 @@ if not vim.loop.fs_stat(plugman_path) then
   vim.cmd('packadd plugman.nvim | helptags ALL')
   vim.cmd('echo "Installed `plugman.nvim`" | redraw')
 end
-
+```
 The engine, MiniDeps is already included in your Neovim configuration. MiniDeps will install if it's not already present.
 
 ## Usage

@@ -26,6 +26,9 @@ M._setup_done = false
 ---@field cmd? string|string[] Commands to trigger loading
 ---@field keys? table|string[] Keymaps to create
 ---@field depends? string[] Dependencies
+---@field hooks? table hooks for plugins during the pre,post stages
+---@field monitor? string track new upcoming releases of the plugin
+---@field checkout? string use a specific version of the plugin
 ---@field init? function Function to run before loading
 ---@field post? function Function to run after loading
 ---@field priority? number Load priority (higher = earlier)
@@ -81,8 +84,11 @@ function M.add(source, opts)
     -- Handle dependencies first
     if opts.depends then
         for _, dep in ipairs(opts.depends) do
-            if not M._plugins[dep] and not M._loaded[dep] then
-                logger.warn(string.format('Dependency %s not found for %s', dep, plugin_name))
+            local ok, _ = pcall(function() M._load_plugin_immediately(plugin_name, {}) end)
+            if not ok then
+                if not M._plugins[dep] and not M._loaded[dep] then
+                    logger.warn(string.format('Dependency %s not found for %s', dep, plugin_name))
+                end
             end
         end
     end
@@ -161,39 +167,10 @@ function M._load_plugin_immediately(name, opts)
         return
     end
 
-    -- Run init function
-    if opts.init then
-        pcall(opts.init)
-    end
+    local ok, _ = pcall(function() loader.load_plugin(name, opts) end)
 
-    -- Use MiniDeps to add the plugin
-    local success = MiniDeps.add(opts.source, {
-        depends = opts.depends,
-        hooks = {
-            post_install = function()
-                M._post_install_hook(name, opts)
-            end,
-            post_checkout = function()
-                M._post_checkout_hook(name, opts)
-            end
-        }
-    })
-
-    if not success then
-        logger.error(string.format('Failed to load plugin: %s', name))
-        notify.error(string.format('Failed to load %s', name))
-        return
-    end
-
-    -- Setup plugin configuration
-    M._setup_plugin_config(name, opts)
-
-    -- Setup keymaps
-    M._setup_keymaps(name, opts)
-
-    -- Run post function
-    if opts.post then
-        pcall(opts.post)
+    if not ok then
+        logger.warn(string.format("Plugin %s did not load"))
     end
 
     M._loaded[name] = true
@@ -242,55 +219,6 @@ function M._setup_lazy_loading(name, opts)
         events.on_keys(opts.keys, function()
             M._load_lazy_plugin(name)
         end)
-    end
-end
-
----Setup plugin configuration
----@param name string Plugin name
----@param opts PlugmanPlugin Plugin options
-function M._setup_plugin_config(name, opts)
-    if not opts.config then
-        return
-    end
-
-    local success, err = pcall(function()
-        if type(opts.config) == 'function' then
-            opts.config()
-        elseif type(opts.config) == 'string' then
-            vim.cmd(opts.config)
-        end
-    end)
-
-    if not success then
-        logger.error(string.format('Failed to configure %s: %s', name, err))
-        notify.error(string.format('Failed to configure %s', name))
-    end
-end
-
----Setup keymaps for plugin
----@param name string Plugin name
----@param opts PlugmanPlugin Plugin options
-function M._setup_keymaps(name, opts)
-    if not opts.keys then
-        return
-    end
-
-    local keys = type(opts.keys) == 'table' and opts.keys or { opts.keys }
-
-    for _, key in ipairs(keys) do
-        if type(key) == 'string' then
-            -- Simple keymap
-            vim.keymap.set('n', key, '<cmd>echo "' .. name .. ' keymap"<cr>')
-        elseif type(key) == 'table' then
-            -- Complex keymap
-            local mode = key.mode or 'n'
-            local lhs = key[1] or key.lhs
-            local rhs = key[2] or key.rhs
-            local keyopts = key.opts or {}
-            keyopts.desc = keyopts.desc or (name .. ' keymap')
-
-            vim.keymap.set(mode, lhs, rhs, keyopts)
-        end
     end
 end
 
