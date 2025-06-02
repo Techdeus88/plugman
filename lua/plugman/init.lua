@@ -11,7 +11,7 @@ local events = require("plugman.core.events")
 local defaults = require("plugman.config.default")
 local logger = require("plugman.utils.logger")
 local notify = require("plugman.utils.notify")
-local MiniDeps = require("plugman.core.bootstrap")
+local bootstrap = require("plugman.core.bootstrap")
 
 M._plugins = {}
 M._lazy_plugins = {}
@@ -45,12 +45,10 @@ function M.setup(opts)
     cache.setup(opts.cache or {})
     notify.setup(opts.notify or {})
 
-    -- Initialize MiniDeps
-    MiniDeps.setup(opts.minideps or {})
-
+    -- Bootstrap MiniDeps (install and setup)
+    bootstrap.setup(opts.minideps or {})
     -- Setup autocmds for lazy loading
     events.setup()
-
     -- Load plugins from configured directories
     local all_plugins = loader.load_all(opts.paths or {})
     for _, plugin_spec in ipairs(all_plugins) do
