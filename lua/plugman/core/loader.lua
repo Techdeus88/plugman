@@ -51,24 +51,24 @@ function M.load_plugin(name, opts)
         end
 
         -- Use MiniDeps to add the plugin
-        local success = MiniDeps.add({
+        local success, _ = pcall(MiniDeps.add, {
             source = opts.source,
+            name = opts.name,
             depends = opts.depends,
             monitor = opts.monitor,
             checkout = opts.checkout,
-
             hooks = {
                 pre_install = function()
-                    M._pre_install_hook(name, opts)
+                    M._pre_install_hook(name, opts.hooks)
                 end,
                 pre_checkout = function()
-                    M._pre_checkout_hook(name, opts)
+                    M._pre_checkout_hook(name, opts.hooks)
                 end,
                 post_install = function()
-                    M._post_install_hook(name, opts)
+                    M._post_install_hook(name, opts.hooks)
                 end,
                 post_checkout = function()
-                    M._post_checkout_hook(name, opts)
+                    M._post_checkout_hook(name, opts.hooks)
                 end
             }
         })
