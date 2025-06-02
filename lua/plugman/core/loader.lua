@@ -305,22 +305,22 @@ function M.load_plugins(dir_path)
 end
 
 ---Load all plugins and modules from configured directories
----@param config table Configuration containing paths
+---@param paths table Configuration containing paths
 ---@return table All loaded plugins
-function M.load_all(config)
+function M.load_all(paths)
     local all_plugins = {}
 
     -- Load from modules directory if configured
-    if config.modules_path then
-        local modules = M.load_modules(config.modules_path)
+    if paths.modules_path then
+        local modules = M.load_modules(paths.modules_path)
         for _, plugin in ipairs(modules) do
             table.insert(all_plugins, plugin)
         end
     end
 
     -- Load from plugins directory if configured
-    if config.plugins_path then
-        local plugins = M.load_plugins(config.plugins_path)
+    if paths.plugins_path then
+        local plugins = M.load_plugins(paths.plugins_path)
         for _, plugin in ipairs(plugins) do
             table.insert(all_plugins, plugin)
         end
