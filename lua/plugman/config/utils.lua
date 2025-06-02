@@ -22,7 +22,7 @@ function M.validate_plugin(plugin_config)
 end
 
 function M.get_plugin_path(plugin_name)
-    if plugin_name == "plugman" or plugin_name == "mini.deps" then
+    if plugin_name == "plugman.nvim" or plugin_name == "mini.deps" then
         local core_path = vim.fn.stdpath "data" .. "/site/pack/deps/start/"
         return string.format("%s%s", core_path .. plugin_name) or ""
     end
