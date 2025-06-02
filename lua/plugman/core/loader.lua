@@ -272,8 +272,14 @@ end
 ---@return table Plugins configuration
 function M.load_plugins(dir_path)
     local plugins = {}
-    local handle = vim.loop.fs_scandir(dir_path)
 
+    -- Check if directory exists
+    if vim.fn.isdirectory(dir_path) == 0 then
+        logger.warn(string.format('Plugins directory does not exist: %s', dir_path))
+        return plugins
+    end
+
+    local handle = vim.loop.fs_scandir(dir_path)
     if not handle then
         logger.error(string.format('Failed to scan directory: %s', dir_path))
         return plugins
@@ -283,21 +289,17 @@ function M.load_plugins(dir_path)
     while name do
         if f_type == 'file' and name:match('%.lua$') then
             local file_path = dir_path .. '/' .. name
+            logger.debug(string.format('Loading plugin file: %s', file_path))
             local plugin_config = load_module_file(file_path)
-            if plugin_config then
-                -- If the file returns a single plugin config
-                if type(plugin_config) == 'table' then
-                    for _, plugin in ipairs(plugin_config) do
-                        if plugin.source then
-                            table.insert(plugins, plugin)
-                        end
-                    end
-                end
+            for _, plugin in ipairs(plugin_config) do
+                logger.debug(string.format('Found plugin in table: %s', plugin.source))
+                table.insert(plugins, plugin)
             end
         end
         name, f_type = vim.loop.fs_scandir_next(handle)
     end
 
+    logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
     return plugins
 end
 
@@ -307,23 +309,38 @@ end
 function M.load_all(paths)
     local all_plugins = {}
 
+    if not paths then
+        logger.error('No paths provided to load_all')
+        return all_plugins
+    end
+
     -- Load from modules directory if configured
     if paths.modules_path then
+        logger.info(string.format('Loading modules from: %s', paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
         for _, plugin in ipairs(modules) do
-            print(vim.inspect(plugin))
-            table.insert(all_plugins, plugin)
+            if plugin.source then
+                table.insert(all_plugins, plugin)
+            end
         end
+    else
+        logger.warn('No modules_path configured')
     end
 
     -- Load from plugins directory if configured
     if paths.plugins_path then
+        logger.info(string.format('Loading plugins from: %s', paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
         for _, plugin in ipairs(plugins) do
-            print(vim.inspect(plugin))
-            table.insert(all_plugins, plugin)
+            if plugin then
+                table.insert(all_plugins, plugin)
+            end
         end
+    else
+        logger.warn('No plugins_path configured')
     end
+
+    logger.info(string.format('Total plugins loaded: %d', #all_plugins))
     return all_plugins
 end
 

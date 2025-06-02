@@ -52,13 +52,13 @@ function M.setup(opts)
     M._setup_done = true
     logger.info('Plugman initialized successfully')
     notify.info('Plugman ready!')
-    M.setup_plugins(opts)
+    M.setup_plugins(opts.paths)
 end
 
-function M.setup_plugins(opts)
+function M.setup_plugins(paths)
     notify.info('Setting up plugins!')
     -- Load plugins from configured directories
-    local all_plugins = loader.load_all(opts.paths or {})
+    local all_plugins = loader.load_all(paths)
     print(vim.inspect(all_plugins))
     for _, plugin_spec in ipairs(all_plugins) do
         -- Format plugin spec and transform to PlugmanPlugin
