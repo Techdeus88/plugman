@@ -1,24 +1,11 @@
-local M = { order = 0 }
+local M = {}
 
-local utils = require("plugman.config.utils")
 local logger = require("plugman.utils.logger")
-
-function M:get_order()
-    return self.order
-end
-
-function M:set_order(num)
-    if num ~= nil then
-        self.order = num
-        return
-    end
-    self.order = self.order + 1
-end
 
 local Plugin = {}
 Plugin.__index = Plugin
 function Plugin:new(n_plugin)
-    local plugin = setmetatable(vim.list_extend("force", vim.deepcopy(n_plugin), {
+    local plugin = setmetatable(vim.tbl_deep_extend("force", vim.deepcopy(n_plugin), {
         enabled = true,
         added = false,
         loaded = false,
@@ -55,9 +42,14 @@ function Plugin:validate()
     return true
 end
 
+---Normalize plugin specification
+---@param plugin_source string Plugin source URL or path
+---@param plugin_spec table|string Plugin specification
+---@param plugin_type string Type of plugin (e.g., 'git', 'local')
+---@return table Normalized plugin specification
 function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     local result = vim.deepcopy(plugin_spec)
-    M:set_order(M:get_order() + 1)
+    local order = M._get_next_order()
 
     -- Extract plugin name and URL
     if type(result) == 'string' then
@@ -70,7 +62,7 @@ function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
         result[1] = nil
     end
 
-    result.order = M:get_order()
+    result.order = order
     result.type = plugin_type
     result.source = plugin_source
 
@@ -79,10 +71,15 @@ function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     end
 
     result.lazy = result.lazy or true -- lazy by default
-    print(result.name)
-    result.path = utils.get_plugin_path(result.name)
+    result.path = vim.fn.stdpath('data') .. '/site/pack/plugman/start/' .. result.name
 
     return Plugin:new(result)
 end
 
+---Get next plugin order number
+---@return number
+function M._get_next_order()
+    M._order = (M._order or 0) + 1
+    return M._order
+end
 return M
