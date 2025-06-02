@@ -1,0 +1,422 @@
+---@class Plugman
+---@field private _plugins table<string, PlugmanPlugin>
+---@field private _lazy_plugins table<string, PlugmanPlugin>
+---@field private _loaded table<string, boolean>
+---@field private _setup_done boolean
+local M = {}
+
+local cache = require("plugman.core.cache")
+local loader = require("plugman.core.loader")
+local events = require("plugman.core.events")
+local defaults = require("plugman.config.defaults")
+local logger = require("plugman.utils.logger")
+local notify = require("plugman.utils.notify")
+local MiniDeps = require("plugman.core.bootstrap")
+
+M._plugins = {}
+M._lazy_plugins = {}
+M._loaded = {}
+M._setup_done = false
+
+---@class PlugmanPlugin
+---@field source string Plugin source (GitHub repo, local path, etc.)
+---@field lazy? boolean Whether to lazy load
+---@field event? string|string[] Events to trigger loading
+---@field ft? string|string[] Filetypes to trigger loading
+---@field cmd? string|string[] Commands to trigger loading
+---@field keys? table|string[] Keymaps to create
+---@field depends? string[] Dependencies
+---@field init? function Function to run before loading
+---@field post? function Function to run after loading
+---@field priority? number Load priority (higher = earlier)
+---@field enabled? boolean Whether plugin is enabled
+---@field config? function|table Plugin configuration
+
+--Setup Plugman with user configuration
+---@param opts? table Configuration options
+function M.setup(opts)
+    opts = vim.tbl_deep_extend("force", defaults, opts or {})
+    logger.setup(opts.log_level or 'info')
+    cache.setup(opts.cache or {})
+    notify.setup(opts.notify or {})
+
+    -- Initialize MiniDeps
+    MiniDeps.setup(opts.minideps or {})
+
+    -- Setup autocmds for lazy loading
+    events.setup()
+
+    M._setup_done = true
+    logger.info('Plugman initialized successfully')
+    notify.info('Plugman ready!')
+end
+
+--Add a plugin
+---@param source string Plugin source
+---@param opts? PlugmanPlugin|string Plugin options or simple config string
+function M.add(source, opts)
+    if not M._setup_done then
+        logger.error('Plugman not initialized. Call setup() first.')
+        return
+    end
+
+    -- Handle simple string config
+    if type(opts) == 'string' then
+        opts = { config = opts }
+    end
+
+    opts = opts or {}
+    opts.source = source
+
+    -- Validate plugin
+    if not M._validate_plugin(source, opts) then
+        return
+    end
+
+    local plugin_name = M._get_plugin_name(source)
+
+    -- Store plugin
+    M._plugins[plugin_name] = opts
+
+    -- Handle dependencies first
+    if opts.depends then
+        for _, dep in ipairs(opts.depends) do
+            if not M._plugins[dep] and not M._loaded[dep] then
+                logger.warn(string.format('Dependency %s not found for %s', dep, plugin_name))
+            end
+        end
+    end
+
+    -- Check if should lazy load
+    if M._should_lazy_load(opts) then
+        M._lazy_plugins[plugin_name] = opts
+        M._setup_lazy_loading(plugin_name, opts)
+    else
+        M._load_plugin_immediately(plugin_name, opts)
+    end
+
+    logger.info(string.format('Added plugin: %s', plugin_name))
+end
+
+---Remove a plugin
+---@param name string Plugin name
+function M.remove(name)
+    if not M._plugins[name] then
+        logger.error(string.format('Plugin %s not found', name))
+        return
+    end
+
+    -- Use MiniDeps to remove
+    local success = MiniDeps.clean(name)
+
+    if success then
+        M._plugins[name] = nil
+        M._lazy_plugins[name] = nil
+        M._loaded[name] = nil
+        cache.remove_plugin(name)
+
+        logger.info(string.format('Removed plugin: %s', name))
+        notify.info(string.format('Removed %s', name))
+    else
+        logger.error(string.format('Failed to remove plugin: %s', name))
+        notify.error(string.format('Failed to remove %s', name))
+    end
+end
+
+---Update plugins
+---@param name? string Specific plugin name (updates all if nil)
+function M.update(name)
+    if name then
+        if not M._plugins[name] then
+            logger.error(string.format('Plugin %s not found', name))
+            return
+        end
+
+        notify.info(string.format('Updating %s...', name))
+        MiniDeps.update(name)
+    else
+        notify.info('Updating all plugins...')
+        MiniDeps.update()
+    end
+end
+
+---Load a lazy plugin
+---@param name string Plugin name
+function M._load_lazy_plugin(name)
+    local opts = M._lazy_plugins[name]
+    if not opts or M._loaded[name] then
+        return
+    end
+
+    notify.info(string.format('Loading %s...', name))
+    M._load_plugin_immediately(name, opts)
+    M._lazy_plugins[name] = nil
+end
+
+---Load plugin immediately
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._load_plugin_immediately(name, opts)
+    if M._loaded[name] then
+        return
+    end
+
+    -- Run init function
+    if opts.init then
+        pcall(opts.init)
+    end
+
+    -- Use MiniDeps to add the plugin
+    local success = MiniDeps.add(opts.source, {
+        depends = opts.depends,
+        hooks = {
+            post_install = function()
+                M._post_install_hook(name, opts)
+            end,
+            post_checkout = function()
+                M._post_checkout_hook(name, opts)
+            end
+        }
+    })
+
+    if not success then
+        logger.error(string.format('Failed to load plugin: %s', name))
+        notify.error(string.format('Failed to load %s', name))
+        return
+    end
+
+    -- Setup plugin configuration
+    M._setup_plugin_config(name, opts)
+
+    -- Setup keymaps
+    M._setup_keymaps(name, opts)
+
+    -- Run post function
+    if opts.post then
+        pcall(opts.post)
+    end
+
+    M._loaded[name] = true
+    logger.info(string.format('Loaded plugin: %s', name))
+
+    -- Cache the loaded state
+    cache.set_plugin_loaded(name, true)
+end
+
+---Setup lazy loading for a plugin
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._setup_lazy_loading(name, opts)
+    -- Event-based loading
+    if opts.event then
+        local events_list = type(opts.event) == 'table' and opts.event or { opts.event }
+        for _, event in ipairs(events_list) do
+            events.on_event(event, function()
+                M._load_lazy_plugin(name)
+            end)
+        end
+    end
+
+    -- Filetype-based loading
+    if opts.ft then
+        local filetypes = type(opts.ft) == 'table' and opts.ft or { opts.ft }
+        for _, ft in ipairs(filetypes) do
+            events.on_filetype(ft, function()
+                M._load_lazy_plugin(name)
+            end)
+        end
+    end
+
+    -- Command-based loading
+    if opts.cmd then
+        local commands = type(opts.cmd) == 'table' and opts.cmd or { opts.cmd }
+        for _, cmd in ipairs(commands) do
+            events.on_command(cmd, function()
+                M._load_lazy_plugin(name)
+            end)
+        end
+    end
+
+    -- Key-based loading
+    if opts.keys then
+        events.on_keys(opts.keys, function()
+            M._load_lazy_plugin(name)
+        end)
+    end
+end
+
+---Setup plugin configuration
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._setup_plugin_config(name, opts)
+    if not opts.config then
+        return
+    end
+
+    local success, err = pcall(function()
+        if type(opts.config) == 'function' then
+            opts.config()
+        elseif type(opts.config) == 'string' then
+            vim.cmd(opts.config)
+        end
+    end)
+
+    if not success then
+        logger.error(string.format('Failed to configure %s: %s', name, err))
+        notify.error(string.format('Failed to configure %s', name))
+    end
+end
+
+---Setup keymaps for plugin
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._setup_keymaps(name, opts)
+    if not opts.keys then
+        return
+    end
+
+    local keys = type(opts.keys) == 'table' and opts.keys or { opts.keys }
+
+    for _, key in ipairs(keys) do
+        if type(key) == 'string' then
+            -- Simple keymap
+            vim.keymap.set('n', key, '<cmd>echo "' .. name .. ' keymap"<cr>')
+        elseif type(key) == 'table' then
+            -- Complex keymap
+            local mode = key.mode or 'n'
+            local lhs = key[1] or key.lhs
+            local rhs = key[2] or key.rhs
+            local keyopts = key.opts or {}
+            keyopts.desc = keyopts.desc or (name .. ' keymap')
+
+            vim.keymap.set(mode, lhs, rhs, keyopts)
+        end
+    end
+end
+
+---Check if plugin should lazy load
+---@param opts PlugmanPlugin Plugin options
+---@return boolean
+function M._should_lazy_load(opts)
+    if opts.lazy == false then
+        return false
+    end
+
+    return opts.lazy or opts.event or opts.ft or opts.cmd or opts.keys
+end
+
+---Validate plugin configuration
+---@param source string Plugin source
+---@param opts PlugmanPlugin Plugin options
+---@return boolean
+function M._validate_plugin(source, opts)
+    if not source or source == '' then
+        logger.error('Plugin source cannot be empty')
+        return false
+    end
+
+    if opts.enabled == false then
+        logger.info(string.format('Plugin %s is disabled', source))
+        return false
+    end
+
+    return true
+end
+
+---Get plugin name from source
+---@param source string Plugin source
+---@return string
+function M._get_plugin_name(source)
+    return source:match('([^/]+)$') or source
+end
+
+-- Possible hook names:
+--     - <pre_install>   - before creating plugin directory.
+--     - <post_install>  - after  creating plugin directory (before |:packadd|).
+--     - <pre_checkout>  - before making change in existing plugin.
+--     - <post_checkout> - after  making change in existing plugin.
+--   Each hook is executed with the following table as an argument:
+--     - <path> (`string`)   - absolute path to plugin's directory
+--       (might not yet exist on disk).
+--     - <source> (`string`) - resolved <source> from spec.
+--     - <name> (`string`)   - resolved <name> from spec.
+
+---Post install hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._pre_install_hook(name, opts)
+    logger.info(string.format('Pre-install hook for %s', name))
+    notify.info(string.format('Installed %s', name))
+
+    if opts.hooks.pre_install then
+        pcall(opts.hooks.pre_install)
+    end
+end
+
+---Post checkout hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._pre_checkout_hook(name, opts)
+    logger.info(string.format('Pre-checkout hook for %s', name))
+    notify.info(string.format('Updated %s', name))
+
+    if opts.hooks.pre_checkout then
+        pcall(opts.hooks.pre_checkout)
+    end
+end
+
+---Post install hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._post_install_hook(name, opts)
+    logger.info(string.format('Post-install hook for %s', name))
+    notify.info(string.format('Installed %s', name))
+
+    if opts.hooks.post_install then
+        pcall(opts.hooks.post_install)
+    end
+end
+
+---Post checkout hook
+---@param name string Plugin name
+---@param opts PlugmanPlugin Plugin options
+function M._post_checkout_hook(name, opts)
+    logger.info(string.format('Post-checkout hook for %s', name))
+    notify.info(string.format('Updated %s', name))
+
+    if opts.hooks.post_checkout then
+        pcall(opts.hooks.post_checkout)
+    end
+end
+
+---Get plugin status
+---@param name? string Plugin name (returns all if nil)
+---@return table
+function M.status(name)
+    if name then
+        return {
+            name = name,
+            loaded = M._loaded[name] or false,
+            lazy = M._lazy_plugins[name] ~= nil,
+            config = M._plugins[name]
+        }
+    else
+        local status = {}
+        for plugin_name, _ in pairs(M._plugins) do
+            status[plugin_name] = M.status(plugin_name)
+        end
+        return status
+    end
+end
+
+---Show UI
+function M.show()
+    require('plugman.ui').show()
+end
+
+-- API functions
+M.list = function() return vim.tbl_keys(M._plugins) end
+M.loaded = function() return vim.tbl_keys(M._loaded) end
+M.lazy = function() return vim.tbl_keys(M._lazy_plugins) end
+
+return M
