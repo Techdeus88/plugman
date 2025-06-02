@@ -315,17 +315,15 @@ function M.load_all(paths)
             table.insert(all_plugins, plugin)
         end
     end
-    
+
     -- Load from plugins directory if configured
     if paths.plugins_path then
-        print(vim.inspect(paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
         for _, plugin in ipairs(plugins) do
             print(vim.inspect(plugin))
             table.insert(all_plugins, plugin)
         end
     end
-    print(vim.inspect(all_plugins))
     return all_plugins
 end
 
