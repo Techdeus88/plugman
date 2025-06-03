@@ -84,7 +84,9 @@ function M.add(plugin)
             if not M._plugins[dep] and not M._loaded[dep] then
                 local source = type(dep) == "string" and dep or dep[1]
                 local Dep = require("plugman.core").normalize_plugin(source, dep, "dependent")
-                print(vim.inspect(Dep))
+                -- Store dependency
+                M._plugins[Dep.name] = Dep
+                -- Load dependency
                 local ok, _ = pcall(M._load_plugin_immediately, Dep.name, Dep)
                 if not ok then
                     logger.warn(string.format('Dependency %s not loaded for %s', Dep.name, plugin.name))
@@ -99,7 +101,10 @@ function M.add(plugin)
         M._lazy_plugins[plugin.name] = plugin
         M._setup_lazy_loading(plugin.name, plugin)
     else
-        M._load_plugin_immediately(plugin.name, plugin)
+        local ok, _ = pcall(M._load_plugin_immediately, plugin.name, plugin)
+        if not ok then
+            logger.warn(string.format('Plugin %s not loaded', plugin.name))
+        end
     end
 
     logger.info(string.format('Added plugin: %s', plugin.name))
@@ -231,7 +236,7 @@ function M._should_lazy_load(opts)
         return false
     end
 
-    return opts.lazy or opts.event or opts.ft or opts.cmd or opts.keys
+    return opts.lazy or opts.event ~= nil or opts.ft ~= nil or opts.cmd ~= nil or opts.keys ~= nil
 end
 
 ---Validate plugin configuration

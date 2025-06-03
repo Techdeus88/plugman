@@ -243,38 +243,34 @@ end
 ---@return table Modules configuration
 function M.load_modules(dir_path)
     local modules = {}
-    local handle = vim.loop.fs_scandir(dir_path)
-    print(string.format("Handle: s", vim.inspect(handle)))
-
+    
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
-        logger.warn(string.format('Plugins directory does not exist: %s', dir_path))
+        logger.warn(string.format('Modules directory does not exist: %s', dir_path))
         return modules
     end
 
-    if not handle then
-        logger.error(string.format('Failed to scan directory: %s', dir_path))
-        return modules
-    end
+    -- Get all files in directory
+    local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
+    logger.debug(string.format('Found %d files in %s', #files, dir_path))
 
-    local name, f_type = vim.loop.fs_scandir_next(handle)
-    while name do
-        if f_type == 'file' and name:match('%.lua$') then
-            local file_path = dir_path .. '/' .. name
-            logger.debug(string.format('Loading module file: %s', file_path))
-            local module_config = load_module_file(file_path)
-            if module_config then
-                -- If the module returns a table of plugins
-                if type(module_config) == 'table' then
-                    for _, plugin in ipairs(module_config) do
+    -- Process each file
+    for _, file_path in ipairs(files) do
+        logger.debug(string.format('Loading module file: %s', file_path))
+        local module_config = load_module_file(file_path)
+        if module_config then
+            -- If the module returns a table of plugins
+            if type(module_config) == 'table' then
+                for _, plugin in ipairs(module_config) do
+                    if plugin.source then
                         table.insert(modules, plugin)
                     end
                 end
             end
         end
-        name, f_type = vim.loop.fs_scandir_next(handle)
     end
-    print('Modules: ', vim.inspect(modules))
+
+    logger.info(string.format('Loaded %d modules from %s', #modules, dir_path))
     return modules
 end
 
@@ -283,38 +279,39 @@ end
 ---@return table Plugins configuration
 function M.load_plugins(dir_path)
     local plugins = {}
-
+    
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Plugins directory does not exist: %s', dir_path))
         return plugins
     end
 
-    local handle = vim.loop.fs_scandir(dir_path)
-    print(string.format("Handle: s", vim.inspect(handle)))
-    if not handle then
-        logger.error(string.format('Failed to scan directory: %s', dir_path))
-        return plugins
-    end
+    -- Get all files in directory
+    local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
+    logger.debug(string.format('Found %d files in %s', #files, dir_path))
 
-    local name, f_type = vim.loop.fs_scandir_next(handle)
-    while name do
-        if f_type == 'file' and name:match('%.lua$') then
-            local file_path = dir_path .. '/' .. name
-            local is_dir = vim.fn.isdirectory(file_path) == 1
-            print(string.format("Is Directory: %s", is_dir))
-            local plugin_config = load_module_file(file_path)
-            logger.debug(string.format('Loading plugin file: %s', file_path))
-            for _, plugin in ipairs(plugin_config) do
-                logger.debug(string.format('Found plugin in table: %s', plugin.source))
-                table.insert(plugins, plugin)
+    -- Process each file
+    for _, file_path in ipairs(files) do
+        logger.debug(string.format('Loading plugin file: %s', file_path))
+        local plugin_config = load_module_file(file_path)
+        if plugin_config then
+            -- Handle single plugin config
+            if type(plugin_config[1]) == "string" then
+                logger.debug(string.format('Found single plugin: %s', plugin_config.source))
+                table.insert(plugins, plugin_config)
+            -- Handle table of plugins
+            elseif type(plugin_config) == 'table' then
+                for _, plugin in ipairs(plugin_config) do
+                    if plugin.source then
+                        logger.debug(string.format('Found plugin in table: %s', plugin.source))
+                        table.insert(plugins, plugin)
+                    end
+                end
             end
         end
-        name, f_type = vim.loop.fs_scandir_next(handle)
     end
 
     logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
-    print('Plugins: ', vim.inspect(plugins))
     return plugins
 end
 
