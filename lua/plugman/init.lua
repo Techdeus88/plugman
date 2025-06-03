@@ -107,7 +107,7 @@ function M.add(plugin)
         end
     end
 
-    logger.info(string.format('Added plugin: %s', plugin.name))
+    logger.info(string.format('Plugin: %s added and setup for loading', plugin.name))
 end
 
 ---Remove a plugin

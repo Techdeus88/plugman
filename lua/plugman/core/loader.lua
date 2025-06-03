@@ -243,7 +243,6 @@ end
 ---@return table Modules configuration
 function M.load_modules(dir_path)
     local modules = {}
-    
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Modules directory does not exist: %s', dir_path))
@@ -252,6 +251,7 @@ function M.load_modules(dir_path)
 
     -- Get all files in directory
     local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
+    print(vim.inspect(files))
     logger.debug(string.format('Found %d files in %s', #files, dir_path))
 
     -- Process each file
@@ -274,6 +274,46 @@ function M.load_modules(dir_path)
     return modules
 end
 
+---Validate if string is a valid GitHub URL
+---@param url string URL to validate
+---@return boolean
+local function is_valid_github_url(url)
+    -- Basic GitHub URL patterns
+    local patterns = {
+        '^https?://github%.com/[%w-]+/[%w-]+/?$',  -- https://github.com/user/repo
+        '^github%.com/[%w-]+/[%w-]+/?$',           -- github.com/user/repo
+        '^[%w-]+/[%w-]+$'                          -- user/repo
+    }
+
+    for _, pattern in ipairs(patterns) do
+        if url:match(pattern) then
+            return true
+        end
+    end
+    return false
+end
+
+---Extract GitHub repository information
+---@param url string GitHub URL
+---@return string|nil, string|nil username and repository name
+local function extract_github_info(url)
+    local username, repo = url:match('github%.com/([%w-]+)/([%w-]+)')
+    if not username then
+        username, repo = url:match('([%w-]+)/([%w-]+)')
+    end
+    return username, repo
+end
+
+---Normalize GitHub URL
+---@param url string GitHub URL
+---@return string Normalized URL
+local function normalize_github_url(url)
+    if url:match('^https?://') then
+        return url
+    end
+    return 'https://github.com/' .. url
+end
+
 ---Load plugins from a directory
 ---@param dir_path string Path to the plugins directory
 ---@return table Plugins configuration
@@ -288,6 +328,7 @@ function M.load_plugins(dir_path)
 
     -- Get all files in directory
     local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
+    print(vim.inspect(files))
     logger.debug(string.format('Found %d files in %s', #files, dir_path))
 
     -- Process each file
@@ -296,15 +337,55 @@ function M.load_plugins(dir_path)
         local plugin_config = load_module_file(file_path)
         if plugin_config then
             -- Handle single plugin config
-            if type(plugin_config[1]) == "string" then
-                logger.debug(string.format('Found single plugin: %s', plugin_config.source))
-                table.insert(plugins, plugin_config)
+            if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
+                local username, repo = extract_github_info(plugin_config[1])
+                if username and repo then
+                    -- Create normalized plugin config
+                    local normalized_config = {
+                        source = normalize_github_url(plugin_config[1]),
+                        name = repo,
+                        -- Copy other options from the config
+                        lazy = plugin_config.lazy,
+                        event = plugin_config.event,
+                        ft = plugin_config.ft,
+                        cmd = plugin_config.cmd,
+                        keys = plugin_config.keys,
+                        depends = plugin_config.depends,
+                        config = plugin_config.config,
+                        init = plugin_config.init,
+                        post = plugin_config.post
+                    }
+                    logger.debug(string.format('Found plugin: %s/%s', username, repo))
+                    table.insert(plugins, normalized_config)
+                else
+                    logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_config[1]))
+                end
             -- Handle table of plugins
             elseif type(plugin_config) == 'table' then
                 for _, plugin in ipairs(plugin_config) do
-                    if plugin.source then
-                        logger.debug(string.format('Found plugin in table: %s', plugin.source))
-                        table.insert(plugins, plugin)
+                    if type(plugin[1]) == "string" and is_valid_github_url(plugin[1]) then
+                        local username, repo = extract_github_info(plugin[1])
+                        if username and repo then
+                            -- Create normalized plugin config
+                            local normalized_config = {
+                                source = normalize_github_url(plugin[1]),
+                                name = repo,
+                                -- Copy other options from the plugin
+                                lazy = plugin.lazy,
+                                event = plugin.event,
+                                ft = plugin.ft,
+                                cmd = plugin.cmd,
+                                keys = plugin.keys,
+                                depends = plugin.depends,
+                                config = plugin.config,
+                                init = plugin.init,
+                                post = plugin.post
+                            }
+                            logger.debug(string.format('Found plugin in table: %s/%s', username, repo))
+                            table.insert(plugins, normalized_config)
+                        else
+                            logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin[1]))
+                        end
                     end
                 end
             end
