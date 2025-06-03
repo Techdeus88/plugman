@@ -280,9 +280,9 @@ end
 local function is_valid_github_url(url)
     -- Basic GitHub URL patterns
     local patterns = {
-        '^https?://github%.com/[%w-]+/[%w-]+/?$',  -- https://github.com/user/repo
-        '^github%.com/[%w-]+/[%w-]+/?$',           -- github.com/user/repo
-        '^[%w-]+/[%w-]+$'                          -- user/repo
+        '^https?://github%.com/[%w-]+/[%w-]+/?$', -- https://github.com/user/repo
+        '^github%.com/[%w-]+/[%w-]+/?$',          -- github.com/user/repo
+        '^[%w-]+/[%w-]+$'                         -- user/repo
     }
 
     for _, pattern in ipairs(patterns) do
@@ -319,7 +319,7 @@ end
 ---@return table Plugins configuration
 function M.load_plugins(dir_path)
     local plugins = {}
-    
+
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Plugins directory does not exist: %s', dir_path))
@@ -328,7 +328,6 @@ function M.load_plugins(dir_path)
 
     -- Get all files in directory
     local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
-    print(vim.inspect(files))
     logger.debug(string.format('Found %d files in %s', #files, dir_path))
 
     -- Process each file
@@ -360,7 +359,7 @@ function M.load_plugins(dir_path)
                 else
                     logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_config[1]))
                 end
-            -- Handle table of plugins
+                -- Handle table of plugins
             elseif type(plugin_config) == 'table' then
                 for _, plugin in ipairs(plugin_config) do
                     if type(plugin[1]) == "string" and is_valid_github_url(plugin[1]) then
@@ -400,7 +399,6 @@ end
 ---@param paths table Configuration containing paths
 ---@return table All loaded plugins
 function M.load_all(paths)
-    print('Paths: ', vim.inspect(paths))
     local all_plugins = {}
 
     if not paths then
@@ -412,6 +410,7 @@ function M.load_all(paths)
     if paths.modules_path then
         logger.info(string.format('Loading modules from: %s', paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
+        print(vim.inspect(modules))
         for _, plugin in ipairs(modules) do
             if plugin then
                 table.insert(all_plugins, plugin)
@@ -425,6 +424,7 @@ function M.load_all(paths)
     if paths.plugins_path then
         logger.info(string.format('Loading plugins from: %s', paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
+        print(vim.inspect(plugins))
         for _, plugin in ipairs(plugins) do
             if plugin then
                 table.insert(all_plugins, plugin)
