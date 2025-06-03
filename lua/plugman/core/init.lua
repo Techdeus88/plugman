@@ -34,9 +34,10 @@ function Plugin:validate()
         return false
     end
 
-    -- Validate source format
-    if not plugin.source:match('^[%w-]+/[%w-]+$') then
-        logger.error(string.format("Plugin %s has invalid source format: %s", plugin.name, vim.inspect(plugin)))
+    -- Validate source format using utils
+    local utils = require("plugman.utils")
+    if not utils.is_valid_github_url(plugin.source) then
+        logger.error(string.format("Plugin %s has invalid source format: %s", plugin.name, plugin.source))
         return false
     end
 
