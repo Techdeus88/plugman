@@ -386,12 +386,13 @@ function M.load_all(paths)
     if paths.modules_path then
         logger.info(string.format('Loading modules from: %s', paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
-        print('Modules: ', vim.inspect(modules))
-        for _, plugin in ipairs(modules) do
-            if plugin then
-                table.insert(all_plugins, plugin)
-            end
-        end
+        all_plugins = vim.list_extend("force", all_plugins, modules)
+        -- print('Modules: ', vim.inspect(modules))
+        -- for _, plugin in ipairs(modules) do
+        --     if plugin then
+        --         table.insert(all_plugins, plugin)
+        --     end
+        -- end
     else
         logger.warn('No modules_path configured')
     end
@@ -400,18 +401,18 @@ function M.load_all(paths)
     if paths.plugins_path then
         logger.info(string.format('Loading plugins from: %s', paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
-        print('Plugins: ', vim.inspect(plugins))
-        for _, plugin in ipairs(plugins) do
-            if plugin then
-                table.insert(all_plugins, plugin)
-            end
-        end
+        all_plugins = vim.list_extend("force", all_plugins, plugins)
+        -- print('Plugins: ', vim.inspect(plugins))
+        -- for _, plugin in ipairs(plugins) do
+        --     if plugin then
+        --         table.insert(all_plugins, plugin)
+        --     end
+        -- end
     else
         logger.warn('No plugins_path configured')
     end
 
     logger.info(string.format('Total plugins retrieved: %d', #all_plugins))
-    print(string.format('All Plugins: %s %s ', #all_plugins, vim.inspect(all_plugins)))
     return all_plugins
 end
 
