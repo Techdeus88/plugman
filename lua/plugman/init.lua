@@ -1,7 +1,7 @@
 ---@class Plugman
----@field private _plugins table<string, PlugmanPlugin>
----@field private _lazy_plugins table<string, PlugmanPlugin>
----@field private _loaded table<string, boolean>
+---@field public  _plugins table<string, PlugmanPlugin>
+---@field public  _lazy_plugins table<string, PlugmanPlugin>
+---@field public  _loaded table<string, boolean>
 ---@field private _setup_done boolean
 local M = {}
 
@@ -121,10 +121,10 @@ function M.add(plugin)
             if not M._plugins[dep_name] and not M._loaded[dep_name] then
                 logger.debug(string.format('Loading dependency: %s', dep_source))
                 local Dep = require("plugman.core").normalize_plugin(dep_source, dep, "dependent")
-                print(vim.inspect(Dep))
                 if Dep then
                     -- Store dependency
                     M._plugins[Dep.name] = Dep
+                    print(vim.inspect(M._plugins))
                     -- Load dependency
                     local ok, err = pcall(M._load_plugin_immediately, Dep)
                     if not ok then

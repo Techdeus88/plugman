@@ -257,7 +257,7 @@ end
 function M.ensure_dependency_loaded(dep)
     -- Check if dependency is already loaded
     local plugman = require('plugman')
-    if plugman._loaded[dep.na] or dep.loaded then
+    if plugman._loaded[dep.name] or dep.added then
         return
     end
 
