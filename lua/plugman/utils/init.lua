@@ -1,5 +1,7 @@
 local M = {}
 
+local logger = require("lua.plugman.utils.logger")
+
 ---Convert value to boolean
 ---@param value any Value to convert
 ---@return boolean
@@ -40,11 +42,17 @@ function M.is_valid_github_url(url)
         '^[%w-]+/[%w-%.]+$'                          -- user/repo
     }
 
+    -- Debug logging
+    logger.debug(string.format('Validating GitHub URL: %s', url))
+
     for _, pattern in ipairs(patterns) do
         if url:match(pattern) then
+            logger.debug(string.format('URL %s matched pattern: %s', url, pattern))
             return true
         end
     end
+
+    logger.debug(string.format('URL %s did not match any patterns', url))
     return false
 end
 
@@ -52,10 +60,16 @@ end
 ---@param url string GitHub URL
 ---@return string|nil, string|nil username and repository name
 function M.extract_github_info(url)
+    -- Try full URL pattern first
     local username, repo = url:match('github%.com/([%w-]+)/([%w-%.]+)')
     if not username then
+        -- Try short format (user/repo)
         username, repo = url:match('([%w-]+)/([%w-%.]+)')
     end
+
+    -- Debug logging
+    logger.debug(string.format('Extracted GitHub info from %s: username=%s, repo=%s', url, username or 'nil', repo or 'nil'))
+    
     return username, repo
 end
 

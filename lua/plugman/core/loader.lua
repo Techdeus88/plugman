@@ -223,6 +223,7 @@ end
 ---@return table Plugin configurations
 function M.load_plugin_files(dir_path)
     local plugins = {}
+    
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Directory does not exist: %s', dir_path))
@@ -242,24 +243,32 @@ function M.load_plugin_files(dir_path)
             -- Handle single plugin config
             if type(plugin_configs[1]) == "string" then
                 logger.debug(string.format('Found string config: %s', plugin_configs[1]))
-                -- Convert boolean values
-                plugin_configs.lazy = utils.to_boolean(plugin_configs.lazy)
-                plugin_configs.source = plugin_configs[1]
-                plugin_configs.name = plugin_configs.name or plugin_configs[1]:match('([^/]+)$')
-                logger.debug(string.format('Adding plugin: %s', vim.inspect(plugin_configs)))
-                table.insert(plugins, plugin_configs)
-                -- Handle table of plugins
+                if utils.is_valid_github_url(plugin_configs[1]) then
+                    -- Convert boolean values
+                    plugin_configs.lazy = utils.to_boolean(plugin_configs.lazy)
+                    plugin_configs.source = plugin_configs[1]
+                    plugin_configs.name = plugin_configs.name or plugin_configs[1]:match('([^/]+)$')
+                    logger.debug(string.format('Adding plugin: %s', vim.inspect(plugin_configs)))
+                    table.insert(plugins, plugin_configs)
+                else
+                    logger.warn(string.format('Invalid GitHub URL: %s', plugin_configs[1]))
+                end
+            -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
                 logger.debug(string.format('Found table config: %s', vim.inspect(plugin_configs)))
                 for _, plugin_config in ipairs(plugin_configs) do
                     if type(plugin_config[1]) == "string" then
                         logger.debug(string.format('Found string in table: %s', plugin_config[1]))
+                        if utils.is_valid_github_url(plugin_config[1]) then
                             -- Convert boolean values
                             plugin_config.lazy = utils.to_boolean(plugin_config.lazy)
                             plugin_config.source = plugin_config[1]
                             plugin_config.name = plugin_config.name or plugin_config[1]:match('([^/]+)$')
                             logger.debug(string.format('Adding plugin from table: %s', vim.inspect(plugin_config)))
                             table.insert(plugins, plugin_config)
+                        else
+                            logger.warn(string.format('Invalid GitHub URL in table: %s', plugin_config[1]))
+                        end
                     else
                         logger.warn(string.format('Invalid plugin config in table: %s', vim.inspect(plugin_config)))
                     end
