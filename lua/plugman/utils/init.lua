@@ -2,6 +2,33 @@ local M = {}
 
 local logger = require("lua.plugman.utils.logger")
 
+
+
+
+function M.get_timing_function(plugin, phase)
+    if phase.timing == "now" then
+      return MiniDeps.now
+    end
+    if phase.timing == "later" then
+      return MiniDeps.later
+    end
+    return (plugin.lazy ~= nil and plugin.lazy) and MiniDeps.later or MiniDeps.now
+  end
+
+
+---Safely call functions that do not use require
+---@param fn function
+---@param ... any
+---@return any
+function M.safe_pcall(fn, ...)
+    local ok, result = pcall(fn, ...)
+    if not ok then
+      vim.notify(string.format("Error: %s", result), vim.log.levels.ERROR)
+      return nil
+    end
+    return result
+  end
+
 ---Convert value to boolean
 ---@param value any Value to convert
 ---@return boolean

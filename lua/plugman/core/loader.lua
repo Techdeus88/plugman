@@ -56,7 +56,6 @@ function M.load_plugin(plugin)
         logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
         local deps_success, deps_err = pcall(mini_deps.add, {
             source = plugin.source,
-            name = plugin.name,
             depends = plugin.depends,
             monitor = plugin.monitor,
             checkout = plugin.checkout,
@@ -139,20 +138,100 @@ function M._post_checkout_hook(name, opts)
     end
 end
 
+-- Constants
+local SETUP_PHASES = {
+    {
+        name = 'init',
+        condition = function(c) return c.init ~= nil end,
+        action = function(c) c.init() end,
+        timing = 'now'
+    },
+    {
+        name = 'config',
+        condition = function(c) return (c.config ~= nil) or (c.opts ~= nil) end,
+        action = function(c)
+            local merged_opts = M._merge_config(c)
+            M._process_config(c, merged_opts)
+        end,
+        timing = 'dynamic'
+    },
+    {
+        name = 'keys',
+        condition = function(c) return c.keys ~= nil end,
+        action = function(c) M._setup_keymaps(c) end,
+        timing = 'later'
+    },
+    {
+        name = 'post',
+        condition = function(c) return c.post ~= nil end,
+        action = function(c) c.post() end,
+        timing = 'later'
+    }
+}
+
+function M.setup_with_boolean(opts)
+    return opts
+end
+
+function M.setup_with_opts(plugin, opts)
+    local mod_name = plugin.require or plugin.name
+    local ok, mod = pcall(require, mod_name)
+    if not ok then
+        vim.notify(string.format('Failed to require plugin: ', plugin.name), vim.log.levels.ERROR,
+            { title = "Techdeus IDE Error" })
+        return
+    end
+    return mod.setup(opts)
+end
+
+function M.setup_with_string(config)
+    vim.cmd(config)
+end
+
+-- Configuration Processing
+function M._merge_config(plugin)
+    if not (plugin.config or plugin.opts) then return {} end
+
+    local default_opts = type(plugin.opts) == 'table' and plugin.opts or {}
+    local config_opts = type(plugin.config) == 'table' and plugin.config or {}
+
+    return vim.tbl_deep_extend('force', default_opts, config_opts)
+end
+
+function M._process_config(plugin, merged_opts)
+    if type(plugin.config(plugin, merged_opts)) then
+        return plugin.config(plugin, merged_opts)
+    elseif type(plugin.config) == 'boolean' then
+        return M.setup_with_boolean(plugin.config)
+    elseif type(plugin.config) == 'string' then
+        return M.setup_with_string(plugin.config)
+    elseif merged_opts then
+        return M.setup_with_opts(plugin, merged_opts)
+    end
+end
+
 ---Setup plugin configuration
 ---@param plugin PlugmanPlugin Plugin
 function M._setup_plugin_config(plugin)
     if not plugin.config then
         return
     end
-
-    local success, err = pcall(function()
-        if type(plugin.config) == 'function' then
-            plugin.config()
-        elseif type(plugin.config) == 'string' then
-            vim.cmd(plugin.config)
+    -- Process setup phases
+    for _, phase in ipairs(SETUP_PHASES) do
+        if phase.condition(plugin) then
+            local timing_fn = utils.get_timing_function(plugin, phase)
+            timing_fn(function()
+                utils.safe_pcall(phase.action, plugin)
+                vim.notify(string.format("Phase %s completed for %s", phase.name, plugin.name), "plugins")
+            end)
         end
-    end)
+    end
+
+    local success, err = pcall(
+        function()
+            local merged_opts = M.merge_config(plugin.config)
+            M.process_config(plugin, merged_opts)
+        end)
 
     if not success then
         logger.error(string.format('Failed to configure %s: %s', plugin.name, err))
@@ -163,25 +242,34 @@ end
 ---Setup keymaps for plugin
 ---@param plugin PlugmanPlugin Plugin
 function M._setup_keymaps(plugin)
-    local name = plugin.name
-    if not plugin.keys then
+    local module_keys = plugin.keys
+    if not module_keys or type(module_keys) ~= "table" and type(module_keys) ~= "function" then
+        error "Keys must be a table or function"
+        return false
+    end
+
+    local keys = type(module_keys) == "function" and (pcall(module_keys)) or module_keys
+    if type(keys) ~= "table" then
+        vim.notify(string.format("Invalid keys format for %s", plugin.name), "plugins")
         return
     end
-    local keys = type(plugin.keys) == 'table' and plugin.keys or { plugin.keys }
 
-    for _, key in ipairs(keys) do
-        if type(key) == 'string' then
-            -- Simple keymap
-            vim.keymap.set('n', key, '<cmd>echo "' .. name .. ' keymap"<cr>')
-        elseif type(key) == 'table' then
-            -- Complex keymap
-            local mode = key.mode or 'n'
-            local lhs = key[1] or key.lhs
-            local rhs = key[2] or key.rhs
-            local keyopts = key.opts or {}
-            keyopts.desc = keyopts.desc or (name .. ' keymap')
-
-            vim.keymap.set(mode, lhs, rhs, keyopts)
+    for _, keymap in ipairs(keys) do
+        if type(keymap) ~= "table" or not keymap[1] then
+            vim.notify(string.format("Invalid keymap entry for %s", plugin.name), "plugins")
+        else
+            local opts = {
+                buffer = keymap.buffer,
+                desc = keymap.desc,
+                silent = keymap.silent ~= false,
+                remap = keymap.remap,
+                noremap = keymap.noremap ~= false,
+                nowait = keymap.nowait,
+                expr = keymap.expr,
+            }
+            for _, mode in ipairs(keymap.mode or { "n" }) do
+                vim.keymap.set(mode, keymap[1], keymap[2], opts)
+            end
         end
     end
 end
@@ -223,7 +311,7 @@ end
 ---@return table Plugin configurations
 function M.load_plugin_files(dir_path)
     local plugins = {}
-    
+
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Directory does not exist: %s', dir_path))
@@ -253,7 +341,7 @@ function M.load_plugin_files(dir_path)
                 else
                     logger.warn(string.format('Invalid GitHub URL: %s', plugin_configs[1]))
                 end
-            -- Handle table of plugins
+                -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
                 logger.debug(string.format('Found table config: %s', vim.inspect(plugin_configs)))
                 for _, plugin_config in ipairs(plugin_configs) do
