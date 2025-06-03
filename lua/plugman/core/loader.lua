@@ -391,8 +391,9 @@ function M.load_all(paths)
     if paths.modules_path then
         logger.info(string.format('Loading modules from: %s', paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
+        print('Modules: ', vim.inspect(modules))
         all_plugins = vim.list_extend("force", all_plugins, modules)
-        -- print('Modules: ', vim.inspect(modules))
+        print('Modules: ', vim.inspect(all_plugins))
         -- for _, plugin in ipairs(modules) do
         --     if plugin then
         --         table.insert(all_plugins, plugin)
@@ -406,7 +407,9 @@ function M.load_all(paths)
     if paths.plugins_path then
         logger.info(string.format('Loading plugins from: %s', paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
+        print('Modules: ', vim.inspect(plugins))
         all_plugins = vim.list_extend("force", all_plugins, plugins)
+        print('Modules: ', vim.inspect(all_plugins))
         -- print('Plugins: ', vim.inspect(plugins))
         -- for _, plugin in ipairs(plugins) do
         --     if plugin then
