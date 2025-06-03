@@ -237,7 +237,6 @@ end
 ---@param file_path string Path to the module file
 ---@return table|nil Module configuration
 local function load_file(file_path)
-
     local success, module_configs = pcall(dofile, file_path)
     if not success then
         logger.error(string.format('Failed to load module file %s: %s', file_path, module_configs))
@@ -276,7 +275,7 @@ end
 ---@return table Plugin configurations
 function M.load_plugin_files(dir_path)
     local plugins = {}
-    
+
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Directory does not exist: %s', dir_path))
@@ -297,7 +296,7 @@ function M.load_plugin_files(dir_path)
                 -- Convert boolean values
                 plugin_configs.lazy = to_boolean(plugin_configs.lazy)
                 table.insert(plugins, plugin_configs)
-            -- Handle table of plugins
+                -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
                 for _, plugin_config in ipairs(plugin_configs) do
                     if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
@@ -319,7 +318,7 @@ end
 ---@return table All loaded plugins
 function M.load_all(paths)
     local all_plugins = {}
-    
+
     if not paths then
         logger.error('No paths provided to load_all')
         return all_plugins
