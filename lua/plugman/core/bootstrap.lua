@@ -1,3 +1,4 @@
+-- This module wraps MiniDeps functionality
 local M = {}
 
 -- Constants
@@ -6,8 +7,6 @@ local MINIDEPS_PATH = vim.fn.stdpath("data") .. "/site/pack/deps/start/mini.deps
 
 local logger = require('plugman.utils.logger')
 
--- This module wraps MiniDeps functionality
--- Installs MiniDeps if it is unavailable
 
 local function install_minideps()
     local function is_minideps_installed()
@@ -30,6 +29,7 @@ local function install_minideps()
         return success
     end
 
+    -- Installs MiniDeps if it is unavailable
     if not is_minideps_installed() then
         print("Installing MiniDeps...")
         local success = install()

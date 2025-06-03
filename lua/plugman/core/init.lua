@@ -1,9 +1,11 @@
+--Start-of-file--
 local M = {}
 
 local logger = require("plugman.utils.logger")
 
 local Plugin = {}
 Plugin.__index = Plugin
+
 function Plugin:new(n_plugin)
     local plugin = setmetatable(vim.tbl_deep_extend("force", vim.deepcopy(n_plugin), {
         enabled = true,
@@ -23,12 +25,12 @@ end
 function Plugin:validate()
     local plugin = self
     if not plugin.name then
-        logger:error("Plugin spec missing required 'name' field")
+        logger.error("Plugin spec missing required 'name' field")
         return false
     end
 
     if not plugin.source then
-        logger:error("Plugin %s missing required 'source' field", plugin.name)
+        logger.error(string.format("Plugin %s missing required 'source' field", plugin.name))
         return false
     end
     -- if plugin.depends then
@@ -82,4 +84,6 @@ function M._get_next_order()
     M._order = (M._order or 0) + 1
     return M._order
 end
+
 return M
+--End-of-file--

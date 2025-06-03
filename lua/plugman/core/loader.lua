@@ -35,6 +35,7 @@ end
 ---@param opts PlugmanPlugin Plugin options
 ---@return boolean Success status
 function M.load_plugin(name, opts)
+    local mini_deps = require("plugman.core.bootstrap")
     logger.debug(string.format('Loading plugin: %s', name))
 
     local success, err = pcall(function()
@@ -51,26 +52,13 @@ function M.load_plugin(name, opts)
         end
 
         -- Use MiniDeps to add the plugin
-        local success, _ = pcall(MiniDeps.add, {
+        local success, _ = pcall(mini_deps.add, {
             source = opts.source,
             name = opts.name,
             depends = opts.depends,
             monitor = opts.monitor,
             checkout = opts.checkout,
             hooks = opts.hooks,
-            -- pre_install = function()
-            --     M._pre_install_hook(name, opts.hooks)
-            -- end,
-            -- pre_checkout = function()
-            --     M._pre_checkout_hook(name, opts.hooks)
-            -- end,
-            -- post_install = function()
-            --     M._post_install_hook(name, opts.hooks)
-            -- end,
-            -- post_checkout = function()
-            --     M._post_checkout_hook(name, opts.hooks)
-            -- end
-            -- }
         })
 
         if not success then
@@ -109,6 +97,20 @@ end
 --       (might not yet exist on disk).
 --     - <source> (`string`) - resolved <source> from spec.
 --     - <name> (`string`)   - resolved <name> from spec.
+
+-- pre_install = function()
+--     M._pre_install_hook(name, opts.hooks)
+-- end,
+-- pre_checkout = function()
+--     M._pre_checkout_hook(name, opts.hooks)
+-- end,
+-- post_install = function()
+--     M._post_install_hook(name, opts.hooks)
+-- end,
+-- post_checkout = function()
+--     M._post_checkout_hook(name, opts.hooks)
+-- end
+-- }
 
 ---Post install hook
 ---@param name string Plugin name
@@ -228,12 +230,12 @@ end
 ---@param file_path string Path to the module file
 ---@return table|nil Module configuration
 local function load_module_file(file_path)
-    local success, module_config = pcall(dofile, file_path)
+    local success, module_configs = pcall(dofile, file_path)
     if not success then
-        logger.error(string.format('Failed to load module file %s: %s', file_path, module_config))
+        logger.error(string.format('Failed to load module file %s: %s', file_path, module_configs))
         return nil
     end
-    return module_config
+    return module_configs
 end
 
 ---Load all modules from a directory
@@ -242,6 +244,13 @@ end
 function M.load_modules(dir_path)
     local modules = {}
     local handle = vim.loop.fs_scandir(dir_path)
+    print(string.format("Handle: s", vim.inspect(handle)))
+
+    -- Check if directory exists
+    if vim.fn.isdirectory(dir_path) == 0 then
+        logger.warn(string.format('Plugins directory does not exist: %s', dir_path))
+        return modules
+    end
 
     if not handle then
         logger.error(string.format('Failed to scan directory: %s', dir_path))
@@ -252,6 +261,7 @@ function M.load_modules(dir_path)
     while name do
         if f_type == 'file' and name:match('%.lua$') then
             local file_path = dir_path .. '/' .. name
+            logger.debug(string.format('Loading module file: %s', file_path))
             local module_config = load_module_file(file_path)
             if module_config then
                 -- If the module returns a table of plugins
@@ -264,6 +274,7 @@ function M.load_modules(dir_path)
         end
         name, f_type = vim.loop.fs_scandir_next(handle)
     end
+    print('Modules: ', vim.inspect(modules))
     return modules
 end
 
@@ -280,6 +291,7 @@ function M.load_plugins(dir_path)
     end
 
     local handle = vim.loop.fs_scandir(dir_path)
+    print(string.format("Handle: s", vim.inspect(handle)))
     if not handle then
         logger.error(string.format('Failed to scan directory: %s', dir_path))
         return plugins
@@ -289,8 +301,10 @@ function M.load_plugins(dir_path)
     while name do
         if f_type == 'file' and name:match('%.lua$') then
             local file_path = dir_path .. '/' .. name
-            logger.debug(string.format('Loading plugin file: %s', file_path))
+            local is_dir = vim.fn.isdirectory(file_path) == 1
+            print(string.format("Is Directory: %s", is_dir))
             local plugin_config = load_module_file(file_path)
+            logger.debug(string.format('Loading plugin file: %s', file_path))
             for _, plugin in ipairs(plugin_config) do
                 logger.debug(string.format('Found plugin in table: %s', plugin.source))
                 table.insert(plugins, plugin)
@@ -300,6 +314,7 @@ function M.load_plugins(dir_path)
     end
 
     logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
+    print('Plugins: ', vim.inspect(plugins))
     return plugins
 end
 
@@ -307,6 +322,7 @@ end
 ---@param paths table Configuration containing paths
 ---@return table All loaded plugins
 function M.load_all(paths)
+    print('Paths: ', vim.inspect(paths))
     local all_plugins = {}
 
     if not paths then
@@ -319,7 +335,7 @@ function M.load_all(paths)
         logger.info(string.format('Loading modules from: %s', paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
         for _, plugin in ipairs(modules) do
-            if plugin.source then
+            if plugin then
                 table.insert(all_plugins, plugin)
             end
         end
