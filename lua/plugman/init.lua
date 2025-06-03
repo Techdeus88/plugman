@@ -36,6 +36,7 @@ M._setup_done = false
 ---@field enabled? boolean Whether plugin is enabled
 ---@field require? string Require string for auto initialization and loading
 ---@field config? function|table Plugin configuration
+---@field opts? table Plugin options
 
 ---Setup Plugman with user configuration
 ---@param opts? table Configuration options
