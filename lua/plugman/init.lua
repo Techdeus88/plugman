@@ -51,12 +51,10 @@ function M.setup(opts)
     events.setup()
     M._setup_done = true
     logger.info('Plugman initialized successfully')
-    notify.info('Plugman ready!')
     M.setup_plugins(opts.paths)
 end
 
 function M.setup_plugins(paths)
-    notify.info('Setting up plugins!')
     -- Load plugins from configured directories
     local all_plugins = loader.load_all(paths)
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
