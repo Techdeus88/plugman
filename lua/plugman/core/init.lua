@@ -35,7 +35,7 @@ function Plugin:validate()
     end
 
     -- Validate source format
-    if not plugin.source:match('^https?://') and not plugin.source:match('^[%w-]+/[%w-]+$') then
+    if not plugin.source:match('^[%w-]+/[%w-]+$') then
         logger.error(string.format("Plugin %s has invalid source format: %s", plugin.name, plugin.source))
         return false
     end
