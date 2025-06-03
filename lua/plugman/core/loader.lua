@@ -261,6 +261,7 @@ function M.ensure_dependency_loaded(dep)
         return
     end
 
+    print(vim.inspect(dep))
     -- Try to load dependency
     if plugman._plugins[dep.name] then
         M.load_plugin(dep)

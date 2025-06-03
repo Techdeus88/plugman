@@ -124,7 +124,6 @@ function M.add(plugin)
                 if Dep then
                     -- Store dependency
                     M._plugins[Dep.name] = Dep
-                    print(vim.inspect(M._plugins))
                     -- Load dependency
                     local ok, err = pcall(M._load_plugin_immediately, Dep)
                     if not ok then
