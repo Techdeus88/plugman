@@ -361,8 +361,8 @@ function M.load_plugins(dir_path)
                 --     }
                 --     logger.debug(string.format('Found plugin: %s/%s', username, repo))
                 --     table.insert(plugins, normalized_config)
-            -- else
-            --     logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_configs[1]))
+                -- else
+                --     logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_configs[1]))
             end
             -- Handle table of plugins
         elseif type(plugin_configs) == 'table' then
