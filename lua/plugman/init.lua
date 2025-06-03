@@ -59,7 +59,7 @@ function M.setup_plugins(paths)
     notify.info('Setting up plugins!')
     -- Load plugins from configured directories
     local all_plugins = loader.load_all(paths)
-    print(vim.inspect(all_plugins))
+    print(vim.inspect('All Plugins: ', all_plugins))
     for _, plugin_spec in ipairs(all_plugins) do
         -- Format plugin spec and transform to PlugmanPlugin
         local Plugin = require("plugman.core").normalize_plugin(plugin_spec[1], plugin_spec, "plugin")
