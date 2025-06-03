@@ -29,11 +29,15 @@ end
 ---@param url string URL to validate
 ---@return boolean
 function M.is_valid_github_url(url)
+    if not url or type(url) ~= 'string' then
+        return false
+    end
+
     -- Basic GitHub URL patterns
     local patterns = {
-        '^https?://github%.com/[%w-]+/[%w-]+/?$', -- https://github.com/user/repo
-        '^github%.com/[%w-]+/[%w-]+/?$',          -- github.com/user/repo
-        '^[%w-]+/[%w-]+$'                         -- user/repo
+        '^https?://github%.com/[%w-]+/[%w-%.]+/?$',  -- https://github.com/user/repo
+        '^github%.com/[%w-]+/[%w-%.]+/?$',           -- github.com/user/repo
+        '^[%w-]+/[%w-%.]+$'                          -- user/repo
     }
 
     for _, pattern in ipairs(patterns) do
@@ -48,9 +52,9 @@ end
 ---@param url string GitHub URL
 ---@return string|nil, string|nil username and repository name
 function M.extract_github_info(url)
-    local username, repo = url:match('github%.com/([%w-]+)/([%w-]+)')
+    local username, repo = url:match('github%.com/([%w-]+)/([%w-%.]+)')
     if not username then
-        username, repo = url:match('([%w-]+)/([%w-]+)')
+        username, repo = url:match('([%w-]+)/([%w-%.]+)')
     end
     return username, repo
 end

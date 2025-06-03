@@ -251,7 +251,7 @@ function M.load_plugin_files(dir_path)
                     logger.debug(string.format('Adding plugin: %s', vim.inspect(plugin_configs)))
                     table.insert(plugins, plugin_configs)
                 else
-                    logger.warn(string.format('Invalid GitHub URL: %s', plugin_configs[1]))
+                    logger.warn(string.format('Invalid GitHub URL: %s', plugin_configs.source))
                 end
             -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
