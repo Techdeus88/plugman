@@ -86,7 +86,7 @@ function M.add(plugin)
                 -- Store dependency
                 M._plugins[Dep.name] = Dep
                 -- Load dependency
-                local ok, _ = pcall(M._load_plugin_immediately, Dep.name, Dep)
+                local ok, _ = pcall(M._load_plugin_immediately, Dep)
                 if not ok then
                     logger.warn(string.format('Dependency %s not loaded for %s', Dep.name, plugin.name))
                 end
@@ -100,7 +100,7 @@ function M.add(plugin)
         M._lazy_plugins[plugin.name] = plugin
         M._setup_lazy_loading(plugin.name, plugin)
     else
-        local ok, _ = pcall(M._load_plugin_immediately, plugin.name, plugin)
+        local ok, _ = pcall(M._load_plugin_immediately, plugin)
         if not ok then
             logger.warn(string.format('Plugin %s not loaded', plugin.name))
         end
@@ -167,22 +167,22 @@ end
 ---Load plugin immediately
 ---@param name string Plugin name
 ---@param opts PlugmanPlugin Plugin options
-function M._load_plugin_immediately(name, opts)
-    if M._loaded[name] then
+function M._load_plugin_immediately(plugin)
+    if M._loaded[plugin.name] then
         return
     end
 
-    local ok, _ = pcall(function() loader.load_plugin(name, opts) end)
+    local ok, _ = pcall(function() loader.load_plugin(plugin) end)
 
     if not ok then
-        logger.warn(string.format("Plugin %s did not load"))
+        logger.warn(string.format("Plugin %s did not load", plugin.name))
     end
 
-    M._loaded[name] = true
-    logger.info(string.format('Loaded plugin: %s', name))
+    M._loaded[plugin.name] = true
+    logger.info(string.format('Loaded plugin: %s', plugin.name))
 
     -- Cache the loaded state
-    cache.set_plugin_loaded(name, true)
+    cache.set_plugin_loaded(plugin.name, true)
 end
 
 ---Setup lazy loading for a plugin

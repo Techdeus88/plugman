@@ -31,59 +31,51 @@ function M.load_by_priority(plugins)
 end
 
 ---Load a single plugin
----@param name string Plugin name
----@param opts PlugmanPlugin Plugin options
+---@param plugin PlugmanPlugin plugin
 ---@return boolean Success status
-function M.load_plugin(name, opts)
+function M.load_plugin(plugin)
     local mini_deps = require("plugman.core.bootstrap")
-    logger.debug(string.format('Loading plugin: %s', name))
+    logger.debug(string.format('Loading plugin: %s', plugin.name))
 
     local success, err = pcall(function()
         -- Load dependencies first
-        if opts.depends then
-            for _, dep in ipairs(opts.depends) do
+        if plugin.depends then
+            for _, dep in ipairs(plugin.depends) do
                 M.ensure_dependency_loaded(dep)
             end
         end
 
         -- Run init function
-        if opts.init then
-            pcall(opts.init)
+        if plugin.init then
+            pcall(plugin.init)
         end
 
         -- Use MiniDeps to add the plugin
-        local success, _ = pcall(mini_deps.add, {
-            source = opts.source,
-            name = opts.name,
-            depends = opts.depends,
-            monitor = opts.monitor,
-            checkout = opts.checkout,
-            hooks = opts.hooks,
-        })
+        local success, _ = pcall(mini_deps.add, plugin)
 
         if not success then
-            logger.error(string.format('Failed to load plugin: %s', name))
-            notify.error(string.format('Failed to load %s', name))
+            logger.error(string.format('Failed to load plugin: %s', plugin.name))
+            notify.error(string.format('Failed to load %s', plugin.name))
             return
         end
 
         -- Setup plugin configuration
         -- Run config
-        M._setup_plugin_config(name, opts)
+        M._setup_plugin_config(plugin.name, plugin)
         -- Setup keymaps
-        M._setup_keymaps(name, opts)
+        M._setup_keymaps(plugin.name, plugin)
         -- Run post function
-        if opts.post then
-            pcall(opts.post)
+        if plugin.post then
+            pcall(plugin.post)
         end
     end)
 
     if not success then
-        logger.error(string.format('Failed to load %s: %s', name, err))
+        logger.error(string.format('Failed to load %s: %s', plugin.name, err))
         return false
     end
 
-    logger.info(string.format('Successfully loaded: %s', name))
+    logger.info(string.format('Successfully loaded: %s', plugin.name))
     return true
 end
 

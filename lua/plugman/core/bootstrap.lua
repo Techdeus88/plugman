@@ -64,10 +64,9 @@ function M.setup(opts)
 end
 
 ---Add plugin using MiniDeps
----@param source string Plugin source
----@param opts? table Plugin options for MiniDeps
+---@param plugin PlugmanPlugin plugin
 ---@return boolean Success status
-function M.add(source, opts)
+function M.add(plugin)
     if not M.MiniDeps then
         logger.error('MiniDeps not initialized')
         return false
@@ -75,16 +74,16 @@ function M.add(source, opts)
 
     local success, err = pcall(function()
         M.MiniDeps.add({
-            source = source,
-            depends = opts and opts.depends,
-            hooks = opts and opts.hooks,
-            monitor = opts and opts.monitor,
-            checkout = opts and opts.checkout
+            source = plugin.source,
+            depends = plugin.depends,
+            hooks = plugin.hooks,
+            monitor = plugin.monitor,
+            checkout = plugin.checkout
         })
     end)
 
     if not success then
-        logger.error(string.format('MiniDeps failed to add %s: %s', source, err))
+        logger.error(string.format('MiniDeps failed to add %s: %s', plugin.source, err))
         return false
     end
 
