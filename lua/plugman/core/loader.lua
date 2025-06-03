@@ -274,15 +274,14 @@ function M.load_modules(dir_path)
         local module_configs = load_module_file(file_path)
         if module_configs then
             -- If the module returns a table of plugins
-            if type(module_configs) == 'table' then
+            if type(module_configs[1]) == "string" and is_valid_github_url(module_configs[1]) then
+                table.insert(modules, module_configs)
                 print(vim.inspect(module_configs))
+            elseif type(module_configs) == 'table' then
                 for _, module_config in ipairs(module_configs) do
                     table.insert(modules, module_config)
+                    print(vim.inspect(module_config))
                 end
-            elseif type(module_configs[1]) == "string" and is_valid_github_url(module_configs[1]) then
-                print(vim.inspect(module_configs))
-                print(vim.inspect(module_configs[1]))
-                table.insert(modules, module_configs)
             end
         end
     end
