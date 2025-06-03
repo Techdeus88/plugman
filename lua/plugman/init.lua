@@ -17,7 +17,7 @@ M._plugins = {}
 M._lazy_plugins = {}
 M._loaded = {}
 M._setup_done = false
-
+M.opts = nil
 ---@class PlugmanPlugin
 ---@field source string Plugin source (GitHub repo, local path, etc.)
 ---@field name? string Plugin name extracted from source
@@ -59,7 +59,7 @@ function M.setup(opts)
     
     M._setup_done = true
     logger.info('Plugman initialized successfully')
-    
+    M.opts = opts
     logger.debug('Starting plugin setup')
     M.setup_plugins(opts.paths)
 end

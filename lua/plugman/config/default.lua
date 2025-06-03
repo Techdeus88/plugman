@@ -39,9 +39,8 @@ return {
 
     -- Plugin and module paths
     paths = {
+        plugins_dir = "plugins",
         -- Path to modules directory (for module-based configuration)
-        modules_path = vim.fn.stdpath('config') .. '/lua/modules',
-        -- Path to plugins directory (for individual plugin configurations)
-        plugins_path = vim.fn.stdpath('config') .. '/lua/plugins'
+        plugins_path = vim.fn.stdpath('config') .. '/lua'
     }
 }

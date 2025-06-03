@@ -181,14 +181,14 @@ function M._merge_config(plugin)
 end
 
 function M._process_config(plugin, merged_opts)
-    if type(plugin.config(plugin, merged_opts)) then
+    if type(plugin.config) == 'function' then
         return plugin.config(plugin, merged_opts)
     elseif type(plugin.config) == 'boolean' then
         return M._setup_with_boolean(plugin.config)
     elseif type(plugin.config) == 'string' then
-        return M._setup_with_string(plugin.config)
+        return M._setup_with_string(plugin.confiig)
     elseif merged_opts then
-        return M._setup_with_opts(plugin, merged_opts)
+        return M.setup_with_opts(plugin, merged_opts)
     end
 end
 
@@ -351,44 +351,30 @@ function M.load_plugin_files(dir_path)
 end
 
 ---Load all plugins from configured directories
----@param paths table Configuration containing paths
----@return table All loaded plugins
-function M.load_all(paths)
+---@return table|nil All loaded plugins
+function M.load_all()
     local all_plugins = {}
+    local config_opts = require("plugman").opts
 
-    if not paths then
-        logger.error('No paths provided to load_all')
-        return all_plugins
+    if not config_opts.paths then
+        logger.warn('No paths provided to load_all, using default plugins directory')
+        return nil
     end
 
-    logger.debug(string.format('Loading plugins with paths: %s', vim.inspect(paths)))
-
-    -- Load from modules directory if configured
-    if paths.modules_path then
-        logger.info(string.format('Loading from modules directory: %s', paths.modules_path))
-        local modules = M.load_plugin_files(paths.modules_path)
-        if #modules > 0 then
-            logger.debug(string.format('Adding %d modules to all_plugins', #modules))
-            vim.list_extend(all_plugins, modules)
-        end
-    else
-        logger.warn('No modules_path configured')
-    end
-
-    -- Load from plugins directory if configured
-    if paths.plugins_path then
-        logger.info(string.format('Loading from plugins directory: %s', paths.plugins_path))
-        local plugins = M.load_plugin_files(paths.plugins_path)
+    -- Load from plugins_dir set by default or user directory
+    if config_opts.paths then
+        logger.info(string.format('Loading from modules directory: %s', config_opts.paths.modules_path))
+        local plugins_path = string.format("%s/%s", config_opts.paths.plugins_path, config_opts.paths.plugins_dir)
+        local plugins = M.load_plugin_files(plugins_path)
         if #plugins > 0 then
             logger.debug(string.format('Adding %d plugins to all_plugins', #plugins))
             vim.list_extend(all_plugins, plugins)
+        else
+            logger.debug(string.format('No plugins found in directory: %s', plugins_path))
         end
-    else
-        logger.warn('No plugins_path configured')
     end
-
-    logger.info(string.format('Total plugins loaded: %d', #all_plugins))
-    logger.debug(string.format('All loaded plugins: %s', vim.inspect(all_plugins)))
+    logger.info(string.format('Total plugins ready: %d', #all_plugins))
+    logger.debug(string.format('All plugins ready: %s', vim.inspect(all_plugins)))
     return all_plugins
 end
 
