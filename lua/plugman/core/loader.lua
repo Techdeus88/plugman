@@ -87,31 +87,6 @@ function M.load_plugin(name, opts)
     return true
 end
 
--- Possible hook names:
---     - <pre_install>   - before creating plugin directory.
---     - <post_install>  - after  creating plugin directory (before |:packadd|).
---     - <pre_checkout>  - before making change in existing plugin.
---     - <post_checkout> - after  making change in existing plugin.
---   Each hook is executed with the following table as an argument:
---     - <path> (`string`)   - absolute path to plugin's directory
---       (might not yet exist on disk).
---     - <source> (`string`) - resolved <source> from spec.
---     - <name> (`string`)   - resolved <name> from spec.
-
--- pre_install = function()
---     M._pre_install_hook(name, opts.hooks)
--- end,
--- pre_checkout = function()
---     M._pre_checkout_hook(name, opts.hooks)
--- end,
--- post_install = function()
---     M._post_install_hook(name, opts.hooks)
--- end,
--- post_checkout = function()
---     M._post_checkout_hook(name, opts.hooks)
--- end
--- }
-
 ---Post install hook
 ---@param name string Plugin name
 ---@param opts PlugmanPlugin Plugin options
@@ -249,11 +224,6 @@ local function normalize_github_url(url)
     return 'https://github.com/' .. url
 end
 
-
-
-
-
-
 ---Ensure dependency is loaded
 ---@param dep_name string Dependency name
 function M.ensure_dependency_loaded(dep_name)
@@ -300,16 +270,18 @@ function M.load_modules(dir_path)
 
     -- Process each file
     for _, file_path in ipairs(files) do
+        print(file_path)
         logger.debug(string.format('Loading module file: %s', file_path))
-        local module_config = load_module_file(file_path)
-        if module_config then
+        local module_configs = load_module_file(file_path)
+        if module_configs then
             -- If the module returns a table of plugins
-            if type(module_config) == 'table' then
-                for _, plugin in ipairs(module_config) do
-                    if plugin.source then
-                        table.insert(modules, plugin)
-                    end
+            if type(module_configs) == 'table' then
+                for _, module_config in ipairs(module_configs) do
+                    table.insert(modules, module_config)
                 end
+            end
+            if type(module_configs[1]) == "string" and is_valid_github_url(module_configs[1]) then
+                table.insert(modules, module_configs)
             end
         end
     end
@@ -396,6 +368,7 @@ function M.load_plugins(dir_path)
         -- end
         logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
     end
+    print(vim.inspect(plugins))
     return plugins
 end
 
@@ -726,3 +699,29 @@ return M
 -- end
 
 -- return Loader
+
+
+-- Possible hook names:
+--     - <pre_install>   - before creating plugin directory.
+--     - <post_install>  - after  creating plugin directory (before |:packadd|).
+--     - <pre_checkout>  - before making change in existing plugin.
+--     - <post_checkout> - after  making change in existing plugin.
+--   Each hook is executed with the following table as an argument:
+--     - <path> (`string`)   - absolute path to plugin's directory
+--       (might not yet exist on disk).
+--     - <source> (`string`) - resolved <source> from spec.
+--     - <name> (`string`)   - resolved <name> from spec.
+
+-- pre_install = function()
+--     M._pre_install_hook(name, opts.hooks)
+-- end,
+-- pre_checkout = function()
+--     M._pre_checkout_hook(name, opts.hooks)
+-- end,
+-- post_install = function()
+--     M._post_install_hook(name, opts.hooks)
+-- end,
+-- post_checkout = function()
+--     M._post_checkout_hook(name, opts.hooks)
+-- end
+-- }
