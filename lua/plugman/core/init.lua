@@ -33,14 +33,13 @@ function Plugin:validate()
         logger.error(string.format("Plugin %s missing required 'source' field", plugin.name))
         return false
     end
-    -- if plugin.depends then
-    --     for _, dependency in ipairs(plugin.depends) do
-    --         if not plugin_registry[dependency] then
-    --             logger:error("Plugin %s has unresolved dependency: %s", plugin.name, dependency)
-    --             return false
-    --         end
-    --     end
-    -- end
+
+    -- Validate source format
+    if not plugin.source:match('^https?://') and not plugin.source:match('^[%w-]+/[%w-]+$') then
+        logger.error(string.format("Plugin %s has invalid source format: %s", plugin.name, plugin.source))
+        return false
+    end
+
     return true
 end
 
@@ -57,25 +56,36 @@ function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     if type(result) == 'string' then
         result = { result }
     end
-    result.spec = plugin_spec
 
-    if result[1] then
-        assert(plugin_source == result[1], "Plugin source should be the same here...")
+    -- Handle source
+    if type(plugin_source) == 'string' then
+        result.source = plugin_source
+    elseif result[1] then
+        result.source = result[1]
         result[1] = nil
     end
 
+    -- Set basic properties
     result.order = order
-    result.type = plugin_type
-    result.source = plugin_source
+    result.type = plugin_type or 'git'
 
+    -- Extract name from source if not provided
     if result.source and not result.name then
         result.name = result.source:match('([^/]+)%.git$') or result.source:match('([^/]+)$')
     end
 
-    result.lazy = result.lazy or true -- lazy by default
+    -- Set default values
+    result.lazy = result.lazy ~= false -- lazy by default
     result.path = vim.fn.stdpath('data') .. '/site/pack/plugman/start/' .. result.name
+    result.enabled = result.enabled ~= false -- enabled by default
 
-    return Plugin:new(result)
+    -- Create plugin object
+    local plugin = Plugin:new(result)
+    
+    -- Log plugin details for debugging
+    logger.debug(string.format('Normalized plugin: %s', vim.inspect(plugin)))
+    
+    return plugin
 end
 
 ---Get next plugin order number

@@ -59,12 +59,24 @@ function M.setup_plugins(paths)
     notify.info('Setting up plugins!')
     -- Load plugins from configured directories
     local all_plugins = loader.load_all(paths)
+    logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
+
     for _, plugin_spec in ipairs(all_plugins) do
         -- Format plugin spec and transform to PlugmanPlugin
-        local Plugin = require("plugman.core").normalize_plugin(plugin_spec[1], plugin_spec, "plugin")
-        if Plugin then
-            M.add(Plugin)
+        local source = plugin_spec[1] or plugin_spec.source
+        if not source then
+            logger.error('Plugin spec missing source: ' .. vim.inspect(plugin_spec))
+            goto continue
         end
+
+        local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
+        if Plugin then
+            logger.debug(string.format('Adding plugin: %s', Plugin.name))
+            M.add(Plugin)
+        else
+            logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
+        end
+        ::continue::
     end
 end
 
@@ -75,23 +87,35 @@ function M.add(plugin)
         logger.error('Plugman not initialized. Call setup() first.')
         return
     end
+
+    -- Validate plugin
+    if not plugin:validate() then
+        logger.error(string.format('Invalid plugin configuration: %s', plugin.name))
+        return
+    end
+
     -- Store plugin
     M._plugins[plugin.name] = plugin
+    logger.debug(string.format('Stored plugin: %s', plugin.name))
+
     -- Handle dependencies first
     if plugin.depends then
         for _, dep in ipairs(plugin.depends) do
             if not M._plugins[dep] and not M._loaded[dep] then
                 local source = type(dep) == "string" and dep or dep[1]
                 local Dep = require("plugman.core").normalize_plugin(source, dep, "dependent")
-                -- Store dependency
-                M._plugins[Dep.name] = Dep
-                -- Load dependency
-                local ok, _ = pcall(M._load_plugin_immediately, Dep)
-                if not ok then
-                    logger.warn(string.format('Dependency %s not loaded for %s', Dep.name, plugin.name))
+                if Dep then
+                    -- Store dependency
+                    M._plugins[Dep.name] = Dep
+                    -- Load dependency
+                    local ok, err = pcall(M._load_plugin_immediately, Dep)
+                    if not ok then
+                        logger.warn(string.format('Dependency %s not loaded for %s: %s', Dep.name, plugin.name, err))
+                    end
                 end
+            else
+                logger.debug(string.format("Dependency %s already loaded", dep))
             end
-            logger.info(string.format("Dependency %s already loaded", dep))
         end
     end
 
@@ -100,10 +124,11 @@ function M.add(plugin)
     if is_lazy then
         M._lazy_plugins[plugin.name] = plugin
         M._setup_lazy_loading(plugin)
+        logger.debug(string.format('Plugin %s set up for lazy loading', plugin.name))
     else
-        local ok, _ = pcall(M._load_plugin_immediately, plugin)
+        local ok, err = pcall(M._load_plugin_immediately, plugin)
         if not ok then
-            logger.warn(string.format('Plugin %s not loaded', plugin.name))
+            logger.warn(string.format('Plugin %s not loaded: %s', plugin.name, err))
         end
     end
 

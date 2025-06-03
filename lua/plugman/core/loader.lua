@@ -1,8 +1,9 @@
+--Start-of-file--
 local M = {}
 
+local utils = require("plugman.utils")
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
-local utils = require("plugins.utils")
 ---Load plugins in priority order
 ---@param plugins table<string, PlugmanPlugin>
 ---@return table<string, boolean> Success status for each plugin
@@ -20,13 +21,11 @@ function M.load_by_priority(plugins)
     end)
 
     local results = {}
-
     -- Load plugins in order
     for _, plugin in ipairs(sorted_plugins) do
         local success = M.load_plugin(plugin)
         results[plugin.name] = success
     end
-
     return results
 end
 
@@ -47,7 +46,10 @@ function M.load_plugin(plugin)
 
         -- Run init function
         if plugin.init then
-            pcall(plugin.init)
+            local init_success, init_err = pcall(plugin.init)
+            if not init_success then
+                logger.error(string.format('Failed to run init for %s: %s', plugin.name, init_err))
+            end
         end
 
         -- Use MiniDeps to add the plugin
@@ -60,13 +62,15 @@ function M.load_plugin(plugin)
         end
 
         -- Setup plugin configuration
-        -- Run config
         M._setup_plugin_config(plugin)
         -- Setup keymaps
         M._setup_keymaps(plugin)
         -- Run post function
         if plugin.post then
-            pcall(plugin.post)
+            local post_success, post_err = pcall(plugin.post)
+            if not post_success then
+                logger.error(string.format('Failed to run post for %s: %s', plugin.name, post_err))
+            end
         end
     end)
 
@@ -214,11 +218,9 @@ function M.load_plugin_files(dir_path)
         logger.warn(string.format('Directory does not exist: %s', dir_path))
         return plugins
     end
-
     -- Get all files in directory
     local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
     logger.debug(string.format('Found %d files in %s', #files, dir_path))
-
     -- Process each file
     for _, file_path in ipairs(files) do
         logger.debug(string.format('Loading file: %s', file_path))
@@ -241,7 +243,6 @@ function M.load_plugin_files(dir_path)
             end
         end
     end
-
     logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
     return plugins
 end
@@ -251,12 +252,10 @@ end
 ---@return table All loaded plugins
 function M.load_all(paths)
     local all_plugins = {}
-
     if not paths then
         logger.error('No paths provided to load_all')
         return all_plugins
     end
-
     -- Load from modules directory if configured
     if paths.modules_path then
         logger.info(string.format('Loading from modules directory: %s', paths.modules_path))
@@ -267,7 +266,6 @@ function M.load_all(paths)
     else
         logger.warn('No modules_path configured')
     end
-
     -- Load from plugins directory if configured
     if paths.plugins_path then
         logger.info(string.format('Loading from plugins directory: %s', paths.plugins_path))
@@ -278,13 +276,12 @@ function M.load_all(paths)
     else
         logger.warn('No plugins_path configured')
     end
-
     logger.info(string.format('Total plugins loaded: %d', #all_plugins))
     return all_plugins
 end
 
 return M
-
+--End-of-file--
 -- local Loader = {
 --     load_queue = {},
 --     current_load_state = {},
