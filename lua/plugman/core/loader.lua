@@ -43,15 +43,6 @@ function M.load_plugin(plugin)
                 M.ensure_dependency_loaded(dep)
             end
         end
-
-        -- Run init function
-        if plugin.init then
-            local init_success, init_err = pcall(plugin.init)
-            if not init_success then
-                logger.error(string.format('Failed to run init for %s: %s', plugin.name, init_err))
-            end
-        end
-
         -- Use MiniDeps to add the plugin
         logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
         local deps_success, deps_err = pcall(mini_deps.add, {
@@ -70,15 +61,6 @@ function M.load_plugin(plugin)
 
         -- Setup plugin configuration
         M._setup_plugin_config(plugin)
-        -- Setup keymaps
-        M._setup_keymaps(plugin)
-        -- Run post function
-        if plugin.post then
-            local post_success, post_err = pcall(plugin.post)
-            if not post_success then
-                logger.error(string.format('Failed to run post for %s: %s', plugin.name, post_err))
-            end
-        end
     end)
 
     if not success then
@@ -169,11 +151,11 @@ local SETUP_PHASES = {
     }
 }
 
-function M.setup_with_boolean(opts)
+function M._setup_with_boolean(opts)
     return opts
 end
 
-function M.setup_with_opts(plugin, opts)
+function M._setup_with_opts(plugin, opts)
     local mod_name = plugin.require or plugin.name
     local ok, mod = pcall(require, mod_name)
     if not ok then
@@ -184,7 +166,7 @@ function M.setup_with_opts(plugin, opts)
     return mod.setup(opts)
 end
 
-function M.setup_with_string(config)
+function M._setup_with_string(config)
     vim.cmd(config)
 end
 
@@ -202,36 +184,32 @@ function M._process_config(plugin, merged_opts)
     if type(plugin.config(plugin, merged_opts)) then
         return plugin.config(plugin, merged_opts)
     elseif type(plugin.config) == 'boolean' then
-        return M.setup_with_boolean(plugin.config)
+        return M._setup_with_boolean(plugin.config)
     elseif type(plugin.config) == 'string' then
-        return M.setup_with_string(plugin.config)
+        return M._setup_with_string(plugin.config)
     elseif merged_opts then
-        return M.setup_with_opts(plugin, merged_opts)
+        return M._setup_with_opts(plugin, merged_opts)
     end
 end
 
 ---Setup plugin configuration
 ---@param plugin PlugmanPlugin Plugin
 function M._setup_plugin_config(plugin)
-    if not plugin.config then
+    if not (plugin.config ~= nil or plugin.opts ~= nil) then
         return
     end
     -- Process setup phases
-    for _, phase in ipairs(SETUP_PHASES) do
-        if phase.condition(plugin) then
-            local timing_fn = utils.get_timing_function(plugin, phase)
-            timing_fn(function()
-                utils.safe_pcall(phase.action, plugin)
-                vim.notify(string.format("Phase %s completed for %s", phase.name, plugin.name), "plugins")
-            end)
+    local success, err = pcall(function()
+        for _, phase in ipairs(SETUP_PHASES) do
+            if phase.condition(plugin) then
+                local timing_fn = utils.get_timing_function(plugin, phase)
+                timing_fn(function()
+                    utils.safe_pcall(phase.action, plugin)
+                    vim.notify(string.format("Phase %s completed for %s", phase.name, plugin.name), "plugins")
+                end)
+            end
         end
-    end
-
-    local success, err = pcall(
-        function()
-            local merged_opts = M.merge_config(plugin.config)
-            M.process_config(plugin, merged_opts)
-        end)
+    end)
 
     if not success then
         logger.error(string.format('Failed to configure %s: %s', plugin.name, err))
@@ -276,18 +254,18 @@ end
 
 ---Ensure dependency is loaded
 ---@param dep_name string Dependency name
-function M.ensure_dependency_loaded(dep_name)
+function M.ensure_dependency_loaded(dep)
     -- Check if dependency is already loaded
     local plugman = require('plugman')
-    if plugman._loaded[dep_name] then
+    if plugman._loaded[dep.name] or dep.loaded then
         return
     end
 
     -- Try to load dependency
-    if plugman._plugins[dep_name] then
-        M.load_plugin(dep_name, plugman._plugins[dep_name])
+    if plugman._plugins[dep.name] then
+        M.load_plugin(dep)
     else
-        logger.warn(string.format('Dependency %s not found', dep_name))
+        logger.warn(string.format('Dependency %s not found', dep.name))
     end
 end
 

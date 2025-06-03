@@ -20,7 +20,7 @@ M._setup_done = false
 
 ---@class PlugmanPlugin
 ---@field source string Plugin source (GitHub repo, local path, etc.)
----@field name string Plugin name extracted from source
+---@field name? string Plugin name extracted from source
 ---@field lazy? boolean Whether to lazy load
 ---@field event? string|string[] Events to trigger loading
 ---@field ft? string|string[] Filetypes to trigger loading
