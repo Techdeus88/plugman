@@ -207,11 +207,14 @@ end
 ---@param file_path string Path to the module file
 ---@return table|nil Module configuration
 local function load_file(file_path)
+    logger.debug(string.format('Attempting to load file: %s', file_path))
     local success, module_configs = pcall(dofile, file_path)
     if not success then
         logger.error(string.format('Failed to load module file %s: %s', file_path, module_configs))
         return nil
     end
+    logger.debug(string.format('Successfully loaded file: %s', file_path))
+    logger.debug(string.format('File contents: %s', vim.inspect(module_configs)))
     return module_configs
 end
 
@@ -230,37 +233,54 @@ function M.load_plugin_files(dir_path)
     -- Get all files in directory
     local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
     logger.debug(string.format('Found %d files in %s', #files, dir_path))
+    logger.debug(string.format('Files found: %s', vim.inspect(files)))
 
     -- Process each file
     for _, file_path in ipairs(files) do
-        logger.debug(string.format('Loading file: %s', file_path))
+        logger.debug(string.format('Processing file: %s', file_path))
         local plugin_configs = load_file(file_path)
         if plugin_configs then
             -- Handle single plugin config
-            if type(plugin_configs[1]) == "string" and utils.is_valid_github_url(plugin_configs[1]) then
-                -- Convert boolean values
-                plugin_configs.lazy = utils.to_boolean(plugin_configs.lazy)
-                plugin_configs.source = plugin_configs[1]
-                plugin_configs.name = plugin_configs.name or plugin_configs[1]:match('([^/]+)$')
-                logger.debug(string.format('Found plugin: %s', vim.inspect(plugin_configs)))
-                table.insert(plugins, plugin_configs)
+            if type(plugin_configs[1]) == "string" then
+                logger.debug(string.format('Found string config: %s', plugin_configs[1]))
+                if utils.is_valid_github_url(plugin_configs[1]) then
+                    -- Convert boolean values
+                    plugin_configs.lazy = utils.to_boolean(plugin_configs.lazy)
+                    plugin_configs.source = plugin_configs[1]
+                    plugin_configs.name = plugin_configs.name or plugin_configs[1]:match('([^/]+)$')
+                    logger.debug(string.format('Adding plugin: %s', vim.inspect(plugin_configs)))
+                    table.insert(plugins, plugin_configs)
+                else
+                    logger.warn(string.format('Invalid GitHub URL: %s', plugin_configs[1]))
+                end
             -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
+                logger.debug(string.format('Found table config: %s', vim.inspect(plugin_configs)))
                 for _, plugin_config in ipairs(plugin_configs) do
-                    if type(plugin_config[1]) == "string" and utils.is_valid_github_url(plugin_config[1]) then
-                        -- Convert boolean values
-                        plugin_config.lazy = utils.to_boolean(plugin_config.lazy)
-                        plugin_config.source = plugin_config[1]
-                        plugin_config.name = plugin_config.name or plugin_config[1]:match('([^/]+)$')
-                        logger.debug(string.format('Found plugin in table: %s', vim.inspect(plugin_config)))
-                        table.insert(plugins, plugin_config)
+                    if type(plugin_config[1]) == "string" then
+                        logger.debug(string.format('Found string in table: %s', plugin_config[1]))
+                        if utils.is_valid_github_url(plugin_config[1]) then
+                            -- Convert boolean values
+                            plugin_config.lazy = utils.to_boolean(plugin_config.lazy)
+                            plugin_config.source = plugin_config[1]
+                            plugin_config.name = plugin_config.name or plugin_config[1]:match('([^/]+)$')
+                            logger.debug(string.format('Adding plugin from table: %s', vim.inspect(plugin_config)))
+                            table.insert(plugins, plugin_config)
+                        else
+                            logger.warn(string.format('Invalid GitHub URL in table: %s', plugin_config[1]))
+                        end
+                    else
+                        logger.warn(string.format('Invalid plugin config in table: %s', vim.inspect(plugin_config)))
                     end
                 end
+            else
+                logger.warn(string.format('Invalid plugin config type: %s', type(plugin_configs)))
             end
         end
     end
 
     logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
+    logger.debug(string.format('Final plugins list: %s', vim.inspect(plugins)))
     return plugins
 end
 
@@ -275,11 +295,14 @@ function M.load_all(paths)
         return all_plugins
     end
 
+    logger.debug(string.format('Loading plugins with paths: %s', vim.inspect(paths)))
+
     -- Load from modules directory if configured
     if paths.modules_path then
         logger.info(string.format('Loading from modules directory: %s', paths.modules_path))
         local modules = M.load_plugin_files(paths.modules_path)
         if #modules > 0 then
+            logger.debug(string.format('Adding %d modules to all_plugins', #modules))
             vim.list_extend(all_plugins, modules)
         end
     else
@@ -291,6 +314,7 @@ function M.load_all(paths)
         logger.info(string.format('Loading from plugins directory: %s', paths.plugins_path))
         local plugins = M.load_plugin_files(paths.plugins_path)
         if #plugins > 0 then
+            logger.debug(string.format('Adding %d plugins to all_plugins', #plugins))
             vim.list_extend(all_plugins, plugins)
         end
     else
@@ -298,7 +322,7 @@ function M.load_all(paths)
     end
 
     logger.info(string.format('Total plugins loaded: %d', #all_plugins))
-    logger.debug(string.format('Loaded plugins: %s', vim.inspect(all_plugins)))
+    logger.debug(string.format('All loaded plugins: %s', vim.inspect(all_plugins)))
     return all_plugins
 end
 

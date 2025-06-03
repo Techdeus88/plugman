@@ -40,26 +40,40 @@ M._setup_done = false
 ---Setup Plugman with user configuration
 ---@param opts? table Configuration options
 function M.setup(opts)
+    logger.debug('Starting Plugman setup')
     opts = vim.tbl_deep_extend("force", defaults, opts or {})
+    logger.debug(string.format('Setup options: %s', vim.inspect(opts)))
+    
     logger.setup(opts.log_level or 'info')
     cache.setup(opts.cache or {})
     notify.setup(opts.notify or {})
 
     -- Bootstrap MiniDeps (install and setup)
+    logger.debug('Setting up MiniDeps')
     bootstrap.setup(opts.minideps or {})
+    
     -- Setup autocmds for lazy loading
+    logger.debug('Setting up events')
     events.setup()
+    
     M._setup_done = true
     logger.info('Plugman initialized successfully')
+    
+    logger.debug('Starting plugin setup')
     M.setup_plugins(opts.paths)
 end
 
 function M.setup_plugins(paths)
+    logger.debug(string.format('Setting up plugins with paths: %s', vim.inspect(paths)))
+    
     -- Load plugins from configured directories
     local all_plugins = loader.load_all(paths)
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
+    logger.debug(string.format('Plugin specs: %s', vim.inspect(all_plugins)))
 
     for _, plugin_spec in ipairs(all_plugins) do
+        logger.debug(string.format('Processing plugin spec: %s', vim.inspect(plugin_spec)))
+        
         -- Format plugin spec and transform to PlugmanPlugin
         local source = plugin_spec[1] or plugin_spec.source
         if not source then
@@ -71,6 +85,7 @@ function M.setup_plugins(paths)
         plugin_spec.source = source
         plugin_spec.name = plugin_spec.name or source:match('([^/]+)$')
         
+        logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))
         local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
         if Plugin then
             logger.debug(string.format('Adding plugin: %s', Plugin.name))
@@ -90,6 +105,8 @@ function M.add(plugin)
         return
     end
 
+    logger.debug(string.format('Adding plugin: %s', vim.inspect(plugin)))
+
     -- Validate plugin
     if not plugin:validate() then
         logger.error(string.format('Invalid plugin configuration: %s', plugin.name))
@@ -102,9 +119,11 @@ function M.add(plugin)
 
     -- Handle dependencies first
     if plugin.depends then
+        logger.debug(string.format('Processing dependencies for %s: %s', plugin.name, vim.inspect(plugin.depends)))
         for _, dep in ipairs(plugin.depends) do
             if not M._plugins[dep] and not M._loaded[dep] then
                 local source = type(dep) == "string" and dep or dep[1]
+                logger.debug(string.format('Loading dependency: %s', source))
                 local Dep = require("plugman.core").normalize_plugin(source, dep, "dependent")
                 if Dep then
                     -- Store dependency
@@ -123,6 +142,8 @@ function M.add(plugin)
 
     -- Check if should lazy load
     local is_lazy = M._should_lazy_load(plugin)
+    logger.debug(string.format('Plugin %s lazy loading: %s', plugin.name, is_lazy))
+    
     if is_lazy then
         M._lazy_plugins[plugin.name] = plugin
         M._setup_lazy_loading(plugin)
