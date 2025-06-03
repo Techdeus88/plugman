@@ -67,6 +67,10 @@ function M.setup_plugins(paths)
             goto continue
         end
 
+        -- Ensure plugin has required fields
+        plugin_spec.source = source
+        plugin_spec.name = plugin_spec.name or source:match('([^/]+)$')
+        
         local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
         if Plugin then
             logger.debug(string.format('Adding plugin: %s', Plugin.name))
@@ -192,13 +196,16 @@ end
 ---@param plugin PlugmanPlugin Plugin
 function M._load_plugin_immediately(plugin)
     if M._loaded[plugin.name] then
+        logger.debug(string.format('Plugin %s already loaded', plugin.name))
         return
     end
 
-    local ok, _ = pcall(loader.load_plugin, plugin)
+    logger.debug(string.format('Loading plugin immediately: %s', plugin.name))
+    local ok, err = pcall(loader.load_plugin, plugin)
 
     if not ok then
-        logger.warn(string.format("Plugin %s did not load", plugin.name))
+        logger.warn(string.format("Plugin %s did not load: %s", plugin.name, err))
+        return false
     end
 
     M._loaded[plugin.name] = true
@@ -206,6 +213,7 @@ function M._load_plugin_immediately(plugin)
 
     -- Cache the loaded state
     cache.set_plugin_loaded(plugin.name, true)
+    return true
 end
 
 ---Setup lazy loading for a plugin

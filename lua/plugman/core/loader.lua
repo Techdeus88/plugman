@@ -34,7 +34,7 @@ end
 ---@return boolean Success status
 function M.load_plugin(plugin)
     local mini_deps = require("plugman.core.bootstrap")
-    logger.debug(string.format('Loading plugin: %s', plugin.name))
+    logger.debug(string.format('Loading plugin: %s (source: %s)', plugin.name, plugin.source))
 
     local success, err = pcall(function()
         -- Load dependencies first
@@ -53,10 +53,18 @@ function M.load_plugin(plugin)
         end
 
         -- Use MiniDeps to add the plugin
-        local success, _ = pcall(mini_deps.add, plugin)
+        logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
+        local deps_success, deps_err = pcall(mini_deps.add, {
+            source = plugin.source,
+            name = plugin.name,
+            depends = plugin.depends,
+            monitor = plugin.monitor,
+            checkout = plugin.checkout,
+            hooks = plugin.hooks,
+        })
 
-        if not success then
-            logger.error(string.format('Failed to load plugin: %s', plugin.name))
+        if not deps_success then
+            logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
             notify.error(string.format('Failed to load %s', plugin.name))
             return
         end
@@ -212,15 +220,17 @@ end
 ---@return table Plugin configurations
 function M.load_plugin_files(dir_path)
     local plugins = {}
-
+    
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Directory does not exist: %s', dir_path))
         return plugins
     end
+
     -- Get all files in directory
     local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
     logger.debug(string.format('Found %d files in %s', #files, dir_path))
+
     -- Process each file
     for _, file_path in ipairs(files) do
         logger.debug(string.format('Loading file: %s', file_path))
@@ -230,19 +240,26 @@ function M.load_plugin_files(dir_path)
             if type(plugin_configs[1]) == "string" and utils.is_valid_github_url(plugin_configs[1]) then
                 -- Convert boolean values
                 plugin_configs.lazy = utils.to_boolean(plugin_configs.lazy)
+                plugin_configs.source = plugin_configs[1]
+                plugin_configs.name = plugin_configs.name or plugin_configs[1]:match('([^/]+)$')
+                logger.debug(string.format('Found plugin: %s', vim.inspect(plugin_configs)))
                 table.insert(plugins, plugin_configs)
-                -- Handle table of plugins
+            -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
                 for _, plugin_config in ipairs(plugin_configs) do
                     if type(plugin_config[1]) == "string" and utils.is_valid_github_url(plugin_config[1]) then
                         -- Convert boolean values
                         plugin_config.lazy = utils.to_boolean(plugin_config.lazy)
+                        plugin_config.source = plugin_config[1]
+                        plugin_config.name = plugin_config.name or plugin_config[1]:match('([^/]+)$')
+                        logger.debug(string.format('Found plugin in table: %s', vim.inspect(plugin_config)))
                         table.insert(plugins, plugin_config)
                     end
                 end
             end
         end
     end
+
     logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
     return plugins
 end
@@ -252,10 +269,12 @@ end
 ---@return table All loaded plugins
 function M.load_all(paths)
     local all_plugins = {}
+    
     if not paths then
         logger.error('No paths provided to load_all')
         return all_plugins
     end
+
     -- Load from modules directory if configured
     if paths.modules_path then
         logger.info(string.format('Loading from modules directory: %s', paths.modules_path))
@@ -266,6 +285,7 @@ function M.load_all(paths)
     else
         logger.warn('No modules_path configured')
     end
+
     -- Load from plugins directory if configured
     if paths.plugins_path then
         logger.info(string.format('Loading from plugins directory: %s', paths.plugins_path))
@@ -276,7 +296,9 @@ function M.load_all(paths)
     else
         logger.warn('No plugins_path configured')
     end
+
     logger.info(string.format('Total plugins loaded: %d', #all_plugins))
+    logger.debug(string.format('Loaded plugins: %s', vim.inspect(all_plugins)))
     return all_plugins
 end
 
