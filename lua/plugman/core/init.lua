@@ -15,7 +15,7 @@ function Plugin:new(n_plugin)
         load_time = nil,
         dependents = {},
     }), self)
-
+    print(vim.inspect(plugin))
 
     plugin:validate()
     return plugin
@@ -36,7 +36,7 @@ function Plugin:validate()
 
     -- Validate source format
     if not plugin.source:match('^[%w-]+/[%w-]+$') then
-        logger.error(string.format("Plugin %s has invalid source format: %s", plugin.name, plugin.source))
+        logger.error(string.format("Plugin %s has invalid source format: %s", plugin.name, vim.inspect(plugin)))
         return false
     end
 
