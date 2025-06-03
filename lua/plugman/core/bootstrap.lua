@@ -31,7 +31,7 @@ local function install_minideps()
 
     -- Installs MiniDeps if it is unavailable
     if not is_minideps_installed() then
-        print("Installing MiniDeps...")
+        vim.notify("Installing MiniDeps...")
         local success = install()
         if not success then
             logger.error("Failed to install MiniDeps")

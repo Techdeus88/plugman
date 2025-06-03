@@ -15,7 +15,6 @@ function Plugin:new(n_plugin)
         load_time = nil,
         dependents = {},
     }), self)
-    print(vim.inspect(plugin))
 
     plugin:validate()
     return plugin
