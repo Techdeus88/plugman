@@ -275,10 +275,13 @@ function M.load_modules(dir_path)
         if module_configs then
             -- If the module returns a table of plugins
             if type(module_configs) == 'table' then
+                print(vim.inspect(module_configs))
                 for _, module_config in ipairs(module_configs) do
                     table.insert(modules, module_config)
                 end
             elseif type(module_configs[1]) == "string" and is_valid_github_url(module_configs[1]) then
+                print(vim.inspect(module_configs))
+                print(vim.inspect(module_configs[1]))
                 table.insert(modules, module_configs)
             end
         end
@@ -311,62 +314,65 @@ function M.load_plugins(dir_path)
         local plugin_configs = load_module_file(file_path)
         if plugin_configs then
             -- Handle single plugin config
-            if type(plugin_configs[1]) == "string" and is_valid_github_url(plugin_configs[1]) then
-                table.insert(plugins, plugin_configs)
-            elseif type(plugin_configs) == 'table' then
+            if type(plugin_configs) == 'table' then
+                print(vim.inspect(plugin_configs))
                 for _, plugin_module in ipairs(plugin_configs) do
                     table.insert(plugins, plugin_module)
                 end
+            elseif type(plugin_configs[1]) == "string" and is_valid_github_url(plugin_configs[1]) then
+                table.insert(plugins, plugin_configs)
+                print(vim.inspect(plugin_configs))
+                print(vim.inspect(plugin_configs[1]))
             end
-            -- local username, repo = extract_github_info(plugin_configs[1])
-            -- if username and repo then
-            --     -- Create normalized plugin config
-            --     local normalized_config = {
-            --         source = normalize_github_url(plugin_config[1]),
-            --         name = repo,
-            --         -- Copy other options from the config
-            --         lazy = plugin_config.lazy,
-            --         event = plugin_config.event,
-            --         ft = plugin_config.ft,
-            --         cmd = plugin_config.cmd,
-            --         keys = plugin_config.keys,
-            --         depends = plugin_config.depends,
-            --         config = plugin_config.config,
-            --         init = plugin_config.init,
-            --         post = plugin_config.post
-            --     }
-            --     logger.debug(string.format('Found plugin: %s/%s', username, repo))
-            --     table.insert(plugins, normalized_config)
-            -- else
-            --     logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_configs[1]))
-            -- Handle table of plugins
-            -- if type(plugin[1]) == "string" and is_valid_github_url(plugin[1]) then
-            --     local username, repo = extract_github_info(plugin[1])
-            --     if username and repo then
-            --         -- Create normalized plugin config
-            --         local normalized_config = {
-            --             source = normalize_github_url(plugin[1]),
-            --             name = repo,
-            --             -- Copy other options from the plugin
-            --             lazy = plugin.lazy,
-            --             event = plugin.event,
-            --             ft = plugin.ft,
-            --             cmd = plugin.cmd,
-            --             keys = plugin.keys,
-            --             depends = plugin.depends,
-            --             config = plugin.config,
-            --             init = plugin.init,
-            --             post = plugin.post
-            --         }
-            --         logger.debug(string.format('Found plugin in table: %s/%s', username, repo))
-            --         table.insert(plugins, normalized_config)
-            --     else
-            --         logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin[1]))
-            --     end
         end
-        -- end
         logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
     end
+    -- local username, repo = extract_github_info(plugin_configs[1])
+    -- if username and repo then
+    --     -- Create normalized plugin config
+    --     local normalized_config = {
+    --         source = normalize_github_url(plugin_config[1]),
+    --         name = repo,
+    --         -- Copy other options from the config
+    --         lazy = plugin_config.lazy,
+    --         event = plugin_config.event,
+    --         ft = plugin_config.ft,
+    --         cmd = plugin_config.cmd,
+    --         keys = plugin_config.keys,
+    --         depends = plugin_config.depends,
+    --         config = plugin_config.config,
+    --         init = plugin_config.init,
+    --         post = plugin_config.post
+    --     }
+    --     logger.debug(string.format('Found plugin: %s/%s', username, repo))
+    --     table.insert(plugins, normalized_config)
+    -- else
+    --     logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_configs[1]))
+    -- Handle table of plugins
+    -- if type(plugin[1]) == "string" and is_valid_github_url(plugin[1]) then
+    --     local username, repo = extract_github_info(plugin[1])
+    --     if username and repo then
+    --         -- Create normalized plugin config
+    --         local normalized_config = {
+    --             source = normalize_github_url(plugin[1]),
+    --             name = repo,
+    --             -- Copy other options from the plugin
+    --             lazy = plugin.lazy,
+    --             event = plugin.event,
+    --             ft = plugin.ft,
+    --             cmd = plugin.cmd,
+    --             keys = plugin.keys,
+    --             depends = plugin.depends,
+    --             config = plugin.config,
+    --             init = plugin.init,
+    --             post = plugin.post
+    --         }
+    --         logger.debug(string.format('Found plugin in table: %s/%s', username, repo))
+    --         table.insert(plugins, normalized_config)
+    --     else
+    --         logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin[1]))
+    --     end
+    -- end
     print(vim.inspect(plugins))
     return plugins
 end
