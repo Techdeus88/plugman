@@ -302,7 +302,6 @@ function M.load_modules(dir_path)
     for _, file_path in ipairs(files) do
         logger.debug(string.format('Loading module file: %s', file_path))
         local module_config = load_module_file(file_path)
-        print('Module config: ', vim.inspect(module_config))
         if module_config then
             -- If the module returns a table of plugins
             if type(module_config) == 'table' then
@@ -362,8 +361,8 @@ function M.load_plugins(dir_path)
                 --     }
                 --     logger.debug(string.format('Found plugin: %s/%s', username, repo))
                 --     table.insert(plugins, normalized_config)
-            else
-                logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_config[1]))
+            -- else
+            --     logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_configs[1]))
             end
             -- Handle table of plugins
         elseif type(plugin_configs) == 'table' then
