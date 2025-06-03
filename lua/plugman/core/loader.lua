@@ -246,6 +246,7 @@ end
 ---@return table|nil Module configuration
 local function load_module_file(file_path)
     local success, module_configs = pcall(dofile, file_path)
+    print(vim.inspect(module_configs))
     if not success then
         logger.error(string.format('Failed to load module file %s: %s', file_path, module_configs))
         return nil
