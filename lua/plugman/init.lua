@@ -96,10 +96,13 @@ function M.add(plugin)
     end
 
     -- Check if should lazy load
-    if M._should_lazy_load(plugin) then
+    local is_lazy = M._should_lazy_load(plugin)
+    print(is_lazy)
+    if is_lazy then
         M._lazy_plugins[plugin.name] = plugin
         M._setup_lazy_loading(plugin)
     else
+        print('Load plugin immediately')
         local ok, _ = pcall(M._load_plugin_immediately, plugin)
         if not ok then
             logger.warn(string.format('Plugin %s not loaded', plugin.name))
@@ -229,11 +232,13 @@ end
 ---@param plugin PlugmanPlugin Plugin
 ---@return boolean
 function M._should_lazy_load(plugin)
+    local utils = require("plugman.utils")
     if plugin.lazy == false then
         return false
     end
 
-    return plugin.lazy or plugin.event ~= nil or plugin.ft ~= nil or plugin.cmd ~= nil
+    return utils.to_boolean(plugin.lazy) or utils.to_boolean(plugin.event) ~= nil or utils.to_boolean(plugin.ft ~= nil) or
+    utils.to_boolean(plugin.cmd ~= nil)
 end
 
 ---Validate plugin configuration

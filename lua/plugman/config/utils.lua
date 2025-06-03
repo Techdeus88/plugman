@@ -63,14 +63,15 @@ function M.remove_directory(path)
 end
 
 function M.get_installed_plugins()
-    local install_path = Config ~= nil and Config.install_path or ""
+    local core_path = vim.fn.stdpath "data" .. "/site/pack/deps/start/"
+    local opt_path = vim.fn.stdpath "data" .. "/site/pack/deps/opt/"
 
-    if not M.directory_exists(install_path) then
+    if not M.directory_exists(core_path) or M.directory_exists(opt_path) then
         return {}
     end
 
     local plugins = {}
-    local handle = vim.loop.fs_scandir(install_path)
+    local handle = vim.loop.fs_scandir(opt_path)
 
     if handle then
         local name, type = vim.loop.fs_scandir_next(handle)

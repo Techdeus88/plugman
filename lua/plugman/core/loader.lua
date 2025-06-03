@@ -246,6 +246,31 @@ local function load_file(file_path)
     return module_configs
 end
 
+---Convert value to boolean
+---@param value any Value to convert
+---@return boolean
+local function to_boolean(value)
+    if type(value) == 'boolean' then
+        return value
+    end
+    return not not value
+end
+
+---Convert table values to boolean
+---@param tbl table Table to convert
+---@return table
+local function table_to_boolean(tbl)
+    local result = {}
+    for k, v in pairs(tbl) do
+        if type(v) == 'table' then
+            result[k] = table_to_boolean(v)
+        else
+            result[k] = to_boolean(v)
+        end
+    end
+    return result
+end
+
 ---Load plugin configurations from a directory
 ---@param dir_path string Path to the directory containing plugin files
 ---@return table Plugin configurations
@@ -269,47 +294,17 @@ function M.load_plugin_files(dir_path)
         if plugin_configs then
             -- Handle single plugin config
             if type(plugin_configs[1]) == "string" and is_valid_github_url(plugin_configs[1]) then
-                -- local username, repo = extract_github_info(plugin_configs[1])
-                -- if username and repo then
-                --     local normalized_config = {
-                --         source = normalize_github_url(plugin_configs[1]),
-                --         name = repo,
-                --         lazy = plugin_configs.lazy,
-                --         event = plugin_configs.event,
-                --         ft = plugin_configs.ft,
-                --         cmd = plugin_configs.cmd,
-                --         keys = plugin_configs.keys,
-                --         depends = plugin_configs.depends,
-                --         config = plugin_configs.config,
-                --         init = plugin_configs.init,
-                --         post = plugin_configs.post
-                --     }
-                --     logger.debug(string.format('Found plugin: %s/%s', username, repo))
-                -- end
+                -- Convert boolean values
+                plugin_configs.lazy = to_boolean(plugin_configs.lazy)
                 table.insert(plugins, plugin_configs)
             -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
                 for _, plugin_config in ipairs(plugin_configs) do
-                    -- if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
-                    --     local username, repo = extract_github_info(plugin_config[1])
-                    --     if username and repo then
-                    --         local normalized_config = {
-                    --             source = normalize_github_url(plugin_config[1]),
-                    --             name = repo,
-                    --             lazy = plugin_config.lazy,
-                    --             event = plugin_config.event,
-                    --             ft = plugin_config.ft,
-                    --             cmd = plugin_config.cmd,
-                    --             keys = plugin_config.keys,
-                    --             depends = plugin_config.depends,
-                    --             config = plugin_config.config,
-                    --             init = plugin_config.init,
-                    --             post = plugin_config.post
-                    --         }
-                    --         logger.debug(string.format('Found plugin in table: %s/%s', username, repo))
-                    --     end
-                    -- end
-                    table.insert(plugins, plugin_config)
+                    if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
+                        -- Convert boolean values
+                        plugin_config.lazy = to_boolean(plugin_config.lazy)
+                        table.insert(plugins, plugin_config)
+                    end
                 end
             end
         end
