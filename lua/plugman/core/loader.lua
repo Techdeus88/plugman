@@ -209,6 +209,51 @@ function M._setup_keymaps(name, opts)
     end
 end
 
+---Validate if string is a valid GitHub URL
+---@param url string URL to validate
+---@return boolean
+local function is_valid_github_url(url)
+    -- Basic GitHub URL patterns
+    local patterns = {
+        '^https?://github%.com/[%w-]+/[%w-]+/?$', -- https://github.com/user/repo
+        '^github%.com/[%w-]+/[%w-]+/?$',          -- github.com/user/repo
+        '^[%w-]+/[%w-]+$'                         -- user/repo
+    }
+
+    for _, pattern in ipairs(patterns) do
+        if url:match(pattern) then
+            return true
+        end
+    end
+    return false
+end
+
+---Extract GitHub repository information
+---@param url string GitHub URL
+---@return string|nil, string|nil username and repository name
+local function extract_github_info(url)
+    local username, repo = url:match('github%.com/([%w-]+)/([%w-]+)')
+    if not username then
+        username, repo = url:match('([%w-]+)/([%w-]+)')
+    end
+    return username, repo
+end
+
+---Normalize GitHub URL
+---@param url string GitHub URL
+---@return string Normalized URL
+local function normalize_github_url(url)
+    if url:match('^https?://') then
+        return url
+    end
+    return 'https://github.com/' .. url
+end
+
+
+
+
+
+
 ---Ensure dependency is loaded
 ---@param dep_name string Dependency name
 function M.ensure_dependency_loaded(dep_name)
@@ -251,13 +296,13 @@ function M.load_modules(dir_path)
 
     -- Get all files in directory
     local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
-    print(vim.inspect(files))
     logger.debug(string.format('Found %d files in %s', #files, dir_path))
 
     -- Process each file
     for _, file_path in ipairs(files) do
         logger.debug(string.format('Loading module file: %s', file_path))
         local module_config = load_module_file(file_path)
+        print(vim.inspect(module_config))
         if module_config then
             -- If the module returns a table of plugins
             if type(module_config) == 'table' then
@@ -272,46 +317,6 @@ function M.load_modules(dir_path)
 
     logger.info(string.format('Loaded %d modules from %s', #modules, dir_path))
     return modules
-end
-
----Validate if string is a valid GitHub URL
----@param url string URL to validate
----@return boolean
-local function is_valid_github_url(url)
-    -- Basic GitHub URL patterns
-    local patterns = {
-        '^https?://github%.com/[%w-]+/[%w-]+/?$', -- https://github.com/user/repo
-        '^github%.com/[%w-]+/[%w-]+/?$',          -- github.com/user/repo
-        '^[%w-]+/[%w-]+$'                         -- user/repo
-    }
-
-    for _, pattern in ipairs(patterns) do
-        if url:match(pattern) then
-            return true
-        end
-    end
-    return false
-end
-
----Extract GitHub repository information
----@param url string GitHub URL
----@return string|nil, string|nil username and repository name
-local function extract_github_info(url)
-    local username, repo = url:match('github%.com/([%w-]+)/([%w-]+)')
-    if not username then
-        username, repo = url:match('([%w-]+)/([%w-]+)')
-    end
-    return username, repo
-end
-
----Normalize GitHub URL
----@param url string GitHub URL
----@return string Normalized URL
-local function normalize_github_url(url)
-    if url:match('^https?://') then
-        return url
-    end
-    return 'https://github.com/' .. url
 end
 
 ---Load plugins from a directory
@@ -334,6 +339,7 @@ function M.load_plugins(dir_path)
     for _, file_path in ipairs(files) do
         logger.debug(string.format('Loading plugin file: %s', file_path))
         local plugin_config = load_module_file(file_path)
+        print(vim.inspect(plugin_config))
         if plugin_config then
             -- Handle single plugin config
             if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
