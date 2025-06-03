@@ -251,8 +251,6 @@ local function load_file(file_path)
         logger.error(string.format('Failed to load module file %s: %s', file_path, module_configs))
         return nil
     end
-    print(file_path)
-    print(vim.inspect(module_configs))
     return module_configs
 end
 
@@ -363,6 +361,7 @@ function M.load_all(paths)
     end
 
     logger.info(string.format('Total plugins loaded: %d', #all_plugins))
+    print(vim.inspect(all_plugins))
     return all_plugins
 end
 
