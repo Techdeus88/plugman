@@ -302,7 +302,7 @@ function M.load_modules(dir_path)
     for _, file_path in ipairs(files) do
         logger.debug(string.format('Loading module file: %s', file_path))
         local module_config = load_module_file(file_path)
-        print(vim.inspect('Module config: ', module_config))
+        print('Module config: ', vim.inspect(module_config))
         if module_config then
             -- If the module returns a table of plugins
             if type(module_config) == 'table' then
@@ -339,7 +339,7 @@ function M.load_plugins(dir_path)
     for _, file_path in ipairs(files) do
         logger.debug(string.format('Loading plugin file: %s', file_path))
         local plugin_config = load_module_file(file_path)
-        print(vim.inspect('Plugin config: ', plugin_config))
+        print('Plugin config: ', vim.inspect(plugin_config))
         if plugin_config then
             -- Handle single plugin config
             if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
@@ -416,7 +416,7 @@ function M.load_all(paths)
     if paths.modules_path then
         logger.info(string.format('Loading modules from: %s', paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
-        print(vim.inspect('Modules: ', modules))
+        print('Modules: ', vim.inspect(modules))
         for _, plugin in ipairs(modules) do
             if plugin then
                 table.insert(all_plugins, plugin)
@@ -430,7 +430,7 @@ function M.load_all(paths)
     if paths.plugins_path then
         logger.info(string.format('Loading plugins from: %s', paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
-        print(vim.inspect('Plugins: ', plugins))
+        print('Plugins: ', vim.inspect(plugins))
         for _, plugin in ipairs(plugins) do
             if plugin then
                 table.insert(all_plugins, plugin)
