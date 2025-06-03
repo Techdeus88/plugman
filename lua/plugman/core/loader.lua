@@ -258,6 +258,7 @@ end
 ---@return table Modules configuration
 function M.load_modules(dir_path)
     local modules = {}
+
     -- Check if directory exists
     if vim.fn.isdirectory(dir_path) == 0 then
         logger.warn(string.format('Modules directory does not exist: %s', dir_path))
@@ -273,21 +274,55 @@ function M.load_modules(dir_path)
         logger.debug(string.format('Loading module file: %s', file_path))
         local module_configs = load_module_file(file_path)
         if module_configs then
-            -- If the module returns a table of plugins
+            -- Handle single module config
             if type(module_configs[1]) == "string" and is_valid_github_url(module_configs[1]) then
-                table.insert(modules, module_configs)
-                print(vim.inspect(module_configs))
+                local username, repo = extract_github_info(module_configs[1])
+                if username and repo then
+                    local normalized_config = {
+                        source = normalize_github_url(module_configs[1]),
+                        name = repo,
+                        lazy = module_configs.lazy,
+                        event = module_configs.event,
+                        ft = module_configs.ft,
+                        cmd = module_configs.cmd,
+                        keys = module_configs.keys,
+                        depends = module_configs.depends,
+                        config = module_configs.config,
+                        init = module_configs.init,
+                        post = module_configs.post
+                    }
+                    logger.debug(string.format('Found module: %s/%s', username, repo))
+                    table.insert(modules, normalized_config)
+                end
+                -- Handle table of modules
             elseif type(module_configs) == 'table' then
                 for _, module_config in ipairs(module_configs) do
-                    table.insert(modules, module_config)
-                    print(vim.inspect(module_config))
+                    if type(module_config[1]) == "string" and is_valid_github_url(module_config[1]) then
+                        local username, repo = extract_github_info(module_config[1])
+                        if username and repo then
+                            local normalized_config = {
+                                source = normalize_github_url(module_config[1]),
+                                name = repo,
+                                lazy = module_config.lazy,
+                                event = module_config.event,
+                                ft = module_config.ft,
+                                cmd = module_config.cmd,
+                                keys = module_config.keys,
+                                depends = module_config.depends,
+                                config = module_config.config,
+                                init = module_config.init,
+                                post = module_config.post
+                            }
+                            logger.debug(string.format('Found module in table: %s/%s', username, repo))
+                            table.insert(modules, normalized_config)
+                        end
+                    end
                 end
             end
         end
     end
 
     logger.info(string.format('Loaded %d modules from %s', #modules, dir_path))
-    print('Modules: ', vim.inspect(modules))
     return modules
 end
 
@@ -313,66 +348,54 @@ function M.load_plugins(dir_path)
         local plugin_configs = load_module_file(file_path)
         if plugin_configs then
             -- Handle single plugin config
-            if type(plugin_configs) == 'table' then
-                print(vim.inspect(plugin_configs))
-                for _, plugin_module in ipairs(plugin_configs) do
-                    table.insert(plugins, plugin_module)
+            if type(plugin_configs[1]) == "string" and is_valid_github_url(plugin_configs[1]) then
+                local username, repo = extract_github_info(plugin_configs[1])
+                if username and repo then
+                    local normalized_config = {
+                        source = normalize_github_url(plugin_configs[1]),
+                        name = repo,
+                        lazy = plugin_configs.lazy,
+                        event = plugin_configs.event,
+                        ft = plugin_configs.ft,
+                        cmd = plugin_configs.cmd,
+                        keys = plugin_configs.keys,
+                        depends = plugin_configs.depends,
+                        config = plugin_configs.config,
+                        init = plugin_configs.init,
+                        post = plugin_configs.post
+                    }
+                    logger.debug(string.format('Found plugin: %s/%s', username, repo))
+                    table.insert(plugins, normalized_config)
                 end
-            elseif type(plugin_configs[1]) == "string" and is_valid_github_url(plugin_configs[1]) then
-                table.insert(plugins, plugin_configs)
-                print(vim.inspect(plugin_configs))
-                print(vim.inspect(plugin_configs[1]))
+                -- Handle table of plugins
+            elseif type(plugin_configs) == 'table' then
+                for _, plugin_config in ipairs(plugin_configs) do
+                    if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
+                        local username, repo = extract_github_info(plugin_config[1])
+                        if username and repo then
+                            local normalized_config = {
+                                source = normalize_github_url(plugin_config[1]),
+                                name = repo,
+                                lazy = plugin_config.lazy,
+                                event = plugin_config.event,
+                                ft = plugin_config.ft,
+                                cmd = plugin_config.cmd,
+                                keys = plugin_config.keys,
+                                depends = plugin_config.depends,
+                                config = plugin_config.config,
+                                init = plugin_config.init,
+                                post = plugin_config.post
+                            }
+                            logger.debug(string.format('Found plugin in table: %s/%s', username, repo))
+                            table.insert(plugins, normalized_config)
+                        end
+                    end
+                end
             end
         end
-        logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
     end
-    -- local username, repo = extract_github_info(plugin_configs[1])
-    -- if username and repo then
-    --     -- Create normalized plugin config
-    --     local normalized_config = {
-    --         source = normalize_github_url(plugin_config[1]),
-    --         name = repo,
-    --         -- Copy other options from the config
-    --         lazy = plugin_config.lazy,
-    --         event = plugin_config.event,
-    --         ft = plugin_config.ft,
-    --         cmd = plugin_config.cmd,
-    --         keys = plugin_config.keys,
-    --         depends = plugin_config.depends,
-    --         config = plugin_config.config,
-    --         init = plugin_config.init,
-    --         post = plugin_config.post
-    --     }
-    --     logger.debug(string.format('Found plugin: %s/%s', username, repo))
-    --     table.insert(plugins, normalized_config)
-    -- else
-    --     logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin_configs[1]))
-    -- Handle table of plugins
-    -- if type(plugin[1]) == "string" and is_valid_github_url(plugin[1]) then
-    --     local username, repo = extract_github_info(plugin[1])
-    --     if username and repo then
-    --         -- Create normalized plugin config
-    --         local normalized_config = {
-    --             source = normalize_github_url(plugin[1]),
-    --             name = repo,
-    --             -- Copy other options from the plugin
-    --             lazy = plugin.lazy,
-    --             event = plugin.event,
-    --             ft = plugin.ft,
-    --             cmd = plugin.cmd,
-    --             keys = plugin.keys,
-    --             depends = plugin.depends,
-    --             config = plugin.config,
-    --             init = plugin.init,
-    --             post = plugin.post
-    --         }
-    --         logger.debug(string.format('Found plugin in table: %s/%s', username, repo))
-    --         table.insert(plugins, normalized_config)
-    --     else
-    --         logger.warn(string.format('Invalid GitHub URL format in %s: %s', file_path, plugin[1]))
-    --     end
-    -- end
-    print(vim.inspect(plugins))
+
+    logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
     return plugins
 end
 
@@ -391,14 +414,9 @@ function M.load_all(paths)
     if paths.modules_path then
         logger.info(string.format('Loading modules from: %s', paths.modules_path))
         local modules = M.load_modules(paths.modules_path)
-        print('Modules: ', vim.inspect(modules))
-        all_plugins = vim.list_extend("force", all_plugins, modules)
-        print('Modules: ', vim.inspect(all_plugins))
-        -- for _, plugin in ipairs(modules) do
-        --     if plugin then
-        --         table.insert(all_plugins, plugin)
-        --     end
-        -- end
+        if #modules > 0 then
+            vim.list_extend(all_plugins, modules)
+        end
     else
         logger.warn('No modules_path configured')
     end
@@ -407,20 +425,14 @@ function M.load_all(paths)
     if paths.plugins_path then
         logger.info(string.format('Loading plugins from: %s', paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
-        print('Modules: ', vim.inspect(plugins))
-        all_plugins = vim.list_extend("force", all_plugins, plugins)
-        print('Modules: ', vim.inspect(all_plugins))
-        -- print('Plugins: ', vim.inspect(plugins))
-        -- for _, plugin in ipairs(plugins) do
-        --     if plugin then
-        --         table.insert(all_plugins, plugin)
-        --     end
-        -- end
+        if #plugins > 0 then
+            vim.list_extend(all_plugins, plugins
+        end
     else
         logger.warn('No plugins_path configured')
     end
 
-    logger.info(string.format('Total plugins retrieved: %d', #all_plugins))
+    logger.info(string.format('Total plugins loaded: %d', #all_plugins))
     return all_plugins
 end
 
