@@ -1,5 +1,4 @@
 local M = {}
-local Config = require('plugman')
 
 -- Helper functions
 function M.validate_plugin(plugin_config)

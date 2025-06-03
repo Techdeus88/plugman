@@ -59,7 +59,6 @@ function M.setup_plugins(paths)
     notify.info('Setting up plugins!')
     -- Load plugins from configured directories
     local all_plugins = loader.load_all(paths)
-    print(vim.inspect(all_plugins))
     for _, plugin_spec in ipairs(all_plugins) do
         -- Format plugin spec and transform to PlugmanPlugin
         local Plugin = require("plugman.core").normalize_plugin(plugin_spec[1], plugin_spec, "plugin")
@@ -102,7 +101,6 @@ function M.add(plugin)
         M._lazy_plugins[plugin.name] = plugin
         M._setup_lazy_loading(plugin)
     else
-        print('Load plugin immediately')
         local ok, _ = pcall(M._load_plugin_immediately, plugin)
         if not ok then
             logger.warn(string.format('Plugin %s not loaded', plugin.name))

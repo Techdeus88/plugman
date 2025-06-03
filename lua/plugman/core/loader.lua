@@ -2,7 +2,7 @@ local M = {}
 
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
-
+local utils = require("plugins.utils")
 ---Load plugins in priority order
 ---@param plugins table<string, PlugmanPlugin>
 ---@return table<string, boolean> Success status for each plugin
@@ -23,7 +23,7 @@ function M.load_by_priority(plugins)
 
     -- Load plugins in order
     for _, plugin in ipairs(sorted_plugins) do
-        local success = M.load_plugin(plugin.name, plugin.opts)
+        local success = M.load_plugin(plugin)
         results[plugin.name] = success
     end
 
@@ -61,9 +61,9 @@ function M.load_plugin(plugin)
 
         -- Setup plugin configuration
         -- Run config
-        M._setup_plugin_config(plugin.name, plugin)
+        M._setup_plugin_config(plugin)
         -- Setup keymaps
-        M._setup_keymaps(plugin.name, plugin)
+        M._setup_keymaps(plugin)
         -- Run post function
         if plugin.post then
             pcall(plugin.post)
@@ -128,36 +128,34 @@ function M._post_checkout_hook(name, opts)
 end
 
 ---Setup plugin configuration
----@param name string Plugin name
----@param opts PlugmanPlugin Plugin options
-function M._setup_plugin_config(name, opts)
-    if not opts.config then
+---@param plugin PlugmanPlugin Plugin
+function M._setup_plugin_config(plugin)
+    if not plugin.config then
         return
     end
 
     local success, err = pcall(function()
-        if type(opts.config) == 'function' then
-            opts.config()
-        elseif type(opts.config) == 'string' then
-            vim.cmd(opts.config)
+        if type(plugin.config) == 'function' then
+            plugin.config()
+        elseif type(plugin.config) == 'string' then
+            vim.cmd(plugin.config)
         end
     end)
 
     if not success then
-        logger.error(string.format('Failed to configure %s: %s', name, err))
-        notify.error(string.format('Failed to configure %s', name))
+        logger.error(string.format('Failed to configure %s: %s', plugin.name, err))
+        notify.error(string.format('Failed to configure %s', plugin.name))
     end
 end
 
 ---Setup keymaps for plugin
----@param name string Plugin name
----@param opts PlugmanPlugin Plugin options
-function M._setup_keymaps(name, opts)
-    if not opts.keys then
+---@param plugin PlugmanPlugin Plugin
+function M._setup_keymaps(plugin)
+    local name = plugin.name
+    if not plugin.keys then
         return
     end
-
-    local keys = type(opts.keys) == 'table' and opts.keys or { opts.keys }
+    local keys = type(plugin.keys) == 'table' and plugin.keys or { plugin.keys }
 
     for _, key in ipairs(keys) do
         if type(key) == 'string' then
@@ -174,46 +172,6 @@ function M._setup_keymaps(name, opts)
             vim.keymap.set(mode, lhs, rhs, keyopts)
         end
     end
-end
-
----Validate if string is a valid GitHub URL
----@param url string URL to validate
----@return boolean
-local function is_valid_github_url(url)
-    -- Basic GitHub URL patterns
-    local patterns = {
-        '^https?://github%.com/[%w-]+/[%w-]+/?$', -- https://github.com/user/repo
-        '^github%.com/[%w-]+/[%w-]+/?$',          -- github.com/user/repo
-        '^[%w-]+/[%w-]+$'                         -- user/repo
-    }
-
-    for _, pattern in ipairs(patterns) do
-        if url:match(pattern) then
-            return true
-        end
-    end
-    return false
-end
-
----Extract GitHub repository information
----@param url string GitHub URL
----@return string|nil, string|nil username and repository name
-local function extract_github_info(url)
-    local username, repo = url:match('github%.com/([%w-]+)/([%w-]+)')
-    if not username then
-        username, repo = url:match('([%w-]+)/([%w-]+)')
-    end
-    return username, repo
-end
-
----Normalize GitHub URL
----@param url string GitHub URL
----@return string Normalized URL
-local function normalize_github_url(url)
-    if url:match('^https?://') then
-        return url
-    end
-    return 'https://github.com/' .. url
 end
 
 ---Ensure dependency is loaded
@@ -245,31 +203,6 @@ local function load_file(file_path)
     return module_configs
 end
 
----Convert value to boolean
----@param value any Value to convert
----@return boolean
-local function to_boolean(value)
-    if type(value) == 'boolean' then
-        return value
-    end
-    return not not value
-end
-
----Convert table values to boolean
----@param tbl table Table to convert
----@return table
-local function table_to_boolean(tbl)
-    local result = {}
-    for k, v in pairs(tbl) do
-        if type(v) == 'table' then
-            result[k] = table_to_boolean(v)
-        else
-            result[k] = to_boolean(v)
-        end
-    end
-    return result
-end
-
 ---Load plugin configurations from a directory
 ---@param dir_path string Path to the directory containing plugin files
 ---@return table Plugin configurations
@@ -292,16 +225,16 @@ function M.load_plugin_files(dir_path)
         local plugin_configs = load_file(file_path)
         if plugin_configs then
             -- Handle single plugin config
-            if type(plugin_configs[1]) == "string" and is_valid_github_url(plugin_configs[1]) then
+            if type(plugin_configs[1]) == "string" and utils.is_valid_github_url(plugin_configs[1]) then
                 -- Convert boolean values
-                plugin_configs.lazy = to_boolean(plugin_configs.lazy)
+                plugin_configs.lazy = utils.to_boolean(plugin_configs.lazy)
                 table.insert(plugins, plugin_configs)
                 -- Handle table of plugins
             elseif type(plugin_configs) == 'table' then
                 for _, plugin_config in ipairs(plugin_configs) do
-                    if type(plugin_config[1]) == "string" and is_valid_github_url(plugin_config[1]) then
+                    if type(plugin_config[1]) == "string" and utils.is_valid_github_url(plugin_config[1]) then
                         -- Convert boolean values
-                        plugin_config.lazy = to_boolean(plugin_config.lazy)
+                        plugin_config.lazy = utils.to_boolean(plugin_config.lazy)
                         table.insert(plugins, plugin_config)
                     end
                 end
@@ -347,7 +280,6 @@ function M.load_all(paths)
     end
 
     logger.info(string.format('Total plugins loaded: %d', #all_plugins))
-    print(vim.inspect(all_plugins))
     return all_plugins
 end
 
