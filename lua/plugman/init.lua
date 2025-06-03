@@ -98,7 +98,7 @@ function M.add(plugin)
     -- Check if should lazy load
     if M._should_lazy_load(plugin) then
         M._lazy_plugins[plugin.name] = plugin
-        M._setup_lazy_loading(plugin.name, plugin)
+        M._setup_lazy_loading(plugin)
     else
         local ok, _ = pcall(M._load_plugin_immediately, plugin)
         if not ok then
@@ -152,27 +152,26 @@ function M.update(name)
 end
 
 ---Load a lazy plugin
----@param name string Plugin name
-function M._load_lazy_plugin(name)
-    local opts = M._lazy_plugins[name]
-    if not opts or M._loaded[name] then
+---@param plugin PlugmanPlugin Plugin
+function M._load_lazy_plugin(plugin)
+    local opts = M._lazy_plugins[plugin.name]
+    if not opts or M._loaded[plugin.name] then
         return
     end
 
-    notify.info(string.format('Loading %s...', name))
-    M._load_plugin_immediately(name, opts)
-    M._lazy_plugins[name] = nil
+    notify.info(string.format('Loading %s...', plugin.name))
+    M._load_plugin_immediately(plugin)
+    M._lazy_plugins[plugin.name] = nil
 end
 
 ---Load plugin immediately
----@param name string Plugin name
----@param opts PlugmanPlugin Plugin options
+---@param plugin PlugmanPlugin Plugin
 function M._load_plugin_immediately(plugin)
     if M._loaded[plugin.name] then
         return
     end
 
-    local ok, _ = pcall(function() loader.load_plugin(plugin) end)
+    local ok, _ = pcall(loader.load_plugin, plugin)
 
     if not ok then
         logger.warn(string.format("Plugin %s did not load", plugin.name))
@@ -186,56 +185,55 @@ function M._load_plugin_immediately(plugin)
 end
 
 ---Setup lazy loading for a plugin
----@param name string Plugin name
----@param opts PlugmanPlugin Plugin options
-function M._setup_lazy_loading(name, opts)
+---@param plugin PlugmanPlugin Plugin
+function M._setup_lazy_loading(plugin)
     -- Event-based loading
-    if opts.event then
-        local events_list = type(opts.event) == 'table' and opts.event or { opts.event }
+    if plugin.event then
+        local events_list = type(plugin.event) == 'table' and plugin.event or { plugin.event }
         for _, event in ipairs(events_list) do
             events.on_event(event, function()
-                M._load_lazy_plugin(name)
+                M._load_lazy_plugin(plugin)
             end)
         end
     end
 
     -- Filetype-based loading
-    if opts.ft then
-        local filetypes = type(opts.ft) == 'table' and opts.ft or { opts.ft }
+    if plugin.ft then
+        local filetypes = type(plugin.ft) == 'table' and plugin.ft or { plugin.ft }
         for _, ft in ipairs(filetypes) do
             events.on_filetype(ft, function()
-                M._load_lazy_plugin(name)
+                M._load_lazy_plugin(plugin)
             end)
         end
     end
 
     -- Command-based loading
-    if opts.cmd then
-        local commands = type(opts.cmd) == 'table' and opts.cmd or { opts.cmd }
+    if plugin.cmd then
+        local commands = type(plugin.cmd) == 'table' and plugin.cmd or { plugin.cmd }
         for _, cmd in ipairs(commands) do
             events.on_command(cmd, function()
-                M._load_lazy_plugin(name)
+                M._load_lazy_plugin(plugin)
             end)
         end
     end
 
-    -- Key-based loading
-    if opts.keys then
-        events.on_keys(opts.keys, function()
-            M._load_lazy_plugin(name)
-        end)
-    end
+    -- -- Key-based loading
+    -- if plugin.keys then
+    --     events.on_keys(plugin.keys, function()
+    --         M._load_lazy_plugin(plugin)
+    --     end)
+    -- end
 end
 
 ---Check if plugin should lazy load
----@param opts PlugmanPlugin Plugin options
+---@param plugin PlugmanPlugin Plugin
 ---@return boolean
-function M._should_lazy_load(opts)
-    if opts.lazy == false then
+function M._should_lazy_load(plugin)
+    if plugin.lazy == false then
         return false
     end
 
-    return opts.lazy or opts.event ~= nil or opts.ft ~= nil or opts.cmd ~= nil or opts.keys ~= nil
+    return plugin.lazy or plugin.event ~= nil or plugin.ft ~= nil or plugin.cmd ~= nil
 end
 
 ---Validate plugin configuration
