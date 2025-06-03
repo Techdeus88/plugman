@@ -1,9 +1,6 @@
 local M = {}
 
-local logger = require("lua.plugman.utils.logger")
-
-
-
+local logger = require("plugman.utils.logger")
 
 function M.get_timing_function(plugin, phase)
     if phase.timing == "now" then
