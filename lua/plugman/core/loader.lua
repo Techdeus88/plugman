@@ -426,7 +426,7 @@ function M.load_all(paths)
         logger.info(string.format('Loading plugins from: %s', paths.plugins_path))
         local plugins = M.load_plugins(paths.plugins_path)
         if #plugins > 0 then
-            vim.list_extend(all_plugins, plugins
+            vim.list_extend(all_plugins, plugins)
         end
     else
         logger.warn('No plugins_path configured')
