@@ -260,13 +260,12 @@ function M.ensure_dependency_loaded(dep)
     if plugman._loaded[dep.name] or dep.added then
         return
     end
-
-    print(vim.inspect(dep))
     -- Try to load dependency
-    if plugman._plugins[dep.name] then
-        M.load_plugin(dep)
+    local Dep = plugman._plugins[dep]
+    if Dep ~= nil then
+        M.load_plugin(Dep)
     else
-        logger.warn(string.format('Dependency %s not found', dep.name))
+        logger.warn(string.format('Dependency %s not found', dep))
     end
 end
 
