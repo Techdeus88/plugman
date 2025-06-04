@@ -80,8 +80,6 @@ function M.setup_plugins()
             logger.debug(string.format('Processing plugin spec: %s', vim.inspect(Plugin)))
             M.setup_plugin(Plugin)
         end
-    
-        
     end
 end
 
@@ -95,19 +93,19 @@ function M.register_plugin(plugin_spec)
     logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))
     local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
     if Plugin then
-        M.handle_add(Plugin)
+        pcall(M.handle_add, Plugin)
     else
         logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
     end
-
     ::continue::
-    return Plugin
 end
 
 function M.setup_plugin(Plugin)
-    local ok, _ = pcall(handle_load, Plugin)
-    else
-        logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
+    if Plugin then
+        local ok, _ = pcall(M.handle_load, Plugin)
+        if not ok then
+            logger.error(string.format('Failed to load plugin: %s', vim.inspect(Plugin.name)))
+        end
     end
 end
 
@@ -127,7 +125,7 @@ function M.handle_add(Plugin)
     pcall(loader.add_plugin, Plugin)
 
     -- Handle dependencies first
-    if Plugin.depends then    
+    if Plugin.depends then
         logger.debug(string.format('Processing dependencies for %s: %s', Plugin.name, vim.inspect(Plugin.depends)))
         for _, dep in ipairs(Plugin.depends) do
             local dep_source = type(dep) == "string" and dep or dep[1]
@@ -155,12 +153,25 @@ end
 
 function M.handle_load(Plugin)
     -- Check if should lazy load
+    if Plugin.depends then
+        for _, dep in ipairs(Plugin.depends) do
+            local dep_source = type(dep) == "string" and dep or dep[1]
+            local dep_name = dep_source:match('([^/]+)$')
+            local Dep = require("Plugman")._plugins[dep_name]
+            if Dep then
+                local depload_ok, _ = pcall(M._load_plugin_immediately, Dep)
+                if not depload_ok then
+                    vim.notify(string.format("Dependent %s did not load!", Dep.name))
+                end
+            end
+        end
+    end
     local is_lazy = M._should_lazy_load(Plugin)
-    logger.debug(string.format('Plugin %s lazy loading: %s', Plugin.name, is_lazy))
 
     if is_lazy then
+        logger.debug(string.format('Plugin %s lazy loading: %s', Plugin.name, is_lazy))
         M._lazy_plugins[Plugin.name] = Plugin
-        M._setup_lazy_loading(pluPluginin)
+        M._setup_lazy_loading(Plugin)
         logger.debug(string.format('Plugin %s set up for lazy loading', Plugin.name))
     else
         local ok, err = pcall(M._load_plugin_immediately, Plugin)
@@ -214,19 +225,6 @@ function M.update(name)
     end
 end
 
----Load a lazy plugin
----@param plugin PlugmanPlugin Plugin
-function M._load_lazy_plugin(plugin)
-    local opts = M._lazy_plugins[plugin.name]
-    if not opts or M._loaded[plugin.name] then
-        return
-    end
-
-    notify.info(string.format('Loading %s...', plugin.name))
-    M._load_plugin_immediately(plugin)
-    M._lazy_plugins[plugin.name] = nil
-end
-
 ---Load plugin immediately
 ---@param plugin PlugmanPlugin Plugin
 function M._load_plugin_immediately(plugin)
@@ -249,6 +247,19 @@ function M._load_plugin_immediately(plugin)
     -- Cache the loaded state
     cache.set_plugin_loaded(plugin.name, true)
     return true
+end
+
+---Load a lazy plugin
+---@param plugin PlugmanPlugin Plugin
+function M._load_lazy_plugin(plugin)
+    local opts = M._lazy_plugins[plugin.name]
+    if not opts or M._loaded[plugin.name] then
+        return
+    end
+
+    notify.info(string.format('Loading %s...', plugin.name))
+    M._load_plugin_immediately(plugin)
+    M._lazy_plugins[plugin.name] = nil
 end
 
 ---Setup lazy loading for a plugin
