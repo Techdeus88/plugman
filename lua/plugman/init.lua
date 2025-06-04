@@ -73,85 +73,103 @@ function M.setup_plugins()
     logger.debug(string.format('Plugin specs: %s', vim.inspect(all_plugins)))
     if all_plugins ~= nil then
         for _, plugin_spec in ipairs(all_plugins) do
-            logger.debug(string.format('Processing plugin spec: %s', vim.inspect(plugin_spec)))
-
-            -- Format plugin spec and transform to PlugmanPlugin
-            local source = plugin_spec[1] or plugin_spec.source
-            if not source then
-                logger.error('Plugin spec missing source: ' .. vim.inspect(plugin_spec))
-                goto continue
-            end
-
-            -- Ensure plugin has required fields
-            plugin_spec.source = source
-            plugin_spec.name = plugin_spec.name or source:match('([^/]+)$')
-
-            logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))
-            local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
-            if Plugin then
-                logger.debug(string.format('Adding plugin: %s', Plugin.name))
-                M.add(Plugin)
-            else
-                logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
-            end
-            ::continue::
+            logger.debug(string.format('Registering plugin: %s', vim.inspect(plugin_spec)))
+            M.register_plugin(plugin_spec)
         end
+        for _, Plugin in pairs(M._plugins) do
+            logger.debug(string.format('Processing plugin spec: %s', vim.inspect(Plugin)))
+            M.setup_plugin(Plugin)
+        end
+    
+        
+    end
+end
+
+function M.register_plugin(plugin_spec)
+    -- Format plugin spec and transform to PlugmanPlugin
+    local source = plugin_spec[1]
+    if not source then
+        logger.error('Plugin spec missing source: ' .. vim.inspect(plugin_spec))
+        goto continue
+    end
+    logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))
+    local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
+    if Plugin then
+        M.handle_add(Plugin)
+    else
+        logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
+    end
+
+    ::continue::
+    return Plugin
+end
+
+function M.setup_plugin(Plugin)
+    local ok, _ = pcall(handle_load, Plugin)
+    else
+        logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
     end
 end
 
 --Add a plugin
 ---@param plugin PlugmanPlugin plugin
-function M.add(plugin)
+function M.handle_add(Plugin)
+    logger.debug(string.format('Adding plugin: %s', Plugin.name))
     if not M._setup_done then
         logger.error('Plugman not initialized. Call setup() first.')
         return
     end
 
-    logger.debug(string.format('Adding plugin: %s', vim.inspect(plugin)))
+    logger.debug(string.format('Adding plugin: %s', vim.inspect(Plugin)))
     -- Store plugin
-    M._plugins[plugin.name] = plugin
-    logger.debug(string.format('Stored plugin: %s', plugin.name))
+    M._plugins[Plugin.name] = Plugin
+    logger.debug(string.format('Stored plugin: %s', Plugin.name))
+    pcall(loader.add_plugin, Plugin)
 
     -- Handle dependencies first
-    if plugin.depends then
-        logger.debug(string.format('Processing dependencies for %s: %s', plugin.name, vim.inspect(plugin.depends)))
-        for _, dep in ipairs(plugin.depends) do
+    if Plugin.depends then    
+        logger.debug(string.format('Processing dependencies for %s: %s', Plugin.name, vim.inspect(Plugin.depends)))
+        for _, dep in ipairs(Plugin.depends) do
             local dep_source = type(dep) == "string" and dep or dep[1]
             local dep_name = dep_source:match('([^/]+)$')
+
             if not M._plugins[dep_name] and not M._loaded[dep_name] then
                 logger.debug(string.format('Loading dependency: %s', dep_source))
                 local Dep = require("plugman.core").normalize_plugin(dep_source, dep, "dependent")
                 if Dep then
                     -- Store dependency
                     M._plugins[Dep.name] = Dep
-                    -- Load dependency
-                    local ok, err = pcall(M._load_plugin_immediately, Dep)
+                    -- Register dependency
+                    local ok, err = pcall(loader.add_plugin, Dep)
                     if not ok then
-                        logger.warn(string.format('Dependency %s not loaded for %s: %s', Dep.name, plugin.name, err))
+                        logger.warn(string.format('Dependency %s not loaded for %s: %s', Dep.name, Plugin.name, err))
                     end
                 end
             else
                 logger.debug(string.format("Dependency %s already loaded", dep))
             end
         end
+        -- local ok, err = pcall(M._load_plugin_immediately, Dep)
     end
+end
 
+function M.handle_load(Plugin)
     -- Check if should lazy load
-    local is_lazy = M._should_lazy_load(plugin)
-    logger.debug(string.format('Plugin %s lazy loading: %s', plugin.name, is_lazy))
+    local is_lazy = M._should_lazy_load(Plugin)
+    logger.debug(string.format('Plugin %s lazy loading: %s', Plugin.name, is_lazy))
 
     if is_lazy then
-        M._lazy_plugins[plugin.name] = plugin
-        M._setup_lazy_loading(plugin)
-        logger.debug(string.format('Plugin %s set up for lazy loading', plugin.name))
+        M._lazy_plugins[Plugin.name] = Plugin
+        M._setup_lazy_loading(pluPluginin)
+        logger.debug(string.format('Plugin %s set up for lazy loading', Plugin.name))
     else
-        local ok, err = pcall(M._load_plugin_immediately, plugin)
+        local ok, err = pcall(M._load_plugin_immediately, Plugin)
         if not ok then
-            logger.warn(string.format('Plugin %s not loaded: %s', plugin.name, err))
+            logger.warn(string.format('Plugin %s not loaded: %s', Plugin.name, err))
         end
     end
 
-    logger.info(string.format('Plugin: %s added and setup for loading', plugin.name))
+    logger.info(string.format('Plugin: %s added and setup for loading', Plugin.name))
 end
 
 ---Remove a plugin

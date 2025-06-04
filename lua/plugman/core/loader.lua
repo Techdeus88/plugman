@@ -4,6 +4,31 @@ local M = {}
 local utils = require("plugman.utils")
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
+
+function M.add_plugin(plugin)
+    local success, err = pcall(function()
+        -- Load dependencies first
+        -- Use MiniDeps to add the plugin
+        logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
+        local mini_deps = require("plugman.core.bootstrap")
+        local deps_success, deps_err = pcall(mini_deps.add, {
+            source = plugin.source,
+            depends = plugin.depends,
+            monitor = plugin.monitor,
+            checkout = plugin.checkout,
+            hooks = plugin.hooks,
+        })
+        if not deps_success then
+            logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
+            notify.error(string.format('Failed to load %s', plugin.name))
+            return
+        end
+    end)
+    if not success then
+        logger.error(string.format("Plugin not registered in session %s %s " .. plugin.name, err))
+    end
+end
+
 ---Load plugins in priority order
 ---@param plugins table<string, PlugmanPlugin>
 ---@return table<string, boolean> Success status for each plugin
@@ -29,46 +54,33 @@ function M.load_by_priority(plugins)
     return results
 end
 
+
 ---Load a single plugin
----@param plugin PlugmanPlugin plugin
+---@param Plugin PlugmanPlugin plugin
 ---@return boolean Success status
-function M.load_plugin(plugin)
-    local mini_deps = require("plugman.core.bootstrap")
-    logger.debug(string.format('Loading plugin: %s (source: %s)', plugin.name, plugin.source))
+function M.load_plugin(Plugin)
+    logger.debug(string.format('Loading plugin: %s (source: %s)', Plugin.name, Plugin.source))
 
     local success, err = pcall(function()
         -- Load dependencies first
-        if plugin.depends then
-            for _, dep in ipairs(plugin.depends) do
-                M.ensure_dependency_loaded(dep)
+        if Plugin.depends then
+            for _, dep in ipairs(Plugin.depends) do
+                local dep_source = type(dep) == "string" and dep or dep[1]
+                local dep_name = dep_source:match('([^/]+)$')
+                local Dep = require("plugman")._plugins[dep_name]
+                M.ensure_dependency_loaded(Dep)
             end
         end
-        -- Use MiniDeps to add the plugin
-        logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
-        local deps_success, deps_err = pcall(mini_deps.add, {
-            source = plugin.source,
-            depends = plugin.depends,
-            monitor = plugin.monitor,
-            checkout = plugin.checkout,
-            hooks = plugin.hooks,
-        })
-
-        if not deps_success then
-            logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
-            notify.error(string.format('Failed to load %s', plugin.name))
-            return
-        end
-
         -- Setup plugin configuration
-        M._setup_plugin_config(plugin)
+        M._load_plugin_config(Plugin)
     end)
 
     if not success then
-        logger.error(string.format('Failed to load %s: %s', plugin.name, err))
+        logger.error(string.format('Failed to load %s: %s', Plugin.name, err))
         return false
     end
 
-    logger.info(string.format('Successfully loaded: %s', plugin.name))
+    logger.info(string.format('Successfully loaded: %s', Plugin.name))
     return true
 end
 
@@ -193,27 +205,27 @@ function M._process_config(plugin, merged_opts)
 end
 
 ---Setup plugin configuration
----@param plugin PlugmanPlugin Plugin
-function M._setup_plugin_config(plugin)
-    if not (plugin.config ~= nil or plugin.opts ~= nil) then
+---@param Plugin PlugmanPlugin Plugin
+function M._load_plugin_config(Plugin)
+    if not (Plugin.config ~= nil or Plugin.opts ~= nil) then
         return
     end
     -- Process setup phases
     local success, err = pcall(function()
         for _, phase in ipairs(SETUP_PHASES) do
-            if phase.condition(plugin) then
-                local timing_fn = utils.get_timing_function(plugin, phase)
+            if phase.condition(Plugin) then
+                local timing_fn = utils.get_timing_function(Plugin, phase)
                 timing_fn(function()
-                    utils.safe_pcall(phase.action, plugin)
-                    vim.notify(string.format("Phase %s completed for %s", phase.name, plugin.name), "plugins")
+                    utils.safe_pcall(phase.action, Plugin)
+                    vim.notify(string.format("Phase %s completed for %s", phase.name, Plugin.name), "plugins")
                 end)
             end
         end
     end)
 
     if not success then
-        logger.error(string.format('Failed to configure %s: %s', plugin.name, err))
-        notify.error(string.format('Failed to configure %s', plugin.name))
+        logger.error(string.format('Failed to configure %s: %s', Plugin.name, err))
+        notify.error(string.format('Failed to configure %s', Plugin.name))
     end
 end
 
@@ -253,7 +265,7 @@ function M._setup_keymaps(plugin)
 end
 
 ---Ensure dependency is loaded
----@param dep_name string Dependency name
+---@param dep PlugmanPlugin dependent
 function M.ensure_dependency_loaded(dep)
     -- Check if dependency is already loaded
     local plugman = require('plugman')
@@ -262,6 +274,7 @@ function M.ensure_dependency_loaded(dep)
     end
     -- Try to load dependency
     local Dep = plugman._plugins[dep]
+    print()
     if Dep ~= nil then
         M.load_plugin(Dep)
     else
