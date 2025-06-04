@@ -5,6 +5,7 @@
 ---@field private _setup_done boolean
 local M = {}
 
+-- Dependencies
 local cache = require("plugman.core.cache")
 local loader = require("plugman.core.loader")
 local events = require("plugman.core.events")
@@ -12,315 +13,37 @@ local defaults = require("plugman.config.default")
 local logger = require("plugman.utils.logger")
 local notify = require("plugman.utils.notify")
 local bootstrap = require("plugman.core.bootstrap")
+local utils = require("plugman.utils")
 
+-- State
 M._plugins = {}
 M._lazy_plugins = {}
 M._loaded = {}
 M._setup_done = false
 M.opts = nil
----@class PlugmanPlugin
----@field source string Plugin source (GitHub repo, local path, etc.)
----@field name? string Plugin name extracted from source
----@field lazy? boolean Whether to lazy load
----@field event? string|string[] Events to trigger loading
----@field ft? string|string[] Filetypes to trigger loading
----@field cmd? string|string[] Commands to trigger loading
----@field keys? table|string[] Keymaps to create
----@field depends? string[] Dependencies
----@field hooks? table hooks for plugins during the pre,post stages
----@field monitor? string track new upcoming releases of the plugin
----@field checkout? string use a specific version of the plugin
----@field init? function Function to run before loading
----@field post? function Function to run after loading
----@field priority? number Load priority (higher = earlier)
----@field enabled? boolean Whether plugin is enabled
----@field require? string Require string for auto initialization and loading
----@field config? function|table Plugin configuration
----@field opts? table Plugin options
 
----Setup Plugman with user configuration
----@param opts? table Configuration options
-function M.setup(opts)
-    logger.debug('Starting Plugman setup')
-    opts = vim.tbl_deep_extend("force", defaults, opts or {})
-    logger.debug(string.format('Setup options: %s', vim.inspect(opts)))
+-- Constants
+local PLUGIN_STATES = {
+    ADDED = 'added',
+    LOADED = 'loaded',
+    LOADING = 'loading'
+}
 
-    logger.setup(opts.log_level or 'info')
-    cache.setup(opts.cache or {})
-    notify.setup(opts.notify or {})
-
-    -- Bootstrap MiniDeps (install and setup)
-    logger.debug('Setting up MiniDeps')
-    bootstrap.setup(opts.minideps or {})
-
-    -- Setup autocmds for lazy loading
-    logger.debug('Setting up events')
-    events.setup()
-
-    M._setup_done = true
-    logger.info('Plugman initialized successfully')
-    M.opts = opts
-    logger.debug('Starting plugin setup')
-    M.setup_plugins(opts.paths)
+-- Helper Functions
+local function safe_pcall(fn, ...)
+    local success, result = pcall(fn, ...)
+    if not success then
+        logger.error(string.format('Operation failed: %s', result))
+        return nil
+    end
+    return result
 end
 
-function M.setup_plugins()
-    logger.debug(string.format("Setting up plugins"))
-
-    -- Load plugins from configured directories
-    local all_plugins = loader.load_all()
-    logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
-    logger.debug(string.format('Plugin specs: %s', vim.inspect(all_plugins)))
-    if all_plugins ~= nil then
-        for _, plugin_spec in ipairs(all_plugins) do
-            logger.debug(string.format('Registering plugin: %s', vim.inspect(plugin_spec)))
-            M.register_plugin(plugin_spec)
-        end
-        for _, Plugin in pairs(M._plugins) do
-            logger.debug(string.format('Processing plugin spec: %s', vim.inspect(Plugin)))
-            M.setup_plugin(Plugin)
-        end
-    end
+local function extract_plugin_name(source)
+    return source:match('([^/]+)$') or source
 end
 
-function M.register_plugin(plugin_spec)
-    -- Format plugin spec and transform to PlugmanPlugin
-    local source = plugin_spec[1]
-    if not source then
-        logger.error('Plugin spec missing source: ' .. vim.inspect(plugin_spec))
-        goto continue
-    end
-    logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))
-    local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
-    if Plugin then
-        pcall(M.handle_add, Plugin)
-    else
-        logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
-    end
-    ::continue::
-end
-
-function M.setup_plugin(Plugin)
-    if Plugin then
-        local ok, _ = pcall(M.handle_load, Plugin)
-        if not ok then
-            logger.error(string.format('Failed to load plugin: %s', vim.inspect(Plugin.name)))
-        end
-    end
-end
-
---Add a plugin
----@param plugin PlugmanPlugin plugin
-function M.handle_add(Plugin)
-    logger.debug(string.format('Adding plugin: %s', Plugin.name))
-    if not M._setup_done then
-        logger.error('Plugman not initialized. Call setup() first.')
-        return
-    end
-
-    logger.debug(string.format('Adding plugin: %s', vim.inspect(Plugin)))
-    -- Store plugin
-    M._plugins[Plugin.name] = Plugin
-    logger.debug(string.format('Stored plugin: %s', Plugin.name))
-    pcall(loader.add_plugin, Plugin)
-
-    -- Handle dependencies first
-    if Plugin.depends then
-        logger.debug(string.format('Processing dependencies for %s: %s', Plugin.name, vim.inspect(Plugin.depends)))
-        for _, dep in ipairs(Plugin.depends) do
-            local dep_source = type(dep) == "string" and dep or dep[1]
-            local dep_name = dep_source:match('([^/]+)$')
-
-            if not M._plugins[dep_name] and not M._loaded[dep_name] then
-                logger.debug(string.format('Loading dependency: %s', dep_source))
-                local Dep = require("plugman.core").normalize_plugin(dep_source, dep, "dependent")
-                if Dep then
-                    -- Store dependency
-                    M._plugins[Dep.name] = Dep
-                    -- Register dependency
-                    local ok, err = pcall(loader.add_plugin, Dep)
-                    if not ok then
-                        logger.warn(string.format('Dependency %s not loaded for %s: %s', Dep.name, Plugin.name, err))
-                    end
-                end
-            else
-                logger.debug(string.format("Dependency %s already loaded", dep))
-            end
-        end
-        -- local ok, err = pcall(M._load_plugin_immediately, Dep)
-    end
-end
-
-function M.handle_load(Plugin)
-    -- Check if should lazy load
-    if Plugin.depends then
-        for _, dep in ipairs(Plugin.depends) do
-            local dep_source = type(dep) == "string" and dep or dep[1]
-            local dep_name = dep_source:match('([^/]+)$')
-            local Dep = require("Plugman")._plugins[dep_name]
-            if Dep then
-                local depload_ok, _ = pcall(M._load_plugin_immediately, Dep)
-                if not depload_ok then
-                    vim.notify(string.format("Dependent %s did not load!", Dep.name))
-                end
-            end
-        end
-    end
-    local is_lazy = M._should_lazy_load(Plugin)
-
-    if is_lazy then
-        logger.debug(string.format('Plugin %s lazy loading: %s', Plugin.name, is_lazy))
-        M._lazy_plugins[Plugin.name] = Plugin
-        M._setup_lazy_loading(Plugin)
-        logger.debug(string.format('Plugin %s set up for lazy loading', Plugin.name))
-    else
-        local ok, err = pcall(M._load_plugin_immediately, Plugin)
-        if not ok then
-            logger.warn(string.format('Plugin %s not loaded: %s', Plugin.name, err))
-        end
-    end
-
-    logger.info(string.format('Plugin: %s added and setup for loading', Plugin.name))
-end
-
----Remove a plugin
----@param name string Plugin name
-function M.remove(name)
-    if not M._plugins[name] then
-        logger.error(string.format('Plugin %s not found', name))
-        return
-    end
-
-    -- Use MiniDeps to remove
-    local success = MiniDeps.clean(name)
-
-    if success then
-        M._plugins[name] = nil
-        M._lazy_plugins[name] = nil
-        M._loaded[name] = nil
-        cache.remove_plugin(name)
-
-        logger.info(string.format('Removed plugin: %s', name))
-        notify.info(string.format('Removed %s', name))
-    else
-        logger.error(string.format('Failed to remove plugin: %s', name))
-        notify.error(string.format('Failed to remove %s', name))
-    end
-end
-
----Update plugins
----@param name? string Specific plugin name (updates all if nil)
-function M.update(name)
-    if name then
-        if not M._plugins[name] then
-            logger.error(string.format('Plugin %s not found', name))
-            return
-        end
-
-        notify.info(string.format('Updating %s...', name))
-        MiniDeps.update(name)
-    else
-        notify.info('Updating all plugins...')
-        MiniDeps.update()
-    end
-end
-
----Load plugin immediately
----@param plugin PlugmanPlugin Plugin
-function M._load_plugin_immediately(plugin)
-    if M._loaded[plugin.name] then
-        logger.debug(string.format('Plugin %s already loaded', plugin.name))
-        return
-    end
-
-    logger.debug(string.format('Loading plugin immediately: %s', plugin.name))
-    local ok, err = pcall(loader.load_plugin, plugin)
-
-    if not ok then
-        logger.warn(string.format("Plugin %s did not load: %s", plugin.name, err))
-        return false
-    end
-
-    M._loaded[plugin.name] = true
-    logger.info(string.format('Loaded plugin: %s', plugin.name))
-
-    -- Cache the loaded state
-    cache.set_plugin_loaded(plugin.name, true)
-    return true
-end
-
----Load a lazy plugin
----@param plugin PlugmanPlugin Plugin
-function M._load_lazy_plugin(plugin)
-    local opts = M._lazy_plugins[plugin.name]
-    if not opts or M._loaded[plugin.name] then
-        return
-    end
-
-    notify.info(string.format('Loading %s...', plugin.name))
-    M._load_plugin_immediately(plugin)
-    M._lazy_plugins[plugin.name] = nil
-end
-
----Setup lazy loading for a plugin
----@param plugin PlugmanPlugin Plugin
-function M._setup_lazy_loading(plugin)
-    -- Event-based loading
-    if plugin.event then
-        local events_list = type(plugin.event) == 'table' and plugin.event or { plugin.event }
-        for _, event in ipairs(events_list) do
-            events.on_event(event, function()
-                M._load_lazy_plugin(plugin)
-            end)
-        end
-    end
-
-    -- Filetype-based loading
-    if plugin.ft then
-        local filetypes = type(plugin.ft) == 'table' and plugin.ft or { plugin.ft }
-        for _, ft in ipairs(filetypes) do
-            events.on_filetype(ft, function()
-                M._load_lazy_plugin(plugin)
-            end)
-        end
-    end
-
-    -- Command-based loading
-    if plugin.cmd then
-        local commands = type(plugin.cmd) == 'table' and plugin.cmd or { plugin.cmd }
-        for _, cmd in ipairs(commands) do
-            events.on_command(cmd, function()
-                M._load_lazy_plugin(plugin)
-            end)
-        end
-    end
-
-    -- -- Key-based loading
-    -- if plugin.keys then
-    --     events.on_keys(plugin.keys, function()
-    --         M._load_lazy_plugin(plugin)
-    --     end)
-    -- end
-end
-
----Check if plugin should lazy load
----@param plugin PlugmanPlugin Plugin
----@return boolean
-function M._should_lazy_load(plugin)
-    local utils = require("plugman.utils")
-    if plugin.lazy == false then
-        return false
-    end
-
-    return utils.to_boolean(plugin.lazy) or utils.to_boolean(plugin.event) ~= nil or utils.to_boolean(plugin.ft ~= nil) or
-        utils.to_boolean(plugin.cmd ~= nil)
-end
-
----Validate plugin configuration
----@param source string Plugin source
----@param opts PlugmanPlugin Plugin options
----@return boolean
-function M._validate_plugin(source, opts)
+local function validate_plugin(source, opts)
     if not source or source == '' then
         logger.error('Plugin source cannot be empty')
         return false
@@ -334,16 +57,249 @@ function M._validate_plugin(source, opts)
     return true
 end
 
----Get plugin name from source
----@param source string Plugin source
----@return string
-function M._get_plugin_name(source)
-    return source:match('([^/]+)$') or source
+local function should_lazy_load(plugin)
+    if plugin.lazy == false then return false end
+    return utils.to_boolean(plugin.lazy) or
+        utils.to_boolean(plugin.event) or
+        utils.to_boolean(plugin.ft) or
+        utils.to_boolean(plugin.cmd)
 end
 
----Get plugin status
----@param name? string Plugin name (returns all if nil)
----@return table
+-- Core Functions
+function M.setup(opts)
+    logger.debug('Starting Plugman setup')
+    opts = vim.tbl_deep_extend("force", defaults, opts or {})
+    logger.debug(string.format('Setup options: %s', vim.inspect(opts)))
+
+    -- Initialize components
+    logger.setup(opts.log_level or 'info')
+    cache.setup(opts.cache or {})
+    notify.setup(opts.notify or {})
+    bootstrap.setup(opts.minideps or {})
+    events.setup()
+
+    M._setup_done = true
+    M.opts = opts
+    logger.info('Plugman initialized successfully')
+
+    -- Load plugins
+    logger.debug('Starting plugin setup')
+    M.setup_plugins()
+end
+
+function M.setup_plugins()
+    logger.debug("Setting up plugins")
+
+    local all_plugins = loader.load_all()
+    if not all_plugins then
+        logger.error('Failed to load plugins')
+        return
+    end
+
+    logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
+
+    -- Register and setup plugins
+    for _, plugin_spec in ipairs(all_plugins) do
+        local Plugin = M.register_plugin(plugin_spec)
+        if Plugin then
+            M.setup_plugin(Plugin)
+        end
+    end
+end
+
+function M.register_plugin(plugin_spec)
+    local source = plugin_spec[1]
+    if not source then
+        logger.error('Plugin spec missing source: ' .. vim.inspect(plugin_spec))
+        return nil
+    end
+
+    logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))
+    local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
+
+    if not Plugin then
+        logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
+        return nil
+    end
+
+    M.handle_add(Plugin)
+    return Plugin
+end
+
+function M.setup_plugin(Plugin)
+    if not Plugin then return end
+
+    local ok = safe_pcall(M.handle_load, Plugin)
+    if not ok then
+        logger.error(string.format('Failed to load plugin: %s', Plugin.name))
+    end
+end
+
+function M.handle_add(Plugin)
+    if not M._setup_done then
+        logger.error('Plugman not initialized. Call setup() first.')
+        return
+    end
+
+    logger.debug(string.format('Adding plugin: %s', Plugin.name))
+
+    -- Store plugin
+    M._plugins[Plugin.name] = Plugin
+    safe_pcall(loader.add_plugin, Plugin)
+
+    -- Handle dependencies
+    if Plugin.depends then
+        M._handle_dependencies(Plugin)
+    end
+end
+
+function M._handle_dependencies(Plugin)
+    logger.debug(string.format('Processing dependencies for %s: %s', Plugin.name, vim.inspect(Plugin.depends)))
+
+    for _, dep in ipairs(Plugin.depends) do
+        local dep_source = type(dep) == "string" and dep or dep[1]
+        local dep_name = extract_plugin_name(dep_source)
+
+        if not M._plugins[dep_name] and not M._loaded[dep_name] then
+            logger.debug(string.format('Loading dependency: %s', dep_source))
+            local Dep = require("plugman.core").normalize_plugin(dep_source, dep, "dependent")
+
+            if Dep then
+                M._plugins[Dep.name] = Dep
+                local ok = safe_pcall(loader.add_plugin, Dep)
+                if not ok then
+                    logger.warn(string.format('Dependency %s not loaded for %s', Dep.name, Plugin.name))
+                end
+            end
+        else
+            logger.debug(string.format("Dependency %s already loaded", dep))
+        end
+    end
+end
+
+function M.handle_load(Plugin)
+    -- Load dependencies first
+    if Plugin.depends then
+        M._load_dependencies(Plugin)
+    end
+
+    -- Determine loading strategy
+    if should_lazy_load(Plugin) then
+        M._setup_lazy_loading(Plugin)
+    else
+        M._load_plugin_immediately(Plugin)
+    end
+
+    logger.info(string.format('Plugin: %s added and setup for loading', Plugin.name))
+end
+
+function M._load_dependencies(Plugin)
+    for _, dep in ipairs(Plugin.depends) do
+        local dep_source = type(dep) == "string" and dep or dep[1]
+        local dep_name = extract_plugin_name(dep_source)
+        local Dep = M._plugins[dep_name]
+
+        if Dep then
+            local ok = safe_pcall(M._load_plugin_immediately, Dep)
+            if not ok then
+                notify.error(string.format("Dependent %s did not load!", Dep.name))
+            end
+        end
+    end
+end
+
+function M._load_plugin_immediately(plugin)
+    if M._loaded[plugin.name] then
+        logger.debug(string.format('Plugin %s already loaded', plugin.name))
+        return true
+    end
+
+    logger.debug(string.format('Loading plugin immediately: %s', plugin.name))
+    local ok = safe_pcall(loader.load_plugin, plugin)
+
+    if not ok then
+        logger.warn(string.format("Plugin %s did not load", plugin.name))
+        return false
+    end
+
+    M._loaded[plugin.name] = true
+    cache.set_plugin_loaded(plugin.name, true)
+    logger.info(string.format('Loaded plugin: %s', plugin.name))
+    return true
+end
+
+function M._setup_lazy_loading(plugin)
+    logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
+    M._lazy_plugins[plugin.name] = plugin
+
+    -- Event-based loading
+    if plugin.event then
+        local events_list = type(plugin.event) == 'table' and plugin.event or { plugin.event }
+        for _, event in ipairs(events_list) do
+            events.on_event(event, function() M._load_lazy_plugin(plugin) end)
+        end
+    end
+
+    -- Filetype-based loading
+    if plugin.ft then
+        local filetypes = type(plugin.ft) == 'table' and plugin.ft or { plugin.ft }
+        for _, ft in ipairs(filetypes) do
+            events.on_filetype(ft, function() M._load_lazy_plugin(plugin) end)
+        end
+    end
+
+    -- Command-based loading
+    if plugin.cmd then
+        local commands = type(plugin.cmd) == 'table' and plugin.cmd or { plugin.cmd }
+        for _, cmd in ipairs(commands) do
+            events.on_command(cmd, function() M._load_lazy_plugin(plugin) end)
+        end
+    end
+end
+
+function M._load_lazy_plugin(plugin)
+    if not M._lazy_plugins[plugin.name] or M._loaded[plugin.name] then return end
+
+    notify.info(string.format('Loading %s...', plugin.name))
+    M._load_plugin_immediately(plugin)
+    M._lazy_plugins[plugin.name] = nil
+end
+
+-- Plugin Management Functions
+function M.remove(name)
+    if not M._plugins[name] then
+        logger.error(string.format('Plugin %s not found', name))
+        return
+    end
+
+    local success = bootstrap.clean(name)
+    if success then
+        M._plugins[name] = nil
+        M._lazy_plugins[name] = nil
+        M._loaded[name] = nil
+        cache.remove_plugin(name)
+        logger.info(string.format('Removed plugin: %s', name))
+        notify.info(string.format('Removed %s', name))
+    else
+        logger.error(string.format('Failed to remove plugin: %s', name))
+        notify.error(string.format('Failed to remove %s', name))
+    end
+end
+
+function M.update(name)
+    if name then
+        if not M._plugins[name] then
+            logger.error(string.format('Plugin %s not found', name))
+            return
+        end
+        notify.info(string.format('Updating %s...', name))
+        bootstrap.update(name)
+    else
+        notify.info('Updating all plugins...')
+        bootstrap.update()
+    end
+end
+
 function M.status(name)
     if name then
         return {
@@ -352,21 +308,21 @@ function M.status(name)
             lazy = M._lazy_plugins[name] ~= nil,
             config = M._plugins[name]
         }
-    else
-        local status = {}
-        for plugin_name, _ in pairs(M._plugins) do
-            status[plugin_name] = M.status(plugin_name)
-        end
-        return status
     end
+
+    local status = {}
+    for plugin_name, _ in pairs(M._plugins) do
+        status[plugin_name] = M.status(plugin_name)
+    end
+    return status
 end
 
----Show UI
+-- UI Functions
 function M.show()
     require('plugman.ui').show()
 end
 
--- API functions
+-- API Functions
 M.list = function() return vim.tbl_keys(M._plugins) end
 M.loaded = function() return vim.tbl_keys(M._loaded) end
 M.lazy = function() return vim.tbl_keys(M._lazy_plugins) end

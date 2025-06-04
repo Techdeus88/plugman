@@ -3,12 +3,13 @@ local M = {}
 
 local logger = require("plugman.utils.logger")
 
+---@class PlugmanPlugin
 local Plugin = {}
 Plugin.__index = Plugin
 
 function Plugin:new(n_plugin)
     local plugin = setmetatable(vim.tbl_deep_extend("force", vim.deepcopy(n_plugin), {
-        enabled = true,
+        enabled = n_plugin.enabled or true,
         added = false,
         loaded = false,
         loading = false,
@@ -75,16 +76,16 @@ function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     end
 
     -- Set default values
-    result.lazy = result.lazy ~= false -- lazy by default
+    result.lazy = result.lazy ~= false       -- lazy by default
     result.path = vim.fn.stdpath('data') .. '/site/pack/plugman/start/' .. result.name
     result.enabled = result.enabled ~= false -- enabled by default
 
     -- Create plugin object
     local plugin = Plugin:new(result)
-    
+
     -- Log plugin details for debugging
     logger.debug(string.format('Normalized plugin: %s', vim.inspect(plugin)))
-    
+
     return plugin
 end
 
