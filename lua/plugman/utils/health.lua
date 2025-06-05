@@ -3,6 +3,7 @@ local M = {}
 ---Check Plugman health
 function M.check()
     local health = vim.health or require('health')
+    print(vim.inspect(health))
 
     health.report_start('Plugman Health Check')
 
