@@ -135,21 +135,42 @@ function M.add_plugin(plugin)
 
     return safe_pcall(function()
         logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
-        local deps_success, deps_err = pcall(mini_deps.add, {
-            source = plugin.source,
-            depends = plugin.depends,
-            monitor = plugin.monitor,
-            checkout = plugin.checkout,
-            hooks = plugin.hooks,
-        })
+        local deps_success, deps_err = pcall(mini_deps.add, plugin)
 
         if not deps_success then
             logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
-            notify.error(string.format('Failed to load %s', plugin.name))
+            notify.error(string.format('Failed to load %s', plugin.source))
             return false
         end
         return true
     end)
+end
+
+---Load plugins in priority order
+---@param plugins table<string, PlugmanPlugin>
+---@return table<string, boolean> Success status for each plugin
+function M.load_by_priority(plugins)
+    -- Sort plugins by priority
+    local sorted_plugins = {}
+    for name, p_opts in pairs(plugins) do
+        table.insert(sorted_plugins, { name = name, opts = p_opts })
+    end
+
+    table.sort(sorted_plugins, function(a, b)
+        local priority_a = a.opts.priority or 200
+        local priority_b = b.opts.priority or 200
+        return priority_a < priority_b
+    end)
+
+    local results = {}
+
+    -- Load plugins in order
+    for _, plugin in ipairs(sorted_plugins) do
+        local success = M.load_plugin(plugin.opts)
+        results[plugin.name] = success
+    end
+
+    return results
 end
 
 function M.load_plugin(Plugin)
@@ -195,7 +216,7 @@ end
 
 function M.ensure_dependency_loaded(Dep)
     if not Dep then return end
-    
+
     local plugman = require('plugman')
     if plugman._loaded[Dep.name] or Dep.loaded then return end
 
@@ -252,8 +273,8 @@ function M.load_all()
     end
 
     local all_plugins = {}
-    local plugins_path = string.format("%s/%s", 
-        config_opts.paths.plugins_path, 
+    local plugins_path = string.format("%s/%s",
+        config_opts.paths.plugins_path,
         config_opts.paths.plugins_dir or 'plugins'
     )
 

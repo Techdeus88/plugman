@@ -98,11 +98,21 @@ function M.setup_plugins()
 
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
 
-    -- Register and setup plugins
+    -- Register plugins first
     for _, plugin_spec in ipairs(all_plugins) do
-        local Plugin = M.register_plugin(plugin_spec)
-        if Plugin then
-            M.setup_plugin(Plugin)
+        local success, err = pcall(M.register_plugin, plugin_spec)
+        if not success then
+            logger.error(string.format('Failed to register plugin: %s', err))
+        end
+    end
+
+    -- Load plugins by priority
+    local results = loader.load_by_priority(M._plugins)
+
+    -- Handle results
+    for name, success in pairs(results) do
+        if not success then
+            logger.error(string.format('Failed to load plugin: %s', name))
         end
     end
 end
@@ -145,7 +155,10 @@ function M.handle_add(Plugin)
 
     -- Store plugin
     M._plugins[Plugin.name] = Plugin
-    safe_pcall(loader.add_plugin, Plugin)
+    -- Format plugin to register
+    local PluginRegister = require("plugman.core").format_plugin(Plugin, "register")
+    -- Register plugin
+     safe_pcall(loader.add_plugin, PluginRegister)
 
     -- Handle dependencies
     if Plugin.depends then
