@@ -4,6 +4,7 @@
 ---@field public  _loaded table<string, boolean>
 ---@field private _setup_done boolean
 local M = {}
+M._start = 0
 
 -- Dependencies
 local cache = require("plugman.core.cache")
@@ -53,6 +54,7 @@ end
 
 -- Core Functions
 function M.setup(opts)
+    M._start = M._start == 0 and vim.uv.hrtime() or M._start
     logger.debug('Starting Plugman setup')
     opts = vim.tbl_deep_extend("force", defaults, opts or {})
     logger.debug(string.format('Setup options: %s', vim.inspect(opts)))
@@ -94,11 +96,14 @@ function M.setup_plugins()
 
     -- Load plugins by priority
     local results = loader.load_by_priority(M._plugins)
-
+    print(vim.inspect(results))
     -- Handle results
     for name, success in pairs(results) do
         if not success then
             logger.error(string.format('Failed to load plugin: %s', name))
+            M._loaded[name] = false
+        else
+            M._loaded[name] = true
         end
     end
 end
@@ -144,7 +149,10 @@ function M.handle_add(Plugin)
     -- Format plugin to register
     local PluginRegister = require("plugman.core").format_plugin(Plugin, "register")
     -- Register plugin
-     safe_pcall(loader.add_plugin, PluginRegister)
+    local add_ok, _ = safe_pcall(loader.add_plugin, PluginRegister)
+    if add_ok then
+        Plugin:has_added()
+    end
 
     -- Handle dependencies
     if Plugin.depends then

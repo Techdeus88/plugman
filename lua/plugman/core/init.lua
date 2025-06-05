@@ -63,6 +63,26 @@ function Plugin:validate()
     return true
 end
 
+function Plugin:has_added()
+    if not self.added then
+        self.added = true
+        return true
+    end
+    logger.warn("Plugin already added")
+    return nil
+end
+
+function Plugin:has_loaded()
+    local end_time = vim.uv.hrtime()
+    if not self.loaded then
+        self.loaded = true
+        self.load_time = string.format("%.2f ms", (end_time - require("plugman")._start) / 1e6)
+        return true
+    end
+    logger.warn("Plugin aslready loaded")
+    return nil
+end
+
 ---Normalize plugin specification
 ---@param plugin_source string Plugin source URL or path
 ---@param plugin_spec table|string Plugin specification
