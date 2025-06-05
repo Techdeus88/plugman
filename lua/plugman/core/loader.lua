@@ -45,7 +45,7 @@ local function safe_pcall(fn, ...)
         logger.error(string.format('Operation failed: %s', result))
         return nil
     end
-    return result
+    return success
 end
 
 local function extract_plugin_name(source)
@@ -168,7 +168,7 @@ function M.load_by_priority(Plugins)
     for _, Plugin in ipairs(sorted_plugins) do
         local success = M.load_plugin(Plugin.opts)
         results[Plugin.name] = success
-        Plugin:has_loaded()
+        Plugin.opts:has_loaded()
     end
 
     return results
