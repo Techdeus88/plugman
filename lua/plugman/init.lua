@@ -191,6 +191,7 @@ function M.handle_load(Plugin)
     end
 
     logger.info(string.format('Plugin: %s added and setup for loading', Plugin.name))
+    return true
 end
 
 function M._load_dependencies(Plugin)
