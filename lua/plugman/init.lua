@@ -43,20 +43,6 @@ local function extract_plugin_name(source)
     return source:match('([^/]+)$') or source
 end
 
-local function validate_plugin(source, opts)
-    if not source or source == '' then
-        logger.error('Plugin source cannot be empty')
-        return false
-    end
-
-    if opts.enabled == false then
-        logger.info(string.format('Plugin %s is disabled', source))
-        return false
-    end
-
-    return true
-end
-
 local function should_lazy_load(plugin)
     if plugin.lazy == false then return false end
     return utils.to_boolean(plugin.lazy) or

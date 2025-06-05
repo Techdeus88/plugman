@@ -14,7 +14,7 @@ end, {
 })
 
 vim.api.nvim_create_user_command('PlugmanHealth', function()
-    require('plugman.utils.health').check()
+    require('plugman.health').check()
 end, { desc = 'Check Plugman health' })
 
 vim.api.nvim_create_user_command('PlugmanAdd', function(args)
