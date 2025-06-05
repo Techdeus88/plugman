@@ -4,7 +4,16 @@ files = {
 globals = {
     "vim",
     "_G",
-    "MiniDeps"
+    "use",
+    "packer_plugins",
+    "NOREF_NOERR_TRUNC",
+    "lfs",
+    "hs",
+    "MiniDeps",
+    "describe",
+    "assert",
+    "before_each",
+    "it"
 }
 cache = true
 ignore = {}

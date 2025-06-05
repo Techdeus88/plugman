@@ -16,7 +16,11 @@
       "NOREF_NOERR_TRUNC",
       "lfs",
       "hs",
-      "MiniDeps"
+      "MiniDeps",
+      "describe",
+      "assert",
+      "before_each",
+      "it"
     ],
     "workspace": {
       "library": [
