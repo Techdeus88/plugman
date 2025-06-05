@@ -146,7 +146,7 @@ function M.add_plugin(plugin)
     end)
 end
 
----Load plugins in priority order
+--Load plugins in priority order
 ---@param Plugins table<string, PlugmanPlugin>
 ---@return table<string, boolean> Success status for each plugin
 function M.load_by_priority(Plugins)

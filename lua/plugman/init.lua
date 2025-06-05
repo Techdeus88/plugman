@@ -1,8 +1,8 @@
----@class Plugman
 ---@field public  _plugins table<string, PlugmanPlugin>
 ---@field public  _lazy_plugins table<string, PlugmanPlugin>
 ---@field public  _loaded table<string, boolean>
 ---@field private _setup_done boolean
+
 local M = {}
 M._start = 0
 
