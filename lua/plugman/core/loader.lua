@@ -45,7 +45,7 @@ local function safe_pcall(fn, ...)
         logger.error(string.format('Operation failed: %s', result))
         return nil
     end
-    return success
+    return result
 end
 
 local function extract_plugin_name(source)
