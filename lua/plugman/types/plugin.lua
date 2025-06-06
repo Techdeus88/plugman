@@ -1,0 +1,49 @@
+---@class PlugmanPlugin
+---@field source string The source URL of the plugin (must be a valid GitHub URL)
+---@field depends string[]|nil List of plugin names this plugin depends on
+---@field monitor string[]|nil List of files to monitor for changes
+---@field checkout string|nil Specific branch/tag to checkout
+---@field hooks table|nil Hooks to run at various stages of plugin lifecycle
+---@field name string|nil The name of the plugin
+---@field type string The type of plugin (e.g., 'git', 'local', 'plugin', 'dependent')
+---@field order number The order in which the plugin was added
+---@field path string The path where the plugin is installed
+---@field enabled boolean|nil Whether the plugin is enabled (default: true)
+---@field added boolean Whether the plugin has been added to MiniDeps
+---@field loaded boolean Whether the plugin has been loaded
+---@field loading boolean Whether the plugin is currently loading
+---@field load_time string|nil The time it took to load the plugin in milliseconds
+---@field dependents table List of plugins that depend on this plugin
+---@field init function|nil A hook to run before the plugin has loaded
+---@field post function|nil A hook to run after the plugin has loaded
+---@field lazy boolean Whether the plugin should be loaded lazily (default: true)
+---@field cmd table|string|nil A set of commands that loads the plugin and its desired config
+---@field event table|string|nil A set of commands that loads the plugin and its desired config
+---@field ft table|string|nil A set of commands that loads the plugin and its desired config
+---@field config function|string|boolean|nil A set of commands that loads the plugin and its desired config
+---@field opts table|nil A list of options that determines the plugin's configuration
+---@field keys table|nil A list of keymaps to load for the specific plugin
+---@field priority number|nil The priority in which the plugin should be loaded versus other plugins. Lower the number -> the higher precedence
+---@field require string|nil The require name of the plugin to set it up i.e. require("module").setup(opts)
+
+---@class PlugmanRegister
+---@field source string The source URL of the plugin
+---@field depends string[]|nil List of plugin names this plugin depends on
+---@field monitor string[]|nil List of files to monitor for changes
+---@field checkout string|nil Specific branch/tag to checkout
+---@field hooks table|nil Hooks to run at various stages of plugin lifecycle
+
+---@class PlugmanLoad
+---@field init function|nil A hook to run before the plugin has loaded
+---@field post function|nil A hook to run after the plugin has loaded
+---@field lazy boolean Whether the plugin should be loaded lazily (default: true)
+---@field cmd table|string|nil A set of commands that loads the plugin and its desired config
+---@field event table|string|nil A set of commands that loads the plugin and its desired config
+---@field ft table|string|nil A set of commands that loads the plugin and its desired config
+---@field config function|string|nil A set of commands that loads the plugin and its desired config
+---@field opts table|nil A list of options that determines the plugin's configuration
+---@field keys table|nil A list of keymaps to load for the specific plugin
+---@field priority number|nil The priority in which the plugin should be loaded versus other plugins. Lower -> higher precedence
+---@field require string|nil The require name of the plugin to set it up require("mod").setup()
+
+return {}
