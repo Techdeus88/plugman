@@ -4,32 +4,6 @@ local M = {}
 local logger = require("plugman.utils.logger")
 require("plugman.types.plugin")
 
----@param plugin PlugmanPlugin A fully hydrated Plugman plugin
----@param type "register"|"load" The type of formatting to perform
----@return PlugmanRegister|PlugmanLoad|nil A slice of the plugmanplugin, plugmanregister for MiniDeps.add to register, and plugmanload to setup and load
-function M.o(plugin, type)
-    if type == "register" then
-        ---@param PlugmanRegister 
-        return {
-            source = plugin.source,
-            depends = plugin.depends,
-            monitor = plugin.monitor,
-            checkout = plugin.checkout,
-            hooks = plugin.hooks,
-        }
-    end
-    if type == "load" then
-        ---@param PlugmanLoad
-        return {
-            config = plugin.config,
-            opts = plugin.opts,
-            require = plugin.require,
-            priority = plugin.priority,
-        }
-    end
-    return error("The type of plugin must be register or load to be formatted!", 5)
-end
-
 ---@class PlugmanPlugin
 local Plugin = {}
 Plugin.__index = Plugin
