@@ -96,7 +96,6 @@ function M.setup_plugins()
 
     -- Load plugins by priority
     local results = loader.load_by_priority(M._plugins)
-    print(vim.inspect(results))
     -- Handle results
     for name, success in pairs(results) do
         if not success then

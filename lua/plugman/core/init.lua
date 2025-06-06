@@ -2,33 +2,17 @@
 local M = {}
 
 local logger = require("plugman.utils.logger")
-
----@param plugin PlugmanPlugin A fully hydrated Plugman plugin
----@return PlugmanRegister|PlugmanLoad|nil A slice of the plugmanplugin, plugmanregister for MiniDeps.add to register, and plugmanload to setup and load
-function M.format_plugin(plugin, type)
-    if type == "register" then
-        ---@param PlugmanRegister 
-        return {
-            source = plugin.source,
-            depends = plugin.depends,
-            monitor = plugin.monitor,
-            checkout = plugin.checkout,
-            hooks = plugin.hooks,
-        }
-    end
-    if type == "load" then
-        return {}
-    end
-    return error("The type of plugin must be register or load to be formatted!", 5)
-end
+require("plugman.types.plugin")
 
 ---@class PlugmanPlugin
 local Plugin = {}
 Plugin.__index = Plugin
 
-function Plugin:new(n_plugin)
-    local plugin = setmetatable(vim.tbl_deep_extend("force", vim.deepcopy(n_plugin), {
-        enabled = n_plugin.enabled or true,
+---@return PlugmanPlugin|PlugmanRegister|PlugmanLoad|nil A slice of the plugmanplugin, plugmanregister for MiniDeps.add to register, and plugmanload to setup and load
+---@param spec any
+function Plugin:new(spec)
+    local plugin = setmetatable(vim.tbl_deep_extend("force", vim.deepcopy(spec), {
+        enabled = spec.enabled or true,
         added = false,
         loaded = false,
         loading = false,
@@ -36,9 +20,40 @@ function Plugin:new(n_plugin)
         dependents = {},
     }), self)
 
+    plugin:format_register()
+    plugin:format_load()
+
     plugin:validate()
     return plugin
 end
+
+-- Format the "add" structure of a module
+function Plugin:format_register()
+    local register_module = {}
+    register_module.source = self.source
+    register_module.depends = self.depends
+    register_module.hooks = self.hooks
+    register_module.checkout = self.checkout
+    register_module.monitor = self.monitor
+    self.register = register_module
+    setmetatable(self.register, self)
+  end
+  
+  -- Format the "config" structure of a module
+  function Plugin:format_load()
+    local load_module = {}
+    load_module.cmd = self.cmd
+    load_module.event = self.event
+    load_module.ft = self.ft
+    load_module.lazy = self.lazy
+    load_module.config = self.config
+    load_module.opts = self.opts
+    load_module.init = self.init
+    load_module.keys = self.keys
+    load_module.require = self.require
+    self.load = load_module
+    setmetatable(self.load, self)
+  end
 
 -- Helper functions
 function Plugin:validate()
@@ -48,15 +63,14 @@ function Plugin:validate()
         return false
     end
 
-    if not plugin.source then
+    -- Validate source format using utils
+    local utils = require("plugman.utils")
+    if not plugin.source or not utils.is_valid_github_url(plugin.source) then
         logger.error(string.format("Plugin %s missing required 'source' field", plugin.name))
         return false
     end
-
-    -- Validate source format using utils
-    local utils = require("plugman.utils")
-    if not utils.is_valid_github_url(plugin.source) then
-        logger.error(string.format("Plugin %s has invalid source format: %s", plugin.name, plugin.source))
+    if not plugin.register or not plugin.load then
+        logger.error(string.format("Plugin %s missing required register or load fields", plugin.name))
         return false
     end
 
