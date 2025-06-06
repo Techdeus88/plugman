@@ -145,10 +145,8 @@ function M.handle_add(Plugin)
 
     -- Store plugin
     M._plugins[Plugin.name] = Plugin
-    -- Format plugin to register
-    local PluginRegister = require("plugman.core").format_plugin(Plugin, "register")
     -- Register plugin
-    local add_ok, _ = safe_pcall(loader.add_plugin, PluginRegister)
+    local add_ok, _ = safe_pcall(loader.add_plugin, Plugin.register)
     if add_ok then
         Plugin:has_added()
     end
