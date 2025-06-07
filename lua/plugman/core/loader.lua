@@ -243,13 +243,13 @@ function M._load_lazy_plugin(plugin, lazy_plugins, loaded)
     if not lazy_plugins[plugin.name] or loaded[plugin.name] then return end
 
     notify.info(string.format('Loading %s...', plugin.name))
-    local result = M._load_plugin_immediately(plugin)
+    local result = M._load_plugin_immediately(plugin, loaded)
     lazy_plugins[plugin.name] = nil
     return result
 end
 
-function M._load_plugin_immediately(plugin)
-    if M._loaded[plugin.name] then
+function M._load_plugin_immediately(plugin, loaded)
+    if loaded[plugin.name] then
         logger.debug(string.format('Plugin %s already loaded', plugin.name))
         return true
     end
@@ -262,7 +262,7 @@ function M._load_plugin_immediately(plugin)
         return false
     end
 
-    M._loaded[plugin.name] = true
+    loaded[plugin.name] = true
     cache.set_plugin_loaded(plugin.name, true)
     logger.info(string.format('Loaded plugin: %s', plugin.name))
     return true
