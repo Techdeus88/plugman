@@ -93,10 +93,16 @@ function M.setup_plugins()
             logger.error(string.format('Failed to register plugin: %s', err))
         end
     end
+    local priority_plugins = require("plugman.utils").filter_plugins(M._plugins,
+        function(p)
+            return p.priority ~= nil or p.lazy == false
+        end)
+    local non_priority_plugins = require("plugman.utils").filter_plugins(M._plugins,
+        function(p) return p.lazy or p.event ~= nil or p.ft ~= nil or p.cmd ~= nil or p.priority == nil end)
 
-    local priority_plugins = require("plugman.utils").filter_plugins(M._plugins, "priority")
     -- Load plugins by priority
     local results = loader.load_by_priority(priority_plugins)
+    local lazy_results = M.handle_lazy(non_priority_plugins)
     -- Handle results
     for name, success in pairs(results) do
         if not success then
@@ -182,6 +188,20 @@ function M._handle_dependencies(Plugin)
     end
 end
 
+function M.handle_lazy(plugins)
+    for _, plugin in pairs(plugins) do
+        M.handle_load(plugin)
+    end
+
+    M._load_lazy_plugins(M._lazy_plugins)
+end
+
+function M._load_lazy_plugins(plugins)
+    for _, plugin in pairs(plugins) do
+        M._load_lazy_plugin(plugin)
+    end
+end
+
 function M.handle_load(Plugin)
     -- Load dependencies first
     if Plugin.depends then
@@ -189,11 +209,7 @@ function M.handle_load(Plugin)
     end
 
     -- Determine loading strategy
-    if should_lazy_load(Plugin) then
-        M._setup_lazy_loading(Plugin)
-    else
-        M._load_plugin_immediately(Plugin)
-    end
+    M._setup_lazy_loading(Plugin)
 
     logger.info(string.format('Plugin: %s added and setup for loading', Plugin.name))
     return true
@@ -214,29 +230,11 @@ function M._load_dependencies(Plugin)
     end
 end
 
-function M._load_plugin_immediately(plugin)
-    if M._loaded[plugin.name] then
-        logger.debug(string.format('Plugin %s already loaded', plugin.name))
-        return true
-    end
-
-    logger.debug(string.format('Loading plugin immediately: %s', plugin.name))
-    local ok = safe_pcall(loader.load_plugin, plugin)
-
-    if not ok then
-        logger.warn(string.format("Plugin %s did not load", plugin.name))
-        return false
-    end
-
-    M._loaded[plugin.name] = true
-    cache.set_plugin_loaded(plugin.name, true)
-    logger.info(string.format('Loaded plugin: %s', plugin.name))
-    return true
-end
-
 function M._setup_lazy_loading(plugin)
     logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
-    M._lazy_plugins[plugin.name] = plugin
+    if plugin.lazy then
+        M._lazy_plugins[plugin.name] = plugin
+    end
 
     -- Event-based loading
     if plugin.event then
@@ -327,6 +325,7 @@ end
 function M.show()
     require('plugman.ui').show()
 end
+
 function M.show_one(type)
     if type == "list" then
         M.list()

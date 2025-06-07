@@ -6,7 +6,7 @@ local utils = require("plugman.utils")
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
 local mini_deps = require("plugman.core.bootstrap")
-
+local cache = require("plugman.core.cache")
 -- Constants
 local SETUP_PHASES = {
     {
@@ -172,6 +172,26 @@ function M.load_by_priority(Plugins)
     end
 
     return results
+end
+
+function M._load_plugin_immediately(plugin)
+    if M._loaded[plugin.name] then
+        logger.debug(string.format('Plugin %s already loaded', plugin.name))
+        return true
+    end
+
+    logger.debug(string.format('Loading plugin immediately: %s', plugin.name))
+    local ok = safe_pcall(M.load_plugin, plugin)
+
+    if not ok then
+        logger.warn(string.format("Plugin %s did not load", plugin.name))
+        return false
+    end
+
+    M._loaded[plugin.name] = true
+    cache.set_plugin_loaded(plugin.name, true)
+    logger.info(string.format('Loaded plugin: %s', plugin.name))
+    return true
 end
 
 function M.load_plugin(Plugin)
