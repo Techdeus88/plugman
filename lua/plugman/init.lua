@@ -303,7 +303,8 @@ M.lazy = function() return vim.tbl_keys(M._lazy_plugins) end
 
 function M.show_startup_report()
     local report = loader.generate_startup_report()
-    vim.api.nvim_echo({{report, "Normal"}}, true, {})
+    return report
+    -- vim.api.nvim_echo({{report, "Normal"}}, true, {})
 end
 
 vim.api.nvim_create_user_command("PlugmanStartupReport", M.show_startup_report, {})
