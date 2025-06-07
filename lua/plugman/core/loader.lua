@@ -164,8 +164,6 @@ function M.load_by_priority(Plugins)
 
     local results = {}
 
-    print(#sorted_plugins)
-    print(vim.inspect(sorted_plugins))
     -- Load plugins in order
     for _, Plugin in ipairs(sorted_plugins) do
         local success = M.load_plugin(Plugin.opts)

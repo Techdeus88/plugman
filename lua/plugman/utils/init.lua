@@ -120,7 +120,7 @@ function M.filter_plugins(plugins, condition, value)
     end
 
     local filtered = {}
-    for _, plugin in pairs(plugins) do
+    for name, plugin in pairs(plugins) do
         local matches = false
 
         if type(condition) == "function" then
@@ -134,7 +134,7 @@ function M.filter_plugins(plugins, condition, value)
         end
 
         if matches then
-            table.insert(filtered, plugin)
+            table.insert(filtered[name], plugin)
         end
     end
 
