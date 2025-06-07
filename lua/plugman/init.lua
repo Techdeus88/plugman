@@ -93,11 +93,12 @@ function M.setup_plugins()
             logger.error(string.format('Failed to register plugin: %s', err))
         end
     end
-    local priority_plugins = require("plugman.utils").filter_plugins(M._plugins,
+
+    local priority_plugins = require("plugman.utils").filter_plugins(vim.deepcopy(M._plugins),
         function(p)
             return p.priority ~= nil or p.lazy == false
         end)
-    local non_priority_plugins = require("plugman.utils").filter_plugins(M._plugins,
+    local non_priority_plugins = require("plugman.utils").filter_plugins(vim.deepcopy(M._plugins),
         function(p) return p.lazy or p.event ~= nil or p.ft ~= nil or p.cmd ~= nil or p.priority == nil end)
 
     -- Load plugins by priority
