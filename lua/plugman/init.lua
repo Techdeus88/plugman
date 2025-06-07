@@ -98,14 +98,15 @@ function M.setup_plugins()
         function(p)
             return p.priority ~= nil or p.lazy == false
         end)
+    
     local non_priority_plugins = require("plugman.utils").filter_plugins(vim.deepcopy(M._plugins),
         function(p) return p.lazy or p.event ~= nil or p.ft ~= nil or p.cmd ~= nil or p.priority == nil end)
 
     -- Load plugins by priority
-    local results = loader.load_by_priority(priority_plugins)
+    local results = loader._load_priority_plugins(priority_plugins)
     local lazy_results = loader._load_lazy_plugins(non_priority_plugins)
     -- Handle results
-    for name, success in pairs(results) do
+    for name, success in pairs(vim.tbl_deep_extend(results, lazy_results)) do
         if not success then
             logger.error(string.format('Failed to load plugin: %s', name))
             M._loaded[name] = false

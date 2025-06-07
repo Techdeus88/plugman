@@ -150,7 +150,7 @@ end
 --Load plugins in priority order
 ---@param Plugins table<string, PlugmanPlugin>
 ---@return table<string, boolean> Success status for each plugin
-function M.load_by_priority(Plugins)
+function M._load_priority_plugins(Plugins)
     -- Sort plugins by priority
     local sorted_plugins = {}
     for name, p_opts in pairs(Plugins) do
@@ -158,8 +158,8 @@ function M.load_by_priority(Plugins)
     end
 
     table.sort(sorted_plugins, function(a, b)
-        local priority_a = a.opts.priority
-        local priority_b = b.opts.priority
+        local priority_a = a.opts.priority or 1000
+        local priority_b = b.opts.priority or 1000
         return priority_a < priority_b
     end)
 
