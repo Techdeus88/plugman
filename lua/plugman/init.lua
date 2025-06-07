@@ -79,49 +79,82 @@ function M.setup_plugins()
     logger.debug("Setting up plugins")
 
     local all_plugins = loader.load_all()
-    if not all_plugins then
-        logger.error('Failed to load plugins')
+    if not all_plugins or #all_plugins == 0 then
+        logger.error('No plugins found to load')
         return
     end
 
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
 
     -- Register plugins first
+    local registered_plugins = {}
     for _, plugin_spec in ipairs(all_plugins) do
-        local success, err = pcall(M.register_plugin, plugin_spec)
-        if not success then
-            logger.error(string.format('Failed to register plugin: %s', err))
+        local plugin = M.register_plugin(plugin_spec)
+        if plugin then
+            registered_plugins[plugin.name] = plugin
         end
     end
 
-    local priority_plugins = require("plugman.utils").filter_plugins(vim.deepcopy(M._plugins),
-        function(p)
-            return p.priority ~= nil or p.lazy == false
-        end)
+    -- Separate plugins by loading strategy
+    local priority_plugins = {}
+    local lazy_plugins = {}
     
-    local non_priority_plugins = require("plugman.utils").filter_plugins(vim.deepcopy(M._plugins),
-        function(p) return p.lazy or p.event ~= nil or p.ft ~= nil or p.cmd ~= nil or p.priority == nil end)
+    for name, plugin in pairs(registered_plugins) do
+        if plugin.priority ~= nil or plugin.lazy == false then
+            priority_plugins[name] = plugin
+        else
+            lazy_plugins[name] = plugin
+        end
+    end
 
-    -- Load plugins by priority
+    -- Load priority plugins first
     local results = loader._load_priority_plugins(priority_plugins)
-    local lazy_results = loader._load_lazy_plugins(non_priority_plugins, M._lazy_plugins, M._loaded, M._plugins)
-    -- Handle results
+    
+    -- Then load lazy plugins
+    local lazy_results = loader._load_lazy_plugins(lazy_plugins, M._lazy_plugins, M._loaded, M._plugins)
+    
+    -- Merge and validate results
     local all_res = require("plugman.utils").deep_merge(results, lazy_results)
+    local failed_plugins = {}
+    
     for name, success in pairs(all_res) do
         if not success then
             logger.error(string.format('Failed to load plugin: %s', name))
             M._loaded[name] = false
+            table.insert(failed_plugins, name)
         else
             M._loaded[name] = true
         end
     end
+
+    -- Report results
+    if #failed_plugins > 0 then
+        logger.warn(string.format('Failed to load %d plugins: %s', 
+            #failed_plugins, 
+            table.concat(failed_plugins, ', ')
+        ))
+    end
+
+    return #failed_plugins == 0
 end
 
 function M.register_plugin(plugin_spec)
-    local source = plugin_spec[1]
-    if not source then
-        logger.error('Plugin spec missing source: ' .. vim.inspect(plugin_spec))
+    if not plugin_spec or not plugin_spec[1] then
+        logger.error('Invalid plugin specification')
         return nil
+    end
+
+    local source = plugin_spec[1]
+    if not utils.is_valid_github_url(source) then
+        logger.error(string.format('Invalid plugin source: %s', source))
+        return nil
+    end
+
+    -- Check if plugin is already registered
+    local name = extract_plugin_name(source)
+    if M._plugins[name] then
+        logger.warn(string.format('Plugin %s already registered', name))
+        return M._plugins[name]
     end
 
     logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))

@@ -175,14 +175,9 @@ function M._load_priority_plugins(Plugins)
     return results
 end
 
-function M._load_lazy_plugins(plugins, lazy_plugins, loaded_plugins, all_plugins)
+function M._load_lazy_plugins(plugins, lazy_plugins, loaded_plugins)
     local results = {}
     for _, plugin in pairs(plugins) do
-        -- Load dependencies first
-        -- if plugin.depends then
-        --     M._load_dependencies(plugins, all_plugins)
-        -- end
-
         -- Determine loading strategy
         M._setup_lazy_loading(plugin, lazy_plugins)
 
@@ -273,20 +268,6 @@ function M.load_plugin(Plugin)
     logger.debug(string.format('Loading plugin: %s (source: %s)', Plugin.name, Plugin.source))
 
     return safe_pcall(function()
-        -- -- Handle dependencies
-        -- if Plugin.depends then
-        --     for _, dep in ipairs(Plugin.depends) do
-        --         local dep_source = type(dep) == "string" and dep or dep[1]
-        --         local dep_name = extract_plugin_name(dep_source)
-        --         local Dep = require("plugman")._plugins[dep_name]
-        --         if Dep then
-        --             M.ensure_dependency_loaded(Dep)
-        --         else
-        --             logger.warn(string.format('Dependency not found: %s', dep_name))
-        --         end
-        --     end
-        -- end
-
         -- Load plugin configuration
         M._load_plugin_config(Plugin)
         return true
