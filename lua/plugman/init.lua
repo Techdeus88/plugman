@@ -108,7 +108,16 @@ function M.setup_plugins()
     print(vim.inspect(results))
     print(vim.inspect(lazy_results))
     -- Handle results
-    for name, success in pairs(vim.tbl_deep_extend(results, lazy_results)) do
+    for name, success in pairs(results) do
+        if not success then
+            logger.error(string.format('Failed to load plugin: %s', name))
+            M._loaded[name] = false
+        else
+            M._loaded[name] = true
+        end
+    end
+    -- Handle results
+    for name, success in pairs(lazy_results) do
         if not success then
             logger.error(string.format('Failed to load plugin: %s', name))
             M._loaded[name] = false
