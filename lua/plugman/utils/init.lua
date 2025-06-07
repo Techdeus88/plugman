@@ -134,7 +134,7 @@ function M.filter_plugins(plugins, condition, value)
         end
 
         if matches then
-            table.insert(filtered[name], plugin)
+            filtered[name] = plugin
         end
     end
 
