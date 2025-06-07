@@ -6,15 +6,15 @@ vim.api.nvim_create_user_command('PlugmanShow', function()
 end, { desc = 'Show Plugman UI' })
 
 vim.api.nvim_create_user_command('PlugmanShowOneList', function()
-    require('plugman.ui').show_one("list")
+    require('plugman').show_one("list")
 end, { desc = 'Show Plugman UI List' })
 
 vim.api.nvim_create_user_command('PlugmanShowOneLoaded', function()
-    require('plugman.ui').show_one("loaded")
+    require('plugman').show_one("loaded")
 end, { desc = 'Show Plugman UI Loaded' })
 
 vim.api.nvim_create_user_command('PlugmanShowOneLazy', function()
-    require('plugman.ui').show_one("lazy")
+    require('plugman').show_one("lazy")
 end, { desc = 'Show Plugman UI Lazy' })
 
 vim.api.nvim_create_user_command('PlugmanUpdate', function(args)
