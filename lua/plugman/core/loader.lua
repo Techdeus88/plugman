@@ -157,13 +157,15 @@ function M.load_by_priority(Plugins)
     end
 
     table.sort(sorted_plugins, function(a, b)
-        local priority_a = a.opts.priority or 200
-        local priority_b = b.opts.priority or 200
+        local priority_a = a.opts.priority
+        local priority_b = b.opts.priority
         return priority_a < priority_b
     end)
 
     local results = {}
 
+    print(#sorted_plugins)
+    print(vim.inspect(sorted_plugins))
     -- Load plugins in order
     for _, Plugin in ipairs(sorted_plugins) do
         local success = M.load_plugin(Plugin.opts)
