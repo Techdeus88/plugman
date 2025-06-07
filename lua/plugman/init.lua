@@ -102,7 +102,7 @@ function M.setup_plugins()
 
     -- Load plugins by priority
     local results = loader.load_by_priority(priority_plugins)
-    local lazy_results = M.handle_lazy(non_priority_plugins)
+    local lazy_results = loader._load_lazy_plugins(non_priority_plugins)
     -- Handle results
     for name, success in pairs(results) do
         if not success then
@@ -186,87 +186,6 @@ function M._handle_dependencies(Plugin)
             logger.debug(string.format("Dependency %s already loaded", dep))
         end
     end
-end
-
-function M.handle_lazy(plugins)
-    for _, plugin in pairs(plugins) do
-        M.handle_load(plugin)
-    end
-
-    M._load_lazy_plugins(M._lazy_plugins)
-end
-
-function M._load_lazy_plugins(plugins)
-    for _, plugin in pairs(plugins) do
-        M._load_lazy_plugin(plugin)
-    end
-end
-
-function M.handle_load(Plugin)
-    -- Load dependencies first
-    if Plugin.depends then
-        M._load_dependencies(Plugin)
-    end
-
-    -- Determine loading strategy
-    M._setup_lazy_loading(Plugin)
-
-    logger.info(string.format('Plugin: %s added and setup for loading', Plugin.name))
-    return true
-end
-
-function M._load_dependencies(Plugin)
-    for _, dep in ipairs(Plugin.depends) do
-        local dep_source = type(dep) == "string" and dep or dep[1]
-        local dep_name = extract_plugin_name(dep_source)
-        local Dep = M._plugins[dep_name]
-
-        if Dep then
-            local ok = safe_pcall(M._load_plugin_immediately, Dep)
-            if not ok then
-                notify.error(string.format("Dependent %s did not load!", Dep.name))
-            end
-        end
-    end
-end
-
-function M._setup_lazy_loading(plugin)
-    logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
-    if plugin.lazy then
-        M._lazy_plugins[plugin.name] = plugin
-    end
-
-    -- Event-based loading
-    if plugin.event then
-        local events_list = type(plugin.event) == 'table' and plugin.event or { plugin.event }
-        for _, event in ipairs(events_list) do
-            events.on_event(event, function() M._load_lazy_plugin(plugin) end)
-        end
-    end
-
-    -- Filetype-based loading
-    if plugin.ft then
-        local filetypes = type(plugin.ft) == 'table' and plugin.ft or { plugin.ft }
-        for _, ft in ipairs(filetypes) do
-            events.on_filetype(ft, function() M._load_lazy_plugin(plugin) end)
-        end
-    end
-
-    -- Command-based loading
-    if plugin.cmd then
-        local commands = type(plugin.cmd) == 'table' and plugin.cmd or { plugin.cmd }
-        for _, cmd in ipairs(commands) do
-            events.on_command(cmd, function() M._load_lazy_plugin(plugin) end)
-        end
-    end
-end
-
-function M._load_lazy_plugin(plugin)
-    if not M._lazy_plugins[plugin.name] or M._loaded[plugin.name] then return end
-
-    notify.info(string.format('Loading %s...', plugin.name))
-    M._load_plugin_immediately(plugin)
-    M._lazy_plugins[plugin.name] = nil
 end
 
 -- Plugin Management Functions

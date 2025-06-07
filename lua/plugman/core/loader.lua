@@ -5,6 +5,7 @@ local M = {}
 local utils = require("plugman.utils")
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
+local events = require("plugman.core.events")
 local mini_deps = require("plugman.core.bootstrap")
 local cache = require("plugman.core.cache")
 -- Constants
@@ -163,7 +164,7 @@ function M.load_by_priority(Plugins)
     end)
 
     local results = {}
-
+    
     -- Load plugins in order
     for _, Plugin in ipairs(sorted_plugins) do
         local success = M.load_plugin(Plugin.opts)
@@ -172,6 +173,79 @@ function M.load_by_priority(Plugins)
     end
 
     return results
+end
+
+function M._load_lazy_plugins(plugins)
+    local results = {}
+    for _, plugin in pairs(plugins) do
+        -- Load dependencies first
+        if plugin.depends then
+            M._load_dependencies(plugin)
+        end
+
+        -- Determine loading strategy
+        M._setup_lazy_loading(plugin)
+
+        local success = M._load_lazy_plugin(plugin)
+        results[plugin.name] = success
+        logger.info(string.format('Plugin: %s added and setup for loading', plugin.name))
+    end
+    return results
+end
+
+function M._setup_lazy_loading(plugin)
+    logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
+    if plugin.lazy then
+        M._lazy_plugins[plugin.name] = plugin
+    end
+
+    -- Event-based loading
+    if plugin.event then
+        local events_list = type(plugin.event) == 'table' and plugin.event or { plugin.event }
+        for _, event in ipairs(events_list) do
+            events.on_event(event, function() M._load_lazy_plugin(plugin) end)
+        end
+    end
+
+    -- Filetype-based loading
+    if plugin.ft then
+        local filetypes = type(plugin.ft) == 'table' and plugin.ft or { plugin.ft }
+        for _, ft in ipairs(filetypes) do
+            events.on_filetype(ft, function() M._load_lazy_plugin(plugin) end)
+        end
+    end
+
+    -- Command-based loading
+    if plugin.cmd then
+        local commands = type(plugin.cmd) == 'table' and plugin.cmd or { plugin.cmd }
+        for _, cmd in ipairs(commands) do
+            events.on_command(cmd, function() M._load_lazy_plugin(plugin) end)
+        end
+    end
+end
+
+function M._load_dependencies(Plugin)
+    for _, dep in ipairs(Plugin.depends) do
+        local dep_source = type(dep) == "string" and dep or dep[1]
+        local dep_name = extract_plugin_name(dep_source)
+        local Dep = M._plugins[dep_name]
+
+        if Dep then
+            local ok = safe_pcall(M._load_plugin_immediately, Dep)
+            if not ok then
+                notify.error(string.format("Dependent %s did not load!", Dep.name))
+            end
+        end
+    end
+end
+
+function M._load_lazy_plugin(plugin)
+    if not M._lazy_plugins[plugin.name] or M._loaded[plugin.name] then return end
+
+    notify.info(string.format('Loading %s...', plugin.name))
+    local result = M._load_plugin_immediately(plugin)
+    M._lazy_plugins[plugin.name] = nil
+    return result
 end
 
 function M._load_plugin_immediately(plugin)
@@ -199,19 +273,19 @@ function M.load_plugin(Plugin)
     logger.debug(string.format('Loading plugin: %s (source: %s)', Plugin.name, Plugin.source))
 
     return safe_pcall(function()
-        -- Handle dependencies
-        if Plugin.depends then
-            for _, dep in ipairs(Plugin.depends) do
-                local dep_source = type(dep) == "string" and dep or dep[1]
-                local dep_name = extract_plugin_name(dep_source)
-                local Dep = require("plugman")._plugins[dep_name]
-                if Dep then
-                    M.ensure_dependency_loaded(Dep)
-                else
-                    logger.warn(string.format('Dependency not found: %s', dep_name))
-                end
-            end
-        end
+        -- -- Handle dependencies
+        -- if Plugin.depends then
+        --     for _, dep in ipairs(Plugin.depends) do
+        --         local dep_source = type(dep) == "string" and dep or dep[1]
+        --         local dep_name = extract_plugin_name(dep_source)
+        --         local Dep = require("plugman")._plugins[dep_name]
+        --         if Dep then
+        --             M.ensure_dependency_loaded(Dep)
+        --         else
+        --             logger.warn(string.format('Dependency not found: %s', dep_name))
+        --         end
+        --     end
+        -- end
 
         -- Load plugin configuration
         M._load_plugin_config(Plugin)
