@@ -164,7 +164,7 @@ function M._load_priority_plugins(Plugins)
     end)
 
     local results = {}
-    
+
     -- Load plugins in order
     for _, Plugin in ipairs(sorted_plugins) do
         local success = M.load_plugin(Plugin.opts)
@@ -175,7 +175,7 @@ function M._load_priority_plugins(Plugins)
     return results
 end
 
-function M._load_lazy_plugins(plugins)
+function M._load_lazy_plugins(plugins, lazy_plugins)
     local results = {}
     for _, plugin in pairs(plugins) do
         -- Load dependencies first
@@ -184,7 +184,7 @@ function M._load_lazy_plugins(plugins)
         end
 
         -- Determine loading strategy
-        M._setup_lazy_loading(plugin)
+        M._setup_lazy_loading(plugin, lazy_plugins)
 
         local success = M._load_lazy_plugin(plugin)
         results[plugin.name] = success
@@ -193,10 +193,10 @@ function M._load_lazy_plugins(plugins)
     return results
 end
 
-function M._setup_lazy_loading(plugin)
+function M._setup_lazy_loading(plugin, lazy_plugins)
     logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
     if plugin.lazy then
-        M._lazy_plugins[plugin.name] = plugin
+        lazy_plugins[plugin.name] = plugin
     end
 
     -- Event-based loading
