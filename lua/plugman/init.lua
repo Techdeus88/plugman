@@ -306,5 +306,5 @@ function M.show_startup_report()
     vim.api.nvim_echo({{report, "Normal"}}, true, {})
 end
 
-vim.api.nvim_create_user_command("StartupReport", M.show_startup_report, {})
+vim.api.nvim_create_user_command("PlugmanStartupReport", M.show_startup_report, {})
 return M
