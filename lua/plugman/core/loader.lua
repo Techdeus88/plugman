@@ -175,12 +175,12 @@ function M._load_priority_plugins(Plugins)
     return results
 end
 
-function M._load_lazy_plugins(plugins, lazy_plugins, loaded_plugins)
+function M._load_lazy_plugins(plugins, lazy_plugins, loaded_plugins, all_plugins)
     local results = {}
     for _, plugin in pairs(plugins) do
         -- Load dependencies first
         if plugin.depends then
-            M._load_dependencies(plugins)
+            M._load_dependencies(plugins, all_plugins)
         end
 
         -- Determine loading strategy
@@ -224,11 +224,11 @@ function M._setup_lazy_loading(plugin, lazy_plugins)
     end
 end
 
-function M._load_dependencies(Plugin)
+function M._load_dependencies(Plugin, plugins)
     for _, dep in ipairs(Plugin.depends) do
         local dep_source = type(dep) == "string" and dep or dep[1]
         local dep_name = extract_plugin_name(dep_source)
-        local Dep = M._plugins[dep_name]
+        local Dep = plugins[dep_name]
 
         if Dep then
             local ok = safe_pcall(M._load_plugin_immediately, Dep)
