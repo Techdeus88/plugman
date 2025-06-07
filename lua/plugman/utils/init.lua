@@ -120,7 +120,7 @@ function M.filter_plugins(plugins, condition, value)
     end
 
     local filtered = {}
-    for _, plugin in ipairs(plugins) do
+    for _, plugin in pairs(plugins) do
         local matches = false
 
         if type(condition) == "function" then
