@@ -158,6 +158,25 @@ function M.filter_plugins_all(plugins, conditions)
     return filtered
 end
 
+-- Deep merge function that preserves structure and handles nested tables
+    function M.deep_merge(default_tbl, override_tbl)
+        local result = vim.deepcopy(default_tbl)
+        
+        -- Function to recursively merge tables
+        local function merge(target, source)
+            for k, v in pairs(source) do
+                if type(v) == "table" and type(target[k]) == "table" then
+                    -- Recursively merge if both values are tables
+                    merge(target[k], v)
+                else
+                    -- Override with source value
+                    target[k] = v
+                end
+            end
+            return target
+        end
+        return merge(result, override_tbl or {})
+    end
 
 
 return M

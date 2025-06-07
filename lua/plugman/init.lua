@@ -105,19 +105,9 @@ function M.setup_plugins()
     -- Load plugins by priority
     local results = loader._load_priority_plugins(priority_plugins)
     local lazy_results = loader._load_lazy_plugins(non_priority_plugins, M._lazy_plugins, M._loaded, M._plugins)
-    print(vim.inspect(results))
-    print(vim.inspect(lazy_results))
     -- Handle results
-    for name, success in pairs(results) do
-        if not success then
-            logger.error(string.format('Failed to load plugin: %s', name))
-            M._loaded[name] = false
-        else
-            M._loaded[name] = true
-        end
-    end
-    -- Handle results
-    for name, success in pairs(lazy_results) do
+    local all_res = require("plugman.utils").deep_merge(results, lazy_results)
+    for name, success in pairs(all_res) do
         if not success then
             logger.error(string.format('Failed to load plugin: %s', name))
             M._loaded[name] = false
