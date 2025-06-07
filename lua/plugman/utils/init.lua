@@ -107,5 +107,57 @@ function M.normalize_github_url(url)
     return 'https://github.com/' .. url
 end
 
+---Filter plugins based on a condition or attribute
+---@param plugins PlugmanPlugin[] Array of plugins to filter
+---@param condition string|function Condition to filter by. Can be:
+---   - A string representing an attribute name (e.g., "enabled", "lazy")
+---   - A function that takes a plugin and returns a boolean
+---@param value any|nil Optional value to compare against if condition is a string
+---@return PlugmanPlugin[] Filtered array of plugins
+function M.filter_plugins(plugins, condition, value)
+    if type(plugins) ~= "table" then
+        return {}
+    end
+
+    local filtered = {}
+    for _, plugin in ipairs(plugins) do
+        local matches = false
+
+        if type(condition) == "function" then
+            matches = condition(plugin)
+        elseif type(condition) == "string" then
+            if value ~= nil then
+                matches = plugin[condition] == value
+            else
+                matches = plugin[condition] ~= nil and plugin[condition] ~= false
+            end
+        end
+
+        if matches then
+            table.insert(filtered, plugin)
+        end
+    end
+
+    return filtered
+end
+
+---Filter plugins by multiple conditions
+---@param plugins PlugmanPlugin[] Array of plugins to filter
+---@param conditions table<string, any> Table of conditions where key is attribute and value is expected value
+---@return PlugmanPlugin[] Filtered array of plugins
+function M.filter_plugins_all(plugins, conditions)
+    if type(plugins) ~= "table" or type(conditions) ~= "table" then
+        return {}
+    end
+
+    local filtered = plugins
+    for attr, value in pairs(conditions) do
+        filtered = Plugin.filter(filtered, attr, value)
+    end
+
+    return filtered
+end
+
+
 
 return M
