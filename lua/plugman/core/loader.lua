@@ -175,18 +175,18 @@ function M._load_priority_plugins(Plugins)
     return results
 end
 
-function M._load_lazy_plugins(plugins, lazy_plugins)
+function M._load_lazy_plugins(plugins, lazy_plugins, loaded_plugins)
     local results = {}
     for _, plugin in pairs(plugins) do
         -- Load dependencies first
         if plugin.depends then
-            M._load_dependencies(plugin)
+            M._load_dependencies(plugins)
         end
 
         -- Determine loading strategy
         M._setup_lazy_loading(plugin, lazy_plugins)
 
-        local success = M._load_lazy_plugin(plugin)
+        local success = M._load_lazy_plugin(plugin, lazy_plugins, loaded_plugins)
         results[plugin.name] = success
         logger.info(string.format('Plugin: %s added and setup for loading', plugin.name))
     end
@@ -239,12 +239,12 @@ function M._load_dependencies(Plugin)
     end
 end
 
-function M._load_lazy_plugin(plugin)
-    if not M._lazy_plugins[plugin.name] or M._loaded[plugin.name] then return end
+function M._load_lazy_plugin(plugin, lazy_plugins, loaded)
+    if not lazy_plugins[plugin.name] or loaded[plugin.name] then return end
 
     notify.info(string.format('Loading %s...', plugin.name))
     local result = M._load_plugin_immediately(plugin)
-    M._lazy_plugins[plugin.name] = nil
+    lazy_plugins[plugin.name] = nil
     return result
 end
 
