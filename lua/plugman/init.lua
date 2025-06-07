@@ -327,6 +327,17 @@ end
 function M.show()
     require('plugman.ui').show()
 end
+function M.show_one(type)
+    if type == "list" then
+        M.list()
+    end
+    if type == "loaded" then
+        M.loaded()
+    end
+    if type == "lazy" then
+        M.lazy()
+    end
+end
 
 -- API Functions
 M.list = function() return vim.tbl_keys(M._plugins) end
