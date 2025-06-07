@@ -179,9 +179,9 @@ function M._load_lazy_plugins(plugins, lazy_plugins, loaded_plugins, all_plugins
     local results = {}
     for _, plugin in pairs(plugins) do
         -- Load dependencies first
-        if plugin.depends then
-            M._load_dependencies(plugins, all_plugins)
-        end
+        -- if plugin.depends then
+        --     M._load_dependencies(plugins, all_plugins)
+        -- end
 
         -- Determine loading strategy
         M._setup_lazy_loading(plugin, lazy_plugins)
