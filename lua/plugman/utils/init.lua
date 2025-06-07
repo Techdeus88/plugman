@@ -152,7 +152,7 @@ function M.filter_plugins_all(plugins, conditions)
 
     local filtered = plugins
     for attr, value in pairs(conditions) do
-        filtered = Plugin.filter(filtered, attr, value)
+        filtered = M.filter_plugins(filtered, attr, value)
     end
 
     return filtered

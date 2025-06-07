@@ -94,7 +94,7 @@ function M.setup_plugins()
         end
     end
 
-    local priority_plugins = require("plugman.utils").filter_plugins(M._plugins, "priority", true)
+    local priority_plugins = require("plugman.utils").filter_plugins(M._plugins, "priority")
     print(vim.inspect(priority_plugins))
     -- Load plugins by priority
     local results = loader.load_by_priority(priority_plugins)
