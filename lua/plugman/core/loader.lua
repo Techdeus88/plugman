@@ -243,6 +243,52 @@ function M._load_lazy_plugin(plugin, lazy_plugins, loaded)
     return result
 end
 
+-- Add at the top with other local variables
+local start_time = vim.uv.hrtime()
+local first_render = nil
+local final_render = nil
+
+-- Add this function to track render times
+function M._track_render()
+    if not first_render then
+        first_render = vim.uv.hrtime()
+    end
+    final_render = vim.uv.hrtime()
+end
+
+---Generate a detailed startup report
+---@return string Formatted report string
+function M.generate_startup_report()
+    local plugman = require("plugman")
+    local total_time = (vim.uv.hrtime() - start_time) / 1e6
+    local first_render_time = first_render and (first_render - start_time) / 1e6 or 0
+    local final_render_time = final_render and (final_render - start_time) / 1e6 or 0
+    
+    local total_plugins = vim.tbl_count(plugman._plugins)
+    local loaded_plugins = vim.tbl_count(plugman._loaded)
+    local lazy_plugins = vim.tbl_count(plugman._lazy_plugins)
+    
+    local report = {
+        "=== Plugman Startup Report ===",
+        string.format("Total startup time: %.2f ms", total_time),
+        string.format("First render: %.2f ms", first_render_time),
+        string.format("Final render: %.2f ms", final_render_time),
+        string.format("Plugins loaded: %d/%d", loaded_plugins, total_plugins),
+        string.format("Lazy plugins: %d", lazy_plugins),
+        "=== Plugin Details ==="
+    }
+    
+    -- Add individual plugin timing
+    for name, plugin in pairs(plugman._plugins) do
+        if plugin.load_time then
+            table.insert(report, string.format("  %s: %s", name, plugin.load_time))
+        end
+    end
+    
+    return table.concat(report, "\n")
+end
+
+-- Modify _load_plugin_immediately to track render times
 function M._load_plugin_immediately(plugin, loaded)
     if loaded[plugin.name] then
         logger.debug(string.format('Plugin %s already loaded', plugin.name))
@@ -259,6 +305,7 @@ function M._load_plugin_immediately(plugin, loaded)
 
     loaded[plugin.name] = true
     cache.set_plugin_loaded(plugin.name, true)
+    M._track_render() -- Track render time after each plugin load
     logger.info(string.format('Loaded plugin: %s', plugin.name))
     return true
 end

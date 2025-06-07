@@ -291,6 +291,9 @@ function M.show_one(type)
     if type == "lazy" then
         M.lazy()
     end
+    if type == "startup" then
+        M.show_startup_report()
+    end
 end
 
 -- API Functions
@@ -298,4 +301,10 @@ M.list = function() return vim.tbl_keys(M._plugins) end
 M.loaded = function() return vim.tbl_keys(M._loaded) end
 M.lazy = function() return vim.tbl_keys(M._lazy_plugins) end
 
+function M.show_startup_report()
+    local report = loader.generate_startup_report()
+    vim.api.nvim_echo({{report, "Normal"}}, true, {})
+end
+
+vim.api.nvim_create_user_command("StartupReport", M.show_startup_report, {})
 return M
