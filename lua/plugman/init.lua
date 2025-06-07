@@ -105,6 +105,8 @@ function M.setup_plugins()
     -- Load plugins by priority
     local results = loader._load_priority_plugins(priority_plugins)
     local lazy_results = loader._load_lazy_plugins(non_priority_plugins, M._lazy_plugins, M._loaded, M._plugins)
+    print(vim.inspect(results))
+    print(vim.inspect(lazy_results))
     -- Handle results
     for name, success in pairs(vim.tbl_deep_extend(results, lazy_results)) do
         if not success then
