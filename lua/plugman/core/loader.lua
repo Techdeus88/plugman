@@ -169,7 +169,6 @@ end
 
 function M.add_plugin(plugin)
     if not validate_plugin(plugin) then return false end
-    print(plugin.name)
     return safe_pcall(function()
         logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
         local deps_success, deps_err = pcall(mini_deps.add, plugin)
@@ -187,7 +186,6 @@ end
 ---@param Plugins table<string, PlugmanPlugin>
 ---@return table<string, boolean> Success status for each plugin
 function M._load_priority_plugins(Plugins)
-    print(vim.inspect(Plugins))
     local sorted_plugins = {}
     for name, p_opts in pairs(Plugins) do
         table.insert(sorted_plugins, { name = name, opts = p_opts })
