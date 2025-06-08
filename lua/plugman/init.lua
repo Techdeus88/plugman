@@ -83,7 +83,7 @@ function M.setup_plugins()
 
     local all_plugins = loader.load_all(M.opts)
     logger.debug('DEBUG: Loaded plugins:', vim.inspect(all_plugins))
-    
+
     if not all_plugins or #all_plugins == 0 then
         logger.error('No plugins found to load')
         logger.debug('DEBUG: No plugins found to load')
@@ -104,7 +104,7 @@ function M.setup_plugins()
             logger.debug('DEBUG: Failed to register plugin:', vim.inspect(plugin_spec))
         end
     end
-    
+
     -- Separate plugins by loading strategy
     local priority_plugins = {}
     local lazy_plugins = {}
@@ -119,17 +119,16 @@ function M.setup_plugins()
         end
     end
 
-    
-    
+
+
     logger.debug('DEBUG: Priority plugins:', vim.inspect(priority_plugins))
     logger.debug('DEBUG: Lazy plugins:', vim.inspect(lazy_plugins))
-    
+
     -- Register & Load priority plugins first
     local results = M.handle_priority_plugins(priority_plugins)
-    -- Register & Load lazy plugins second
-    M.register_plugins(lazy_plugins)
-    -- Then load lazy plugins
-    local lazy_results = loader._load_lazy_plugins(lazy_plugins)
+    -- Then load lazy plugin
+    local lazy_results = M.handle_lazy_plugins(lazy_plugins)
+
     logger.debug('DEBUG: Lazy plugin load results:', vim.inspect(lazy_results))
 
     -- Merge and validate results
@@ -201,12 +200,25 @@ function M.handle_priority_plugins(Plugins)
     end
     return results
 end
+
+function M.handle_lazy_plugins(Plugins)
+    local results = {}
+    for name, Plugin in pairs(Plugins) do
+        M.register_plugin(Plugin.opts)
+        M._setup_lazy_loading(Plugin)
+        local success = M._load_lazy_plugin(Plugin)
+        results[Plugin.name] = success
+        logger.info(string.format('Plugin: %s added and setup for loading', name))
+    end
+    return results
+end
+
 function M.register_plugins(Plugins)
     for name, Plugin in pairs(Plugins) do
         M.register_plugin(Plugin)
     end
-
 end
+
 function M.register_plugin(Plugin)
     M.handle_add(Plugin)
     return Plugin
