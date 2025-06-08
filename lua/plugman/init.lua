@@ -80,7 +80,7 @@ end
 function M.setup_plugins()
     logger.debug("Setting up plugins")
 
-    local all_plugins = loader.load_all()
+    local all_plugins = loader.load_all(M.opts)
     if not all_plugins or #all_plugins == 0 then
         logger.error('No plugins found to load')
         return

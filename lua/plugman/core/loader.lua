@@ -137,47 +137,48 @@ function M._setup_keymaps(plugin)
 end
 
 -- Core Functions
-function M.load_all()
+function M.load_all(opts)
     local utils = require("plugman.utils")
-    local config = require("plugman.config")
     local logger = require("plugman.utils.logger")
     
     -- Get plugin directories from config
-    local plugin_dirs = config.get_plugin_dirs()
-    if not plugin_dirs or #plugin_dirs == 0 then
-        logger.warn('No plugin directories configured')
+    local plugins_dir = opts.paths.plugins_dir
+    local plugins_path = opts.paths.plugins_path
+    
+    if not plugins_dir or not plugins_path then
+        logger.warn('Plugin directories not configured')
         return {}
     end
 
     local plugins = {}
-    for _, dir in ipairs(plugin_dirs) do
-        if vim.fn.isdirectory(dir) == 1 then
-            -- Load all Lua files in the directory
-            local files = vim.fn.globpath(dir, "*.lua", false, true)
-            for _, file in ipairs(files) do
-                local ok, plugin_spec = pcall(dofile, file)
-                if ok and plugin_spec then
-                    if type(plugin_spec) == "table" then
-                        -- Handle single plugin spec
-                        if type(plugin_spec[1]) == "string" then
-                            table.insert(plugins, plugin_spec)
-                        else
-                            -- Handle multiple plugin specs
-                            for _, spec in ipairs(plugin_spec) do
-                                if type(spec) == "table" and spec[1] then
-                                    table.insert(plugins, spec)
-                                end
+    local full_path = vim.fn.stdpath('config') .. '/lua/' .. plugins_dir
+    
+    if vim.fn.isdirectory(full_path) == 1 then
+        -- Load all Lua files in the directory
+        local files = vim.fn.globpath(full_path, "*.lua", false, true)
+        for _, file in ipairs(files) do
+            local ok, plugin_spec = pcall(dofile, file)
+            if ok and plugin_spec then
+                if type(plugin_spec) == "table" then
+                    -- Handle single plugin spec
+                    if type(plugin_spec[1]) == "string" then
+                        table.insert(plugins, plugin_spec)
+                    else
+                        -- Handle multiple plugin specs
+                        for _, spec in ipairs(plugin_spec) do
+                            if type(spec) == "table" and type(spec[1]) == "string" then
+                                table.insert(plugins, spec)
                             end
                         end
                     end
-                else
-                    logger.error(string.format('Failed to load plugin spec from %s: %s', 
-                        file, plugin_spec))
                 end
+            else
+                logger.error(string.format('Failed to load plugin spec from %s: %s', 
+                    file, plugin_spec))
             end
-        else
-            logger.warn(string.format('Plugin directory not found: %s', dir))
         end
+    else
+        logger.warn(string.format('Plugin directory not found: %s', full_path))
     end
 
     logger.debug(string.format('Loaded %d plugin specifications', #plugins))
