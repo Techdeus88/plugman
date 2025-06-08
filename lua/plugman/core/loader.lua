@@ -150,6 +150,7 @@ function M.load_all(opts)
     for _, file in ipairs(vim.fn.globpath(full_path, "*.lua", false, true)) do
         local module_path = file:gsub(plugins_path .. '/', ''):gsub('.lua$', ''):gsub('/', '.')
         local ok, plugins_spec = pcall(require, module_path)
+        print(vim.inspect(plugins_spec))
 
         if ok and type(plugins_spec) == "table" then
             -- Handle single spec file
