@@ -182,10 +182,11 @@ function M.add_plugin(plugin)
     end)
 end
 
----Load plugins in priority order
----@param Plugins table<string, PlugmanPlugin>
----@return table<string, boolean> Success status for each plugin
-function M._load_priority_plugins(Plugins)
+
+
+
+function M._sort_priority_plugins(Plugins)
+
     local sorted_plugins = {}
     for name, p_opts in pairs(Plugins) do
         table.insert(sorted_plugins, { name = name, opts = p_opts })
@@ -196,6 +197,15 @@ function M._load_priority_plugins(Plugins)
         local priority_b = b.opts.priority or 1000
         return priority_a < priority_b
     end)
+    return sorted_plugins
+end
+
+
+---Load plugins in priority order
+---@param Plugins table<string, PlugmanPlugin>
+---@return table<string, boolean> Success status for each plugin
+function M._load_priority_plugins(Plugins)
+    
 
     local results = {}
     for _, Plugin in ipairs(sorted_plugins) do

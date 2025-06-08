@@ -93,19 +93,18 @@ function M.setup_plugins()
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
     logger.debug('DEBUG: Processing' .. #all_plugins .. 'plugins')
 
-    -- Register plugins first
-    local registered_plugins = {}
+    -- Pre-Register plugins first (format)
     for _, plugin_spec in ipairs(all_plugins) do
         logger.debug('DEBUG: Registering plugin:', vim.inspect(plugin_spec))
-        local plugin = M.register_plugin(plugin_spec)
-        if plugin then
-            M._plugins[plugin.name] = plugin
-            logger.debug('DEBUG: Successfully registered plugin:' .. plugin.name)
+        local Plugin = M.pre_register_plugin(plugin_spec)
+        if Plugin then
+            M._plugins[Plugin.name] = Plugin
+            logger.debug('DEBUG: Successfully registered plugin:' .. Plugin.name)
         else
             logger.debug('DEBUG: Failed to register plugin:', vim.inspect(plugin_spec))
         end
     end
-
+    
     -- Separate plugins by loading strategy
     local priority_plugins = {}
     local lazy_plugins = {}
@@ -120,13 +119,15 @@ function M.setup_plugins()
         end
     end
 
+    
+    
     logger.debug('DEBUG: Priority plugins:', vim.inspect(priority_plugins))
     logger.debug('DEBUG: Lazy plugins:', vim.inspect(lazy_plugins))
-
-    -- Load priority plugins first
-    local results = loader._load_priority_plugins(priority_plugins)
-    logger.debug('DEBUG: Priority plugin load results:', vim.inspect(results))
-
+    
+    -- Register & Load priority plugins first
+    local results = M.handle_priority_plugins(priority_plugins)
+    -- Register & Load lazy plugins second
+    M.register_plugins(lazy_plugins)
     -- Then load lazy plugins
     local lazy_results = loader._load_lazy_plugins(lazy_plugins)
     logger.debug('DEBUG: Lazy plugin load results:', vim.inspect(lazy_results))
@@ -159,7 +160,7 @@ function M.setup_plugins()
     return #failed_plugins == 0
 end
 
-function M.register_plugin(plugin_spec)
+function M.pre_register_plugin(plugin_spec)
     if not plugin_spec or not plugin_spec[1] then
         logger.error('Invalid plugin specification')
         return nil
@@ -186,6 +187,27 @@ function M.register_plugin(plugin_spec)
         return nil
     end
 
+    return Plugin
+end
+
+function M.handle_priority_plugins(Plugins)
+    local sorted_plugins = loader._sort_priority_plugins(Plugins)
+    local results = {}
+    for _, Plugin in ipairs(sorted_plugins) do
+        M.register_plugin(Plugin.opts)
+        local success = loader.load_plugin(Plugin.opts)
+        Plugin.opts:has_loaded()
+        results[Plugin.name] = success
+    end
+    return results
+end
+function M.register_plugins(Plugins)
+    for name, Plugin in pairs(Plugins) do
+        M.register_plugin(Plugin)
+    end
+
+end
+function M.register_plugin(Plugin)
     M.handle_add(Plugin)
     return Plugin
 end
