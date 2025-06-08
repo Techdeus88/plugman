@@ -142,16 +142,11 @@ function M.load_all(opts)
     local logger = require("plugman.utils.logger")
     
     -- Get plugin directories from config
-    local plugins_dir = opts.paths.plugins_dir
-    local plugins_path = opts.paths.plugins_path
+    local plugins_dir = opts.paths and opts.paths.plugins_dir or "plugins"
+    local plugins_path = opts.paths and opts.paths.plugins_path or vim.fn.stdpath('config') .. '/lua'
     
-    if not plugins_dir or not plugins_path then
-        logger.warn('Plugin directories not configured')
-        return {}
-    end
-
     local plugins = {}
-    local full_path = vim.fn.stdpath('config') .. '/lua/' .. plugins_dir
+    local full_path = plugins_path .. '/' .. plugins_dir
     
     if vim.fn.isdirectory(full_path) == 1 then
         -- Load all Lua files in the directory
