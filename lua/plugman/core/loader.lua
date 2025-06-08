@@ -146,50 +146,52 @@ function M.load_all(opts)
     local plugins_path = opts.paths and opts.paths.plugins_path or vim.fn.stdpath('config') .. '/lua'
 
     logger.debug(string.format('Loading plugins from: %s/%s', plugins_path, plugins_dir))
+    print('DEBUG: Loading plugins from:', plugins_path .. '/' .. plugins_dir)
 
     local plugins = {}
     local full_path = plugins_path .. '/' .. plugins_dir
-    print(full_path)
+    print('DEBUG: Full path:', full_path)
+
     if vim.fn.isdirectory(full_path) == 1 then
         -- Load all Lua files in the directory
         local files = vim.fn.globpath(full_path, "*.lua", false, true)
-        print(vim.inspect(files))
-        logger.debug(string.format('Found plugin files: %s', vim.inspect(files)))
+        print('DEBUG: Found files:', vim.inspect(files))
 
         for _, file in ipairs(files) do
             -- Convert file path to module path
             local module_path = file:gsub(plugins_path .. '/', ''):gsub('.lua$', ''):gsub('/', '.')
-            logger.debug(string.format('Loading module: %s', module_path))
+            print('DEBUG: Loading module:', module_path)
 
-            local ok, plugins_spec = pcall(require, module_path)
-            logger.debug(string.format('Module load result - ok: %s, spec: %s',
-                tostring(ok), vim.inspect(plugins_spec)))
+            -- Try to load the module
+            local ok, plugins_spec = pcall(function()
+                return require(module_path)
+            end)
+            print('DEBUG: Module load result:', ok, vim.inspect(plugins_spec))
 
             if ok and plugins_spec then
                 if type(plugins_spec) == "table" then
-                    -- if utils.is_single_plugin_config(plugins_spec) then
-                    --     logger.debug(string.format('Found single plugin spec: %s', vim.inspect(plugins_spec)))
-                    --     table.insert(plugins, plugins_spec)
-                    -- else
-                    logger.debug(string.format('Found multiple plugin specs: %s', vim.inspect(plugins_spec)))
+                    print('DEBUG: Processing plugin spec:', vim.inspect(plugins_spec))
                     -- Handle multiple plugin specs
                     for _, spec in ipairs(plugins_spec) do
+                        print('DEBUG: Processing spec:', vim.inspect(spec))
                         if type(spec) == "table" and type(spec[1]) == "string" then
+                            print('DEBUG: Adding plugin:', vim.inspect(spec))
                             table.insert(plugins, spec)
                         end
                     end
-                    -- end
                 end
             else
                 logger.error(string.format('Failed to load plugin spec from %s: %s',
                     file, plugins_spec))
+                print('DEBUG: Failed to load plugin spec:', file, plugins_spec)
             end
         end
     else
         logger.warn(string.format('Plugin directory not found: %s', full_path))
+        print('DEBUG: Plugin directory not found:', full_path)
     end
 
-    logger.debug(string.format('Loaded %d plugin specifications: %s', #plugins, vim.inspect(plugins)))
+    print('DEBUG: Final plugins list:', vim.inspect(plugins))
     return plugins
 end
 

@@ -79,22 +79,30 @@ end
 
 function M.setup_plugins()
     logger.debug("Setting up plugins")
+    print('DEBUG: Starting plugin setup')
 
     local all_plugins = loader.load_all(M.opts)
-    print(vim.inspect(all_plugins))
+    print('DEBUG: Loaded plugins:', vim.inspect(all_plugins))
+    
     if not all_plugins or #all_plugins == 0 then
         logger.error('No plugins found to load')
+        print('DEBUG: No plugins found to load')
         return
     end
 
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
+    print('DEBUG: Processing', #all_plugins, 'plugins')
 
     -- Register plugins first
     local registered_plugins = {}
     for _, plugin_spec in ipairs(all_plugins) do
+        print('DEBUG: Registering plugin:', vim.inspect(plugin_spec))
         local plugin = M.register_plugin(plugin_spec)
         if plugin then
             registered_plugins[plugin.name] = plugin
+            print('DEBUG: Successfully registered plugin:', plugin.name)
+        else
+            print('DEBUG: Failed to register plugin:', vim.inspect(plugin_spec))
         end
     end
 
@@ -105,16 +113,23 @@ function M.setup_plugins()
     for name, plugin in pairs(registered_plugins) do
         if plugin.priority ~= nil or plugin.lazy == false then
             priority_plugins[name] = plugin
+            print('DEBUG: Added to priority plugins:', name)
         else
             lazy_plugins[name] = plugin
+            print('DEBUG: Added to lazy plugins:', name)
         end
     end
 
+    print('DEBUG: Priority plugins:', vim.inspect(priority_plugins))
+    print('DEBUG: Lazy plugins:', vim.inspect(lazy_plugins))
+
     -- Load priority plugins first
     local results = loader._load_priority_plugins(priority_plugins)
+    print('DEBUG: Priority plugin load results:', vim.inspect(results))
 
     -- Then load lazy plugins
     local lazy_results = loader._load_lazy_plugins(lazy_plugins)
+    print('DEBUG: Lazy plugin load results:', vim.inspect(lazy_results))
 
     -- Merge and validate results
     local all_res = utils.deep_merge(results, lazy_results)
@@ -125,8 +140,10 @@ function M.setup_plugins()
             logger.error(string.format('Failed to load plugin: %s', name))
             M._loaded[name] = false
             table.insert(failed_plugins, name)
+            print('DEBUG: Failed to load plugin:', name)
         else
             M._loaded[name] = true
+            print('DEBUG: Successfully loaded plugin:', name)
         end
     end
 
@@ -136,6 +153,7 @@ function M.setup_plugins()
             #failed_plugins,
             table.concat(failed_plugins, ', ')
         ))
+        print('DEBUG: Failed plugins:', table.concat(failed_plugins, ', '))
     end
 
     return #failed_plugins == 0
