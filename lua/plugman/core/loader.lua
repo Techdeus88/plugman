@@ -140,27 +140,37 @@ end
 function M.load_all(opts)
     local utils = require("plugman.utils")
     local logger = require("plugman.utils.logger")
-
+    
     -- Get plugin directories from config
     local plugins_dir = opts.paths and opts.paths.plugins_dir or "plugins"
     local plugins_path = opts.paths and opts.paths.plugins_path or vim.fn.stdpath('config') .. '/lua'
-
+    
+    logger.debug(string.format('Loading plugins from: %s/%s', plugins_path, plugins_dir))
+    
     local plugins = {}
     local full_path = plugins_path .. '/' .. plugins_dir
-
+    
     if vim.fn.isdirectory(full_path) == 1 then
         -- Load all Lua files in the directory
         local files = vim.fn.globpath(full_path, "*.lua", false, true)
+        logger.debug(string.format('Found plugin files: %s', vim.inspect(files)))
+        
         for _, file in ipairs(files) do
             -- Convert file path to module path
             local module_path = file:gsub(plugins_path .. '/', ''):gsub('.lua$', ''):gsub('/', '.')
+            logger.debug(string.format('Loading module: %s', module_path))
+            
             local ok, plugins_spec = pcall(require, module_path)
-
+            logger.debug(string.format('Module load result - ok: %s, spec: %s', 
+                tostring(ok), vim.inspect(plugins_spec)))
+            
             if ok and plugins_spec then
                 if type(plugins_spec) == "table" then
                     if utils.is_single_plugin_config(plugins_spec) then
+                        logger.debug(string.format('Found single plugin spec: %s', vim.inspect(plugins_spec)))
                         table.insert(plugins, plugins_spec)
                     else
+                        logger.debug(string.format('Found multiple plugin specs: %s', vim.inspect(plugins_spec)))
                         -- Handle multiple plugin specs
                         for _, spec in ipairs(plugins_spec) do
                             if type(spec) == "table" and type(spec[1]) == "string" then
@@ -170,7 +180,7 @@ function M.load_all(opts)
                     end
                 end
             else
-                logger.error(string.format('Failed to load plugin spec from %s: %s',
+                logger.error(string.format('Failed to load plugin spec from %s: %s', 
                     file, plugins_spec))
             end
         end
@@ -178,7 +188,7 @@ function M.load_all(opts)
         logger.warn(string.format('Plugin directory not found: %s', full_path))
     end
 
-    logger.debug(string.format('Loaded %d plugin specifications', #plugins))
+    logger.debug(string.format('Loaded %d plugin specifications: %s', #plugins, vim.inspect(plugins)))
     return plugins
 end
 

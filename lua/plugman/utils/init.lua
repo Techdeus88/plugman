@@ -56,22 +56,16 @@ end
 ---@param config table|table[] config type
 ---@return boolean
 function M.is_single_plugin_config(config)
-    local res, is_single = pcall(function() return config[1] == "string" and #config == 1 end)
-    if res then return true end
-        -- Debug logging
-    logger.debug(string.format('Config is a single file config %s', is_single))
-    return false
+    if type(config) ~= "table" then return false end
+    return type(config[1]) == "string" and #config == 1
 end
 
 ---Is config file a single plugin config or multiple plugin config
 ---@param config table|table[] config type
 ---@return boolean
 function M.is_multi_plugin_config(config)
-    local res, is_multiple = pcall(function() return config[1] == "table" and #config > 1 end)
-    if res then return true end
-        -- Debug logging
-    logger.debug(string.format('Config is a single file config %s', is_multiple))
-    return false
+    if type(config) ~= "table" then return false end
+    return #config > 1 and type(config[1]) == "table"
 end
 
 ---Validate if string is a valid GitHub URL
