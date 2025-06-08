@@ -184,11 +184,14 @@ end
 function M.handle_priority_plugins(Plugins)
     local sorted_plugins = loader._sort_priority_plugins(Plugins)
     local results = {}
-    for _, Plugin in ipairs(sorted_plugins) do
-        M.register_plugin(Plugin)
-        local success = loader.load_plugin(Plugin)
-        Plugin:has_loaded()
-        results[Plugin.name] = success
+    for _, plugin_data in ipairs(sorted_plugins) do
+        local plugin = plugin_data.opts
+        M.register_plugin(plugin)
+        local success = loader.load_plugin(plugin)
+        if success and type(plugin.has_loaded) == 'function' then
+            plugin:has_loaded()
+        end
+        results[plugin.name] = success
     end
     return results
 end

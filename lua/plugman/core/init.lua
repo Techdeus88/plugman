@@ -136,6 +136,7 @@ end
 function Plugin:has_added()
     if not self.added then
         self.added = true
+        self.register.added = true
         return true
     end
     logger.warn("Plugin already added")
@@ -146,6 +147,7 @@ function Plugin:has_loaded()
     local end_time = vim.uv.hrtime()
     if not self.loaded then
         self.loaded = true
+        self.load.loaded = true
         self.load_time = string.format("%.2f ms", (end_time - require("plugman")._start) / 1e6)
         return true
     end
