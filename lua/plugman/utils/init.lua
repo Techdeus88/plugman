@@ -51,6 +51,29 @@ function M.table_to_boolean(tbl)
     return result
 end
 
+
+---Is config file a single plugin config or multiple plugin config
+---@param config table|table[] config type
+---@return boolean
+function M.is_single_plugin_config(config)
+    local res, is_single = pcall(function() return config[1] == "string" and #config == 1 end)
+    if res then return true end
+        -- Debug logging
+    logger.debug(string.format('Config is a single file config %s', is_single))
+    return false
+end
+
+---Is config file a single plugin config or multiple plugin config
+---@param config table|table[] config type
+---@return boolean
+function M.is_multi_plugin_config(config)
+    local res, is_multiple = pcall(function() return config[1] == "table" and #config > 1 end)
+    if res then return true end
+        -- Debug logging
+    logger.debug(string.format('Config is a single file config %s', is_multiple))
+    return false
+end
+
 ---Validate if string is a valid GitHub URL
 ---@param url string URL to validate
 ---@return boolean

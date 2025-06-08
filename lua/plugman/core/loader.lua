@@ -5,9 +5,15 @@ local M = {}
 local utils = require("plugman.utils")
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
-local events = require("plugman.core.events")
+local EventManager = require("plugman.core.events")
 local mini_deps = require("plugman.core.bootstrap")
 local cache = require("plugman.core.cache")
+
+-- State
+local start_time = vim.uv.hrtime()
+local first_render = nil
+local final_render = nil
+
 -- Constants
 local SETUP_PHASES = {
     {
@@ -50,7 +56,7 @@ local function safe_pcall(fn, ...)
 end
 
 local function extract_plugin_name(source)
-    return source:match('([^/]+)$')
+    return source:match('([^/]+)$') or source
 end
 
 local function validate_plugin(plugin)
@@ -133,7 +139,7 @@ end
 -- Core Functions
 function M.add_plugin(plugin)
     if not validate_plugin(plugin) then return false end
-
+    print(plugin.name)
     return safe_pcall(function()
         logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
         local deps_success, deps_err = pcall(mini_deps.add, plugin)
@@ -147,11 +153,11 @@ function M.add_plugin(plugin)
     end)
 end
 
---Load plugins in priority order
+---Load plugins in priority order
 ---@param Plugins table<string, PlugmanPlugin>
 ---@return table<string, boolean> Success status for each plugin
 function M._load_priority_plugins(Plugins)
-    -- Sort plugins by priority
+    print(vim.inspect(Plugins))
     local sorted_plugins = {}
     for name, p_opts in pairs(Plugins) do
         table.insert(sorted_plugins, { name = name, opts = p_opts })
@@ -164,8 +170,6 @@ function M._load_priority_plugins(Plugins)
     end)
 
     local results = {}
-
-    -- Load plugins in order
     for _, Plugin in ipairs(sorted_plugins) do
         local success = M.load_plugin(Plugin.opts)
         results[Plugin.name] = success
@@ -175,80 +179,186 @@ function M._load_priority_plugins(Plugins)
     return results
 end
 
-function M._load_lazy_plugins(plugins, lazy_plugins, loaded_plugins)
+function M._load_lazy_plugins(plugins)
     local results = {}
     for _, plugin in pairs(plugins) do
-        -- Determine loading strategy
-        M._setup_lazy_loading(plugin, lazy_plugins)
-
-        local success = M._load_lazy_plugin(plugin, lazy_plugins, loaded_plugins)
+        M._setup_lazy_loading(plugin)
+        local success = M._load_lazy_plugin(plugin)
         results[plugin.name] = success
         logger.info(string.format('Plugin: %s added and setup for loading', plugin.name))
     end
     return results
 end
 
-function M._setup_lazy_loading(plugin, lazy_plugins)
+function M._setup_lazy_loading(plugin)
     logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
+    
     if plugin.lazy then
-        lazy_plugins[plugin.name] = plugin
+        require("plugman")._lazy_plugins[plugin.name] = plugin
     end
 
-    -- Event-based loading
     if plugin.event then
-        local events_list = type(plugin.event) == 'table' and plugin.event or { plugin.event }
-        for _, event in ipairs(events_list) do
-            events.on_event(event, function() M._load_lazy_plugin(plugin) end)
-        end
+        M.setup_event_loading(plugin)
     end
 
-    -- Filetype-based loading
     if plugin.ft then
-        local filetypes = type(plugin.ft) == 'table' and plugin.ft or { plugin.ft }
-        for _, ft in ipairs(filetypes) do
-            events.on_filetype(ft, function() M._load_lazy_plugin(plugin) end)
-        end
+        M.setup_filetype_loading(plugin)
     end
 
-    -- Command-based loading
     if plugin.cmd then
-        local commands = type(plugin.cmd) == 'table' and plugin.cmd or { plugin.cmd }
-        for _, cmd in ipairs(commands) do
-            events.on_command(cmd, function() M._load_lazy_plugin(plugin) end)
-        end
+        M.setup_command_loading(plugin)
     end
 end
 
-function M._load_dependencies(Plugin, plugins)
-    for _, dep in ipairs(Plugin.depends) do
-        local dep_source = type(dep) == "string" and dep or dep[1]
-        local dep_name = extract_plugin_name(dep_source)
-        local Dep = plugins[dep_name]
+function M.setup_event_loading(Plugin)
+    if not Plugin.event then return false end
 
-        if Dep then
-            local ok = safe_pcall(M._load_plugin_immediately, Dep)
-            if not ok then
-                notify.error(string.format("Dependent %s did not load!", Dep.name))
+    local events_list = type(Plugin.event) == 'table' and Plugin.event or { Plugin.event }
+    for _, event in ipairs(events_list) do
+        EventManager:register_handler(event, {
+            plugin_name = Plugin.name,
+            handler = function(args)
+                if Plugin.loaded then return end
+
+                local bufnr = args.buf
+                logger.debug(string.format("Event handler triggered: %s-%s-%s",
+                    Plugin.name, event, bufnr))
+
+                local ok, err = pcall(M._load_lazy_plugin, Plugin)
+                if not ok then
+                    logger.error(string.format('Error in event handler for %s: %s',
+                        Plugin.name, err))
+                    return
+                end
+
+                Plugin:has_loaded()
+                logger.debug(string.format("Plugin successfully loaded (event): %s",
+                    Plugin.name))
             end
-        end
+        })
     end
+    return true
 end
 
-function M._load_lazy_plugin(plugin, lazy_plugins, loaded)
-    if not lazy_plugins[plugin.name] or loaded[plugin.name] then return end
+function M.setup_filetype_loading(Plugin)
+    if not Plugin.ft then return false end
+
+    local filetypes = type(Plugin.ft) == 'table' and Plugin.ft or { Plugin.ft }
+    for _, filetype in ipairs(filetypes) do
+        EventManager:register_handler('FileType', {
+            plugin_name = Plugin.name,
+            ft = filetype,
+            handler = function(args)
+                if Plugin.loaded then return end
+
+                local bufnr = args.buf
+                local buf_ft = vim.bo[bufnr].filetype
+
+                if buf_ft == filetype then
+                    local ok, err = pcall(M._load_lazy_plugin, Plugin)
+                    if not ok then
+                        logger.error(string.format('Error in filetype handler for %s: %s',
+                            Plugin.name, err))
+                        return
+                    end
+
+                    Plugin:has_loaded()
+                    logger.debug(string.format("Plugin successfully loaded (filetype): %s",
+                        Plugin.name))
+                end
+            end
+        })
+    end
+    return true
+end
+
+function M.setup_command_loading(Plugin)
+    if not Plugin.cmd then return false end
+
+    local commands = type(Plugin.cmd) == 'table' and Plugin.cmd or { Plugin.cmd }
+    for _, cmd in ipairs(commands) do
+        vim.api.nvim_create_user_command(cmd, function()
+            if Plugin.loaded then return end
+            
+            local ok, err = pcall(M._load_lazy_plugin, Plugin)
+            if not ok then
+                logger.error(string.format('Error launching plugin via command %s: %s', 
+                    cmd, err))
+                return
+            end
+            
+            Plugin:has_loaded()
+            logger.debug(string.format("Plugin successfully loaded (command): %s", 
+                Plugin.name))
+            vim.cmd(cmd)
+        end, { desc = 'Load plugin: ' .. Plugin.name })
+    end
+    return true
+end
+
+function M._load_lazy_plugin(plugin)
+    local lazy_plugins = require("plugman")._lazy_plugins
+    local loaded_plugins = require("plugman")._loaded
+    
+    if not lazy_plugins[plugin.name] or loaded_plugins[plugin.name] then return end
 
     notify.info(string.format('Loading %s...', plugin.name))
-    local result = M._load_plugin_immediately(plugin, loaded)
+    local result = M._load_plugin_immediately(plugin)
     lazy_plugins[plugin.name] = nil
     return result
 end
 
--- Add at the top with other local variables
-local start_time = vim.uv.hrtime()
-local first_render = nil
-local final_render = nil
+function M._load_plugin_immediately(plugin)
+    local loaded_plugins = require("plugman")._loaded
+    
+    if loaded_plugins[plugin.name] then
+        logger.debug(string.format('Plugin %s already loaded', plugin.name))
+        return true
+    end
 
--- Add this function to track render times
+    logger.debug(string.format('Loading plugin immediately: %s', plugin.name))
+    local ok = safe_pcall(M.load_plugin, plugin)
+
+    if not ok then
+        logger.warn(string.format("Plugin %s did not load", plugin.name))
+        return false
+    end
+
+    loaded_plugins[plugin.name] = true
+    cache.set_plugin_loaded(plugin.name, true)
+    M._track_render()
+    logger.info(string.format('Loaded plugin: %s', plugin.name))
+    return true
+end
+
+function M.load_plugin(Plugin)
+    if not Plugin then return false end
+    logger.debug(string.format('Loading plugin: %s (source: %s)', Plugin.name, Plugin.source))
+
+    return safe_pcall(function()
+        M._load_plugin_config(Plugin)
+        return true
+    end)
+end
+
+function M._load_plugin_config(Plugin)
+    if not (Plugin.config or Plugin.opts) then return end
+
+    return safe_pcall(function()
+        for _, phase in ipairs(SETUP_PHASES) do
+            if phase.condition(Plugin) then
+                local timing_fn = utils.get_timing_function(Plugin, phase)
+                timing_fn(function()
+                    utils.safe_pcall(phase.action, Plugin)
+                    logger.debug(string.format("Phase %s completed for %s", 
+                        phase.name, Plugin.name))
+                end)
+            end
+        end
+    end)
+end
+
+-- Timing Functions
 function M._track_render()
     if not first_render then
         first_render = vim.uv.hrtime()
@@ -278,7 +388,6 @@ function M.generate_startup_report()
         "=== Plugin Details ==="
     }
     
-    -- Add individual plugin timing
     for name, plugin in pairs(plugman._plugins) do
         if plugin.load_time then
             table.insert(report, string.format("  %s: %s", name, plugin.load_time))
@@ -286,128 +395,6 @@ function M.generate_startup_report()
     end
     
     return table.concat(report, "\n")
-end
-
--- Modify _load_plugin_immediately to track render times
-function M._load_plugin_immediately(plugin, loaded)
-    if loaded[plugin.name] then
-        logger.debug(string.format('Plugin %s already loaded', plugin.name))
-        return true
-    end
-
-    logger.debug(string.format('Loading plugin immediately: %s', plugin.name))
-    local ok = safe_pcall(M.load_plugin, plugin)
-
-    if not ok then
-        logger.warn(string.format("Plugin %s did not load", plugin.name))
-        return false
-    end
-
-    loaded[plugin.name] = true
-    cache.set_plugin_loaded(plugin.name, true)
-    M._track_render() -- Track render time after each plugin load
-    logger.info(string.format('Loaded plugin: %s', plugin.name))
-    return true
-end
-
-function M.load_plugin(Plugin)
-    if not Plugin then return false end
-    logger.debug(string.format('Loading plugin: %s (source: %s)', Plugin.name, Plugin.source))
-
-    return safe_pcall(function()
-        -- Load plugin configuration
-        M._load_plugin_config(Plugin)
-        return true
-    end)
-end
-
-function M._load_plugin_config(Plugin)
-    if not (Plugin.config or Plugin.opts) then return end
-
-    return safe_pcall(function()
-        for _, phase in ipairs(SETUP_PHASES) do
-            if phase.condition(Plugin) then
-                local timing_fn = utils.get_timing_function(Plugin, phase)
-                timing_fn(function()
-                    utils.safe_pcall(phase.action, Plugin)
-                    logger.debug(string.format("Phase %s completed for %s", phase.name, Plugin.name))
-                end)
-            end
-        end
-    end)
-end
-
-function M.ensure_dependency_loaded(Dep)
-    if not Dep then return end
-
-    local plugman = require('plugman')
-    if plugman._loaded[Dep.name] or Dep.loaded then return end
-
-    local ok = safe_pcall(M.load_plugin, Dep)
-    if not ok then
-        logger.warn(string.format('Dependency %s not loaded', Dep.name))
-    end
-end
-
-function M.load_plugin_files(dir_path)
-    if not dir_path or vim.fn.isdirectory(dir_path) == 0 then
-        logger.warn(string.format('Invalid directory: %s', dir_path))
-        return {}
-    end
-
-    local plugins = {}
-    local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
-    logger.debug(string.format('Found %d files in %s', #files, dir_path))
-
-    for _, file_path in ipairs(files) do
-        local plugin_configs = safe_pcall(dofile, file_path)
-        if plugin_configs then
-            if type(plugin_configs[1]) == "string" then
-                -- Single plugin config
-                if utils.is_valid_github_url(plugin_configs[1]) then
-                    plugin_configs.lazy = utils.to_boolean(plugin_configs.lazy)
-                    plugin_configs.source = plugin_configs[1]
-                    plugin_configs.name = plugin_configs.name or extract_plugin_name(plugin_configs[1])
-                    table.insert(plugins, plugin_configs)
-                end
-            elseif type(plugin_configs) == 'table' then
-                -- Multiple plugins config
-                for _, plugin_config in ipairs(plugin_configs) do
-                    if type(plugin_config[1]) == "string" and utils.is_valid_github_url(plugin_config[1]) then
-                        plugin_config.lazy = utils.to_boolean(plugin_config.lazy)
-                        plugin_config.source = plugin_config[1]
-                        plugin_config.name = plugin_config.name or extract_plugin_name(plugin_config[1])
-                        table.insert(plugins, plugin_config)
-                    end
-                end
-            end
-        end
-    end
-
-    logger.info(string.format('Loaded %d plugins from %s', #plugins, dir_path))
-    return plugins
-end
-
-function M.load_all()
-    local config_opts = require("plugman").opts
-    if not config_opts.paths then
-        logger.warn('No paths configured for plugin loading')
-        return {}
-    end
-
-    local all_plugins = {}
-    local plugins_path = string.format("%s/%s",
-        config_opts.paths.plugins_path,
-        config_opts.paths.plugins_dir or 'plugins'
-    )
-
-    local plugins = M.load_plugin_files(plugins_path)
-    if #plugins > 0 then
-        vim.list_extend(all_plugins, plugins)
-    end
-
-    logger.info(string.format('Total plugins ready: %d', #all_plugins))
-    return all_plugins
 end
 
 return M

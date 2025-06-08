@@ -1,95 +1,98 @@
-local M = {}
-
 local logger = require('plugman.utils.logger')
 
-local event_callbacks = {}
-local command_callbacks = {}
-local filetype_callbacks = {}
-local key_callbacks = {}
-
--- Event types
-M.TYPES = {
-    -- Buffer events
-    BUF_ENTER = "BufEnter",
-    BUF_LEAVE = "BufLeave",
-    BUF_WRITE = "BufWrite",
-    BUF_READ = "BufRead",
-
-    -- Vim events
-    VIM_ENTER = "VimEnter",
-    VIM_LEAVE = "VimLeave",
-
-    -- Filetype events
-    FT_DETECT = "FileType",
-
-    -- Command events
-    CMD_ENTER = "CmdlineEnter",
-    CMD_LEAVE = "CmdlineLeave",
-
-    -- Insert events
-    INSERT_ENTER = "InsertEnter",
-    INSERT_LEAVE = "InsertLeave",
-
-    -- Terminal events
-    TERM_OPEN = "TermOpen",
-    TERM_CLOSE = "TermClose",
-
-    -- UI events
-    UI_ENTER = "UIEnter",
-    UI_LEAVE = "UILeave",
-
-    -- Custom events
-    -- PLUGIN_LOAD = "PluginLoad",
-    -- PLUGIN_UNLOAD = "PluginUnload"
+---@class EventManager
+---@field handlers table<string, table> Event handlers
+---@field emitted table<string, any> Emitted events
+---@field callbacks table<string, function[]> Event callbacks
+local EventManager = {
+    handlers = {},
+    emitted = {},
+    callbacks = {},
 }
----Setup event system
-function M.setup()
-    -- Setup autocmds for events
-    for ev_key, event in pairs(M.TYPES) do
-        if ev_key == "FT_DETECT" then
-            -- Setup filetype detection
-            vim.api.nvim_create_autocmd(event, {
-                callback = function(args)
-                    M._trigger_filetype(args.match)
-                end
-            })
-        else
-            vim.api.nvim_create_autocmd(event, {
-                callback = function()
-                    M._trigger_event(event)
-                end
-            })
+
+
+
+---Register an event handler
+---@param event_name string Name of the event
+---@param event_data table Event data containing handler and metadata
+---@return boolean success Whether registration was successful
+function EventManager:register_handler(event_name, event_data)
+    if not self:validate_event_data(event_data) then
+        logger.error(string.format("Invalid event data for %s", event_name))
+        return false
+    end
+
+    self.handlers[event_name] = self.handlers[event_name] or {}
+    table.insert(self.handlers[event_name], {
+        event_data = event_data,
+        module_id = event_data.module_id,
+    })
+
+    -- Trigger handler immediately if event was already emitted
+    if self.emitted[event_name] then
+        event_data.handler(self.emitted[event_name])
+    end
+
+    return true
+end
+
+---Validate event data structure
+---@param event_data table Event data to validate
+---@return boolean valid Whether the event data is valid
+function EventManager:validate_event_data(event_data)
+    return event_data
+        and event_data.handler
+        and type(event_data.handler) == "function"
+end
+
+---Get all handlers for an event
+---@param event string Event name
+---@return table|nil handlers Event handlers
+function EventManager:get_handlers(event)
+    return self.handlers[event]
+end
+
+---Emit an event and trigger its handlers
+---@param event_name string Name of the event
+---@param data any Event data
+---@param is_urgent boolean Whether this is an urgent event
+function EventManager:emit_event(event_name, data, is_urgent)
+    self.emitted[event_name] = data
+
+    local handlers = self.handlers[event_name]
+    if not handlers then return end
+
+    for _, handler_entry in ipairs(handlers) do
+        if handler_entry.event_data and handler_entry.event_data.handler then
+            handler_entry.event_data.handler(data)
         end
     end
 end
 
----Register event callback
+---Register a callback for an event
 ---@param event string Event name
 ---@param callback function Callback function
-function M.on_event(event, callback)
-    event_callbacks[event] = event_callbacks[event] or {}
-    table.insert(event_callbacks[event], callback)
-
+function EventManager:on_event(event, callback)
+    self.callbacks[event] = self.callbacks[event] or {}
+    table.insert(self.callbacks[event], callback)
     logger.debug(string.format('Registered event callback for: %s', event))
 end
 
----Register filetype callback
+---Register a callback for a filetype
 ---@param filetype string Filetype
 ---@param callback function Callback function
-function M.on_filetype(filetype, callback)
-    filetype_callbacks[filetype] = filetype_callbacks[filetype] or {}
-    table.insert(filetype_callbacks[filetype], callback)
-
+function EventManager:on_filetype(filetype, callback)
+    self.callbacks[filetype] = self.callbacks[filetype] or {}
+    table.insert(self.callbacks[filetype], callback)
     logger.debug(string.format('Registered filetype callback for: %s', filetype))
 end
 
----Register command callback
+---Register a command callback
 ---@param command string Command name
 ---@param callback function Callback function
-function M.on_command(command, callback)
-    command_callbacks[command] = callback
+function EventManager:on_command(command, callback)
+    self.callbacks[command] = callback
 
-    -- Create the command
     vim.api.nvim_create_user_command(command, function(args)
         callback(args)
     end, {
@@ -100,62 +103,182 @@ function M.on_command(command, callback)
     logger.debug(string.format('Registered command callback for: %s', command))
 end
 
----Register key callback
+---Register a key callback
 ---@param keys table|string Key mappings
 ---@param callback function Callback function
-function M.on_keys(keys, callback)
+function EventManager:on_keys(keys, callback)
     local key_list = type(keys) == 'table' and keys or { keys }
 
     for _, key in ipairs(key_list) do
-        local lhs, mode, opts
-
-        if type(key) == 'string' then
-            lhs = key
-            mode = 'n'
-            opts = {}
-        elseif type(key) == 'table' then
-            lhs = key[1] or key.lhs
-            mode = key.mode or 'n'
-            opts = key.opts or {}
-        end
-
+        local lhs, mode, opts = self:parse_key_spec(key)
         if lhs then
-            key_callbacks[lhs] = callback
-
-            -- Create lazy keymap
-            vim.keymap.set(mode, lhs, function()
-                callback()
-                -- Remove this lazy keymap after triggering
-                vim.keymap.del(mode, lhs)
-            end, opts)
-
-            logger.debug(string.format('Registered key callback for: %s', lhs))
+            self[lhs] = callback
+            self:setup_lazy_keymap(lhs, mode, opts, callback)
         end
     end
+end
+
+---Parse a key specification
+---@param key string|table Key specification
+---@return string|nil lhs Left-hand side of the mapping
+---@return string mode Mode for the mapping
+---@return table opts Mapping options
+function EventManager:parse_key_spec(key)
+    if type(key) == 'string' then
+        return key, 'n', {}
+    elseif type(key) == 'table' then
+        return key[1] or key.lhs, key.mode or 'n', key.opts or {}
+    end
+    return nil
+end
+
+---Setup a lazy keymap
+---@param lhs string Left-hand side of the mapping
+---@param mode string Mode for the mapping
+---@param opts table Mapping options
+---@param callback function Callback function
+function EventManager:setup_lazy_keymap(lhs, mode, opts, callback)
+    vim.keymap.set(mode, lhs, function()
+        callback()
+        vim.keymap.del(mode, lhs)
+    end, opts)
+    logger.debug(string.format('Registered key callback for: %s', lhs))
 end
 
 ---Trigger event callbacks
 ---@param event string Event name
-function M._trigger_event(event)
-    if event_callbacks[event] then
-        for _, callback in ipairs(event_callbacks[event]) do
-            pcall(callback)
-        end
-        -- Clear callbacks after triggering
-        event_callbacks[event] = nil
+function EventManager:_trigger_event(event)
+    local callbacks = self.callbacks[event]
+    if not callbacks then return end
+
+    for _, callback in ipairs(callbacks) do
+        pcall(callback)
     end
+    self.callbacks[event] = nil
 end
 
 ---Trigger filetype callbacks
 ---@param filetype string Filetype
-function M._trigger_filetype(filetype)
-    if filetype_callbacks[filetype] then
-        for _, callback in ipairs(filetype_callbacks[filetype]) do
-            pcall(callback)
+function EventManager:_trigger_filetype(filetype)
+    local callbacks = self.callbacks[filetype]
+    if not callbacks then return end
+
+    for _, callback in ipairs(callbacks) do
+        pcall(callback)
+    end
+    self.callbacks[filetype] = nil
+end
+
+---Setup the event system
+function EventManager.setup()
+    local function safe_trigger_event(event, args)
+        local handlers = EventManager:get_handlers(event)
+        if not handlers then return end
+
+        for _, entry in ipairs(handlers) do
+            if not entry.event_data.module_id then goto continue end
+
+            local module = require("core").get_plugin(entry.event_data.plugin_id)
+            if not module or module.loaded then goto continue end
+
+            local ok, err = pcall(entry.event_data.handler, args)
+            if not ok then
+                logger.error(string.format('Handler failed for %s on event %s: %s',
+                    module.name, event, err))
+            end
+            ::continue::
         end
-        -- Clear callbacks after triggering
-        filetype_callbacks[filetype] = nil
+    end
+
+    -- Event groups for better organization
+    local event_groups = {
+        buffer = {
+            'BufAdd', 'BufDelete', 'BufEnter', 'BufLeave', 'BufNew',
+            'BufNewFile', 'BufRead', 'BufReadPost', 'BufReadPre',
+            'BufUnload', 'BufWinEnter', 'BufWinLeave', 'BufWrite',
+            'BufWritePre', 'BufWritePost',
+        },
+        file = {
+            'FileType', 'FileReadCmd', 'FileWriteCmd', 'FileAppendCmd',
+            'FileAppendPost', 'FileAppendPre', 'FileChangedShell',
+            'FileChangedShellPost', 'FileReadPost', 'FileReadPre',
+            'FileWritePost', 'FileWritePre',
+        },
+        window = {
+            'WinClosed', 'WinEnter', 'WinLeave', 'WinNew', 'WinScrolled',
+        },
+        terminal = {
+            'TermOpen', 'TermClose', 'TermEnter', 'TermLeave', 'TermChanged',
+        },
+        tab = {
+            'TabEnter', 'TabLeave', 'TabNew', 'TabNewEntered',
+        },
+        text = {
+            'TextChanged', 'TextChangedI', 'TextChangedP', 'TextYankPost',
+        },
+        insert = {
+            'InsertChange', 'InsertCharPre', 'InsertEnter', 'InsertLeave',
+        },
+        vim = {
+            'VimEnter', 'VimLeave', 'VimLeavePre', 'VimResized',
+        },
+        custom = {
+            'BaseDefered', 'BaseFile', 'BaseGitFile', 'TechdeusStart',
+            'TechdeusReady', 'DashboardUpdate', 'PluginLoad', 'PluginUnload'
+        },
+    }
+
+    -- Register events by group
+    for group_name, events in pairs(event_groups) do
+        local group = vim.api.nvim_create_augroup('Store' .. group_name, { clear = true })
+        for _, event in ipairs(events) do
+            if group_name == 'custom' then
+                EventManager:register_handler(event, {
+                    handler = function(args)
+                        safe_trigger_event(event, args)
+                    end
+                })
+
+                vim.api.nvim_create_autocmd('User', {
+                    group = group,
+                    pattern = event,
+                    callback = function(args)
+                        safe_trigger_event(event, args)
+                    end,
+                })
+            else
+                vim.api.nvim_create_autocmd(event, {
+                    group = group,
+                    pattern = event == 'FileType' and '*' or nil,
+                    callback = function(args)
+                        safe_trigger_event(event, args)
+                    end,
+                })
+            end
+        end
     end
 end
 
-return M
+return EventManager
+
+--End-of-file--
+-- Trigger an event and execute its handlers
+-- function module_manager:trigger_event(event, args)
+--   local event_callbacks = self:get_handlers(event)
+--   if event_callbacks then
+--     for _, entry in ipairs(event_callbacks) do
+--       local module = self.modules[entry.module_id]
+--       if module and module.added then
+--         if event == 'FileType' and args then
+--           local buf_ft = vim.api.nvim_buf_get_option(args.buf, 'filetype')
+--           if buf_ft == entry.event_data.ft then
+--             entry.event_data.handler(args)
+--           end
+--         else
+--           entry.event_data.handler(args)
+--         end
+--       end
+--     end
+--   end
+-- end
+--End-of-file--

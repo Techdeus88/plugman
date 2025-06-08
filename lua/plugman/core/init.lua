@@ -8,6 +8,16 @@ require("plugman.types.plugin")
 local Plugin = {}
 Plugin.__index = Plugin
 
+---@param name string
+---@return PlugmanPlugin|nil
+function Plugin:get_plugin(name)
+    local p = require("plugman")._plugins[name]
+    if p ~= nil then
+        return p
+    end
+    return nil
+end
+
 ---@return PlugmanPlugin|PlugmanRegister|PlugmanLoad|nil A slice of the plugmanplugin, plugmanregister for MiniDeps.add to register, and plugmanload to setup and load
 ---@param spec any
 function Plugin:new(spec)

@@ -1,15 +1,15 @@
----@field public  _plugins table<string, PlugmanPlugin>
----@field public  _lazy_plugins table<string, PlugmanPlugin>
----@field public  _loaded table<string, boolean>
+--@class Plugman
+---@field public _plugins table<string, PlugmanPlugin>
+---@field public _lazy_plugins table<string, PlugmanPlugin>
+---@field public _loaded table<string, boolean>
 ---@field private _setup_done boolean
-
+---@field public opts table Configuration options
 local M = {}
-M._start = 0
 
 -- Dependencies
 local cache = require("plugman.core.cache")
 local loader = require("plugman.core.loader")
-local events = require("plugman.core.events")
+local event_manager = require("plugman.core.events")
 local defaults = require("plugman.config.default")
 local logger = require("plugman.utils.logger")
 local notify = require("plugman.utils.notify")
@@ -17,6 +17,7 @@ local bootstrap = require("plugman.core.bootstrap")
 local utils = require("plugman.utils")
 
 -- State
+M._start = 0
 M._plugins = {}
 M._lazy_plugins = {}
 M._loaded = {}
@@ -56,6 +57,7 @@ end
 function M.setup(opts)
     M._start = M._start == 0 and vim.uv.hrtime() or M._start
     logger.debug('Starting Plugman setup')
+
     opts = vim.tbl_deep_extend("force", defaults, opts or {})
     logger.debug(string.format('Setup options: %s', vim.inspect(opts)))
 
@@ -64,7 +66,7 @@ function M.setup(opts)
     cache.setup(opts.cache or {})
     notify.setup(opts.notify or {})
     bootstrap.setup(opts.minideps or {})
-    events.setup()
+    event_manager.setup()
 
     M._setup_done = true
     M.opts = opts
@@ -98,7 +100,7 @@ function M.setup_plugins()
     -- Separate plugins by loading strategy
     local priority_plugins = {}
     local lazy_plugins = {}
-    
+
     for name, plugin in pairs(registered_plugins) do
         if plugin.priority ~= nil or plugin.lazy == false then
             priority_plugins[name] = plugin
@@ -109,14 +111,14 @@ function M.setup_plugins()
 
     -- Load priority plugins first
     local results = loader._load_priority_plugins(priority_plugins)
-    
+
     -- Then load lazy plugins
-    local lazy_results = loader._load_lazy_plugins(lazy_plugins, M._lazy_plugins, M._loaded, M._plugins)
-    
+    local lazy_results = loader._load_lazy_plugins(lazy_plugins)
+
     -- Merge and validate results
-    local all_res = require("plugman.utils").deep_merge(results, lazy_results)
+    local all_res = utils.deep_merge(results, lazy_results)
     local failed_plugins = {}
-    
+
     for name, success in pairs(all_res) do
         if not success then
             logger.error(string.format('Failed to load plugin: %s', name))
@@ -129,8 +131,8 @@ function M.setup_plugins()
 
     -- Report results
     if #failed_plugins > 0 then
-        logger.warn(string.format('Failed to load %d plugins: %s', 
-            #failed_plugins, 
+        logger.warn(string.format('Failed to load %d plugins: %s',
+            #failed_plugins,
             table.concat(failed_plugins, ', ')
         ))
     end
@@ -169,15 +171,6 @@ function M.register_plugin(plugin_spec)
     return Plugin
 end
 
-function M.setup_plugin(Plugin)
-    if not Plugin then return end
-
-    local ok = safe_pcall(M.handle_load, Plugin)
-    if not ok then
-        logger.error(string.format('Failed to load plugin: %s', Plugin.name))
-    end
-end
-
 function M.handle_add(Plugin)
     if not M._setup_done then
         logger.error('Plugman not initialized. Call setup() first.')
@@ -188,8 +181,9 @@ function M.handle_add(Plugin)
 
     -- Store plugin
     M._plugins[Plugin.name] = Plugin
+
     -- Register plugin
-    local add_ok, _ = safe_pcall(loader.add_plugin, Plugin.register)
+    local add_ok = safe_pcall(loader.add_plugin, Plugin.register)
     if add_ok then
         Plugin:has_added()
     end
@@ -201,7 +195,8 @@ function M.handle_add(Plugin)
 end
 
 function M._handle_dependencies(Plugin)
-    logger.debug(string.format('Processing dependencies for %s: %s', Plugin.name, vim.inspect(Plugin.depends)))
+    logger.debug(string.format('Processing dependencies for %s: %s',
+        Plugin.name, vim.inspect(Plugin.depends)))
 
     for _, dep in ipairs(Plugin.depends) do
         local dep_source = type(dep) == "string" and dep or dep[1]
@@ -215,7 +210,8 @@ function M._handle_dependencies(Plugin)
                 M._plugins[Dep.name] = Dep
                 local ok = safe_pcall(loader.add_plugin, Dep)
                 if not ok then
-                    logger.warn(string.format('Dependency %s not loaded for %s', Dep.name, Plugin.name))
+                    logger.warn(string.format('Dependency %s not loaded for %s',
+                        Dep.name, Plugin.name))
                 end
             end
         else
@@ -284,16 +280,18 @@ end
 function M.show_one(type)
     if type == "list" then
         M.list()
-    end
-    if type == "loaded" then
+    elseif type == "loaded" then
         M.loaded()
-    end
-    if type == "lazy" then
+    elseif type == "lazy" then
         M.lazy()
-    end
-    if type == "startup" then
+    elseif type == "startup" then
         M.show_startup_report()
     end
+end
+
+function M.show_startup_report()
+    local report = loader.generate_startup_report()
+    vim.api.nvim_echo({ { report, "Normal" } }, true, {})
 end
 
 -- API Functions
@@ -301,11 +299,7 @@ M.list = function() return vim.tbl_keys(M._plugins) end
 M.loaded = function() return vim.tbl_keys(M._loaded) end
 M.lazy = function() return vim.tbl_keys(M._lazy_plugins) end
 
-function M.show_startup_report()
-    local report = loader.generate_startup_report()
-    return report
-    -- vim.api.nvim_echo({{report, "Normal"}}, true, {})
-end
-
+-- Create user commands
 vim.api.nvim_create_user_command("PlugmanStartupReport", M.show_startup_report, {})
+
 return M
