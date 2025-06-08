@@ -144,12 +144,12 @@ function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     result.enabled = result.enabled ~= false -- enabled by default
 
     -- Create plugin object
-    local plugin = Plugin:new(result)
+    local p = Plugin:new(result)
 
     -- Log plugin details for debugging
-    logger.debug(string.format('Normalized plugin: %s', vim.inspect(plugin)))
+    logger.debug(string.format('Normalized plugin: %s', vim.inspect(p.name)))
 
-    return plugin
+    return p
 end
 
 ---Get next plugin order number
