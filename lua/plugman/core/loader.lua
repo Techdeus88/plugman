@@ -149,20 +149,8 @@ function M.load_all(opts)
     local plugins = {}
     for _, file in ipairs(vim.fn.globpath(full_path, "*.lua", false, true)) do
         local ok, plugins_spec = pcall(dofile, file)
-        print(vim.inspect(plugins_spec))
-
         if ok and type(plugins_spec) == "table" then
-            -- Handle single spec file
-            if type(plugins_spec[1]) == "string" then
-                table.insert(plugins, plugins_spec)
-            -- Handle multi-spec file
-            else
-                for _, spec in ipairs(plugins_spec) do
-                    if type(spec) == "table" and type(spec[1]) == "string" then
-                        table.insert(plugins, spec)
-                    end
-                end
-            end
+            table.insert(plugins, plugins_spec)
         end
     end
 
