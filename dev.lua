@@ -9,7 +9,7 @@ local config = {
     test_plugins = os.getenv('HOME') .. '/.config/nvim-plugman/lua/plugins',
     -- Whether to use symlinks or copy files
     use_symlinks = true
-}
+ 
 
 -- Helper Functions
 local function run_command(cmd)

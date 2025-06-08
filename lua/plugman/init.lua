@@ -91,7 +91,7 @@ function M.setup_plugins()
     end
 
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
-    logger.debug('DEBUG: Processing', #all_plugins, 'plugins')
+    logger.debug('DEBUG: Processing' .. #all_plugins .. 'plugins')
 
     -- Register plugins first
     local registered_plugins = {}
@@ -99,8 +99,8 @@ function M.setup_plugins()
         logger.debug('DEBUG: Registering plugin:', vim.inspect(plugin_spec))
         local plugin = M.register_plugin(plugin_spec)
         if plugin then
-            registered_plugins[plugin.name] = plugin
-            logger.debug('DEBUG: Successfully registered plugin:', plugin.name)
+            M._plugins[plugin.name] = plugin
+            logger.debug('DEBUG: Successfully registered plugin:' .. plugin.name)
         else
             logger.debug('DEBUG: Failed to register plugin:', vim.inspect(plugin_spec))
         end
@@ -110,13 +110,13 @@ function M.setup_plugins()
     local priority_plugins = {}
     local lazy_plugins = {}
 
-    for name, plugin in pairs(registered_plugins) do
+    for name, plugin in pairs(M._plugins) do
         if plugin.priority ~= nil or plugin.lazy == false then
             priority_plugins[name] = plugin
-            logger.debug('DEBUG: Added to priority plugins:', name)
+            logger.debug('DEBUG: Added to priority plugins:' .. name)
         else
             lazy_plugins[name] = plugin
-            logger.debug('DEBUG: Added to lazy plugins:', name)
+            logger.debug('DEBUG: Added to lazy plugins:' .. name)
         end
     end
 
@@ -153,7 +153,7 @@ function M.setup_plugins()
             #failed_plugins,
             table.concat(failed_plugins, ', ')
         ))
-        logger.debug('DEBUG: Failed plugins:', table.concat(failed_plugins, ', '))
+        logger.debug('DEBUG: Failed plugins:' .. table.concat(failed_plugins, ', '))
     end
 
     return #failed_plugins == 0
@@ -309,8 +309,8 @@ function M.show_one(type)
 end
 
 function M.show_startup_report()
-    local report = loader.generate_startup_report()
-    vim.api.nvim_echo({ { report, "Normal" } }, true, {})
+    _G.Plugman['report'] = loader.generate_startup_report()
+    vim.api.nvim_echo({ { Plugman['report'], "Normal" } }, true, {})
 end
 
 -- API Functions
