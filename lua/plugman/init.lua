@@ -416,7 +416,12 @@ end
 
 function M.show_startup_report()
     local report = loader.generate_startup_report()
-    vim.api.nvim_echo({ { report, "Normal" } }, true, {})
+    vim.notify(vim.inspect(report), vim.log.levels.INFO, { 
+        title = "Startup metrics",
+        timeout = 10000  -- 10 seconds
+    })
+    -- vim.api.nvim_echo({ { report, "Normal" } }, true, {})
+    return report
 end
 
 -- API Functions
