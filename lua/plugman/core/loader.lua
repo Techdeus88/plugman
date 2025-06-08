@@ -149,13 +149,15 @@ function M.load_all(opts)
     local plugins = {}
     for _, file in ipairs(vim.fn.globpath(full_path, "*.lua", false, true)) do
         local ok, plugins_spec = pcall(dofile, file)
+        print(vim.inspect(plugins_spec))
         if ok and type(plugins_spec) == "table" then
             for _, spec in ipairs(plugins_spec) do
+                print(vim.inspect(spec))
                 table.insert(plugins, spec)
             end
         end
     end
-
+    print(vim.inspect(plugins))
     return plugins
 end
 
