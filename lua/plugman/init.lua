@@ -15,6 +15,7 @@ local logger = require("plugman.utils.logger")
 local notify = require("plugman.utils.notify")
 local bootstrap = require("plugman.core.bootstrap")
 local utils = require("plugman.utils")
+local core = require("plugman.core")
 
 -- State
 M._start = 0
@@ -79,30 +80,30 @@ end
 
 function M.setup_plugins()
     logger.debug("Setting up plugins")
-    logger.debug('DEBUG: Starting plugin setup')
 
     local all_plugins = loader.load_all(M.opts)
-    logger.debug('DEBUG: Loaded plugins:', vim.inspect(all_plugins))
-
     if not all_plugins or #all_plugins == 0 then
         logger.error('No plugins found to load')
-        logger.debug('DEBUG: No plugins found to load')
         return
     end
 
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
-    logger.debug('DEBUG: Processing' .. #all_plugins .. 'plugins')
 
     -- Pre-Register plugins first (format)
     for _, plugin_spec in ipairs(all_plugins) do
-        logger.debug('DEBUG: Registering plugin:', vim.inspect(plugin_spec))
-        local Plugin = M.pre_register_plugin(plugin_spec)
-        if Plugin then
-            M._plugins[Plugin.name] = Plugin
-            logger.debug('DEBUG: Successfully registered plugin:' .. Plugin.name)
-        else
-            logger.debug('DEBUG: Failed to register plugin:', vim.inspect(plugin_spec))
+        if not plugin_spec then
+            logger.error('Received nil plugin specification')
+            goto continue
         end
+        
+        local Plugin = M.pre_register_plugin(plugin_spec)
+        if Plugin and Plugin.name then
+            M._plugins[Plugin.name] = Plugin
+        else
+            logger.error(string.format('Failed to register plugin: %s', vim.inspect(plugin_spec)))
+        end
+        
+        ::continue::
     end
 
     -- Separate plugins by loading strategy
@@ -110,40 +111,34 @@ function M.setup_plugins()
     local lazy_plugins = {}
 
     for name, plugin in pairs(M._plugins) do
+        if not plugin then
+            logger.error(string.format('Nil plugin found for name: %s', name))
+            goto continue
+        end
+        
         if plugin.priority ~= nil or plugin.lazy == false then
             priority_plugins[name] = plugin
-            logger.debug('DEBUG: Added to priority plugins:' .. name)
         else
             lazy_plugins[name] = plugin
-            logger.debug('DEBUG: Added to lazy plugins:' .. name)
         end
+        
+        ::continue::
     end
-
-
-
-    logger.debug('DEBUG: Priority plugins:', vim.inspect(priority_plugins))
-    logger.debug('DEBUG: Lazy plugins:', vim.inspect(lazy_plugins))
 
     -- Register & Load priority plugins first
     local results = M.handle_priority_plugins(priority_plugins)
-    -- Then load lazy plugin
+    -- Then load lazy plugins
     local lazy_results = M.handle_lazy_plugins(lazy_plugins)
-
-    logger.debug('DEBUG: Lazy plugin load results:', vim.inspect(lazy_results))
 
     -- Merge and validate results
     local all_res = utils.deep_merge(results, lazy_results)
     local failed_plugins = {}
 
     for name, success in pairs(all_res) do
+        M._loaded[name] = success
         if not success then
             logger.error(string.format('Failed to load plugin: %s', name))
-            M._loaded[name] = false
             table.insert(failed_plugins, name)
-            logger.debug('DEBUG: Failed to load plugin:', name)
-        else
-            M._loaded[name] = true
-            logger.debug('DEBUG: Successfully loaded plugin:', name)
         end
     end
 
@@ -153,7 +148,6 @@ function M.setup_plugins()
             #failed_plugins,
             table.concat(failed_plugins, ', ')
         ))
-        logger.debug('DEBUG: Failed plugins:' .. table.concat(failed_plugins, ', '))
     end
 
     return #failed_plugins == 0
@@ -178,9 +172,7 @@ function M.pre_register_plugin(plugin_spec)
         return M._plugins[name]
     end
 
-    logger.debug(string.format('Normalizing plugin: %s', vim.inspect(plugin_spec)))
-    local Plugin = require("plugman.core").normalize_plugin(source, plugin_spec, "plugin")
-
+    local Plugin = core.normalize_plugin(source, plugin_spec, "plugin")
     if not Plugin then
         logger.error(string.format('Failed to normalize plugin: %s', vim.inspect(plugin_spec)))
         return nil
@@ -193,7 +185,7 @@ function M.handle_priority_plugins(Plugins)
     local sorted_plugins = loader._sort_priority_plugins(Plugins)
     local results = {}
     for _, Plugin in ipairs(sorted_plugins) do
-        M.register_plugin(Plugin.opts)
+        M.register_plugin(Plugin.opts.register)
         local success = loader.load_plugin(Plugin.opts)
         Plugin.opts:has_loaded()
         results[Plugin.name] = success
@@ -204,23 +196,66 @@ end
 function M.handle_lazy_plugins(Plugins)
     local results = {}
     for name, Plugin in pairs(Plugins) do
-        M.register_plugin(Plugin.opts)
-        M._setup_lazy_loading(Plugin)
-        local success = M._load_lazy_plugin(Plugin)
-        results[Plugin.name] = success
-        logger.info(string.format('Plugin: %s added and setup for loading', name))
+        if not Plugin then
+            logger.error(string.format('Nil plugin found for name: %s', name))
+            results[name] = false
+            goto continue
+        end
+        
+        if not Plugin.opts then
+            logger.error(string.format('Plugin %s missing opts configuration', name))
+            results[name] = false
+            goto continue
+        end
+        
+        local success, err = pcall(function()
+            M.register_plugin(Plugin)
+            M._setup_lazy_loading(Plugin)
+            return M._load_lazy_plugin(Plugin)
+        end)
+        
+        if not success then
+            logger.error(string.format('Error processing plugin %s: %s', name, tostring(err)))
+            results[name] = false
+        else
+            results[Plugin.name] = err
+            logger.info(string.format('Plugin: %s added and setup for loading', name))
+        end
+        
+        ::continue::
     end
     return results
 end
 
 function M.register_plugins(Plugins)
-    for name, Plugin in pairs(Plugins) do
-        M.register_plugin(Plugin)
+    for _, Plugin in pairs(Plugins) do
+        print(vim.inspect(Plugin))
+        if Plugin ~= nil then
+            M.register_plugin(Plugin)
+        end
     end
 end
 
 function M.register_plugin(Plugin)
-    M.handle_add(Plugin)
+    if not Plugin then
+        logger.error('Attempted to register nil plugin')
+        return nil
+    end
+    
+    if type(Plugin) ~= 'table' then
+        logger.error(string.format('Invalid plugin type: %s', type(Plugin)))
+        return nil
+    end
+    
+    local success, result = pcall(function()
+        return M.handle_add(Plugin)
+    end)
+    
+    if not success then
+        logger.error(string.format('Error registering plugin: %s', tostring(result)))
+        return nil
+    end
+    
     return Plugin
 end
 
@@ -230,15 +265,33 @@ function M.handle_add(Plugin)
         return
     end
 
+    if not Plugin or type(Plugin) ~= 'table' then
+        logger.error('Invalid plugin configuration')
+        return
+    end
+
+    if not Plugin.name then
+        logger.error('Plugin missing required name field')
+        return
+    end
+
     logger.debug(string.format('Adding plugin: %s', Plugin.name))
 
     -- Store plugin
     M._plugins[Plugin.name] = Plugin
 
     -- Register plugin
-    local add_ok = safe_pcall(loader.add_plugin, Plugin.register)
-    if add_ok then
-        Plugin:has_added()
+    if Plugin.register then
+        local add_ok = safe_pcall(loader.add_plugin, Plugin.register)
+        if add_ok then
+            if type(Plugin.has_added) == 'function' then
+                Plugin:has_added()
+            else
+                logger.warn(string.format('Plugin %s missing has_added method', Plugin.name))
+            end
+        end
+    else
+        logger.error(string.format('Plugin %s missing register configuration', Plugin.name))
     end
 
     -- Handle dependencies
@@ -248,17 +301,25 @@ function M.handle_add(Plugin)
 end
 
 function M._handle_dependencies(Plugin)
-    logger.debug(string.format('Processing dependencies for %s: %s',
-        Plugin.name, vim.inspect(Plugin.depends)))
+    if not Plugin or not Plugin.depends then
+        return
+    end
 
     for _, dep in ipairs(Plugin.depends) do
         local dep_source = type(dep) == "string" and dep or dep[1]
+        if not dep_source then
+            logger.error(string.format('Invalid dependency for plugin %s', Plugin.name))
+            goto continue
+        end
+
         local dep_name = extract_plugin_name(dep_source)
+        if not dep_name then
+            logger.error(string.format('Could not extract name from dependency source: %s', dep_source))
+            goto continue
+        end
 
         if not M._plugins[dep_name] and not M._loaded[dep_name] then
-            logger.debug(string.format('Loading dependency: %s', dep_source))
-            local Dep = require("plugman.core").normalize_plugin(dep_source, dep, "dependent")
-
+            local Dep = core.normalize_plugin(dep_source, dep, "dependent")
             if Dep then
                 M._plugins[Dep.name] = Dep
                 local ok = safe_pcall(loader.add_plugin, Dep)
@@ -266,10 +327,13 @@ function M._handle_dependencies(Plugin)
                     logger.warn(string.format('Dependency %s not loaded for %s',
                         Dep.name, Plugin.name))
                 end
+            else
+                logger.error(string.format('Failed to normalize dependency %s for plugin %s',
+                    dep_source, Plugin.name))
             end
-        else
-            logger.debug(string.format("Dependency %s already loaded", dep))
         end
+        
+        ::continue::
     end
 end
 

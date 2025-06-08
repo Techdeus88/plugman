@@ -111,7 +111,7 @@ end
 ---@param plugin_source string Plugin source URL or path
 ---@param plugin_spec table|string Plugin specification
 ---@param plugin_type string Type of plugin (e.g., 'git', 'local')
----@return table Normalized plugin specification
+---@return table PlugmanPlugin plugin specification
 function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     local result = vim.deepcopy(plugin_spec)
     local order = M._get_next_order()
