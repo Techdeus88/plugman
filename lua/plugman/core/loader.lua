@@ -151,18 +151,18 @@ function M.load_all(opts)
     if vim.fn.isdirectory(full_path) == 1 then
         -- Load all Lua files in the directory
         local files = vim.fn.globpath(full_path, "*.lua", false, true)
-        print(vim.inspect(files))
         for _, file in ipairs(files) do
-            local ok, plugin_spec = pcall(dofile, file)
-            print(vim.inspect(plugin_spec))
-            if ok and plugin_spec then
-                if type(plugin_spec) == "table" then
-                    -- Handle single plugin spec
-                    if type(plugin_spec[1]) == "string" then
-                        table.insert(plugins, plugin_spec)
+            -- Convert file path to module path
+            local module_path = file:gsub(plugins_path .. '/', ''):gsub('.lua$', ''):gsub('/', '.')
+            local ok, plugins_spec = pcall(require, module_path)
+
+            if ok and plugins_spec then
+                if type(plugins_spec) == "table" then
+                    if utils.is_single_plugin_config(plugins_spec) then
+                        table.insert(plugins, plugins_spec)
                     else
                         -- Handle multiple plugin specs
-                        for _, spec in ipairs(plugin_spec) do
+                        for _, spec in ipairs(plugins_spec) do
                             if type(spec) == "table" and type(spec[1]) == "string" then
                                 table.insert(plugins, spec)
                             end
@@ -171,7 +171,7 @@ function M.load_all(opts)
                 end
             else
                 logger.error(string.format('Failed to load plugin spec from %s: %s',
-                    file, plugin_spec))
+                    file, plugins_spec))
             end
         end
     else
