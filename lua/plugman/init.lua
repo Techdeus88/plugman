@@ -210,8 +210,8 @@ function M.handle_lazy_plugins(Plugins)
         
         local success, err = pcall(function()
             M.register_plugin(Plugin)
-            M._setup_lazy_loading(Plugin)
-            return M._load_lazy_plugin(Plugin)
+            loader._setup_lazy_loading(Plugin)
+            return loader._load_lazy_plugin(Plugin)
         end)
         
         if not success then
