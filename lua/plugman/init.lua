@@ -202,8 +202,8 @@ function M.handle_lazy_plugins(Plugins)
             goto continue
         end
         
-        if not Plugin.opts then
-            logger.error(string.format('Plugin %s missing opts configuration', name))
+        if not Plugin.opts or not Plugin.config then
+            logger.error(string.format('Plugin %s missing opts/config configuration', name))
             results[name] = false
             goto continue
         end
