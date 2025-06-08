@@ -95,14 +95,14 @@ function M.setup_plugins()
             logger.error('Received nil plugin specification')
             goto continue
         end
-        
+
         local Plugin = M.pre_register_plugin(plugin_spec)
         if Plugin and Plugin.name then
             M._plugins[Plugin.name] = Plugin
         else
             logger.error(string.format('Failed to register plugin: %s', vim.inspect(plugin_spec)))
         end
-        
+
         ::continue::
     end
 
@@ -115,13 +115,13 @@ function M.setup_plugins()
             logger.error(string.format('Nil plugin found for name: %s', name))
             goto continue
         end
-        
+
         if plugin.priority ~= nil or plugin.lazy == false then
             priority_plugins[name] = plugin
         else
             lazy_plugins[name] = plugin
         end
-        
+
         ::continue::
     end
 
@@ -185,9 +185,9 @@ function M.handle_priority_plugins(Plugins)
     local sorted_plugins = loader._sort_priority_plugins(Plugins)
     local results = {}
     for _, Plugin in ipairs(sorted_plugins) do
-        M.register_plugin(Plugin.opts)
-        local success = loader.load_plugin(Plugin.opts)
-        Plugin.opts:has_loaded()
+        M.register_plugin(Plugin)
+        local success = loader.load_plugin(Plugin)
+        Plugin:has_loaded()
         results[Plugin.name] = success
     end
     return results
@@ -201,19 +201,25 @@ function M.handle_lazy_plugins(Plugins)
             results[name] = false
             goto continue
         end
-        
-        if not Plugin.opts or not Plugin.config then
-            logger.error(string.format('Plugin %s missing opts/config configuration', name))
-            results[name] = false
-            goto continue
+
+        -- Ensure plugin has proper configuration
+        if not Plugin.opts and not Plugin.config then
+            Plugin.opts = {}
+            Plugin.config = function()
+                local mod_name = Plugin.require or Plugin.name
+                local ok, mod = pcall(require, mod_name)
+                if ok and mod.setup then
+                    return mod.setup(Plugin.opts)
+                end
+            end
         end
-        
+
         local success, err = pcall(function()
             M.register_plugin(Plugin)
             loader._setup_lazy_loading(Plugin)
             return loader._load_lazy_plugin(Plugin)
         end)
-        
+
         if not success then
             logger.error(string.format('Error processing plugin %s: %s', name, tostring(err)))
             results[name] = false
@@ -221,7 +227,7 @@ function M.handle_lazy_plugins(Plugins)
             results[Plugin.name] = err
             logger.info(string.format('Plugin: %s added and setup for loading', name))
         end
-        
+
         ::continue::
     end
     return results
@@ -240,21 +246,21 @@ function M.register_plugin(Plugin)
         logger.error('Attempted to register nil plugin')
         return nil
     end
-    
+
     if type(Plugin) ~= 'table' then
         logger.error(string.format('Invalid plugin type: %s', type(Plugin)))
         return nil
     end
-    
+
     local success, result = pcall(function()
         return M.handle_add(Plugin)
     end)
-    
+
     if not success then
         logger.error(string.format('Error registering plugin: %s', tostring(result)))
         return nil
     end
-    
+
     return Plugin
 end
 
@@ -331,7 +337,7 @@ function M._handle_dependencies(Plugin)
                     dep_source, Plugin.name))
             end
         end
-        
+
         ::continue::
     end
 end

@@ -1,25 +1,5 @@
 local M = {}
 
--- Helper functions
-function M.validate_plugin(plugin_config)
-    local Logger = require("plugman.logger")
-
-    if not plugin_config then
-        vim.notify('Plugin not found: ' .. plugin_config.name, vim.log.levels.ERROR)
-        return false
-    end
-
-    if not plugin_config.name then
-        Logger:error("Plugin missing required 'name' field", vim.inspect(plugin_config))
-        return false
-    end
-    if not plugin_config.source then
-        Logger:error("Plugin %s missing required 'source' field", plugin_config.name)
-        return false
-    end
-    return true
-end
-
 function M.get_plugin_path(plugin_name)
     if not plugin_name then return "" end
     if plugin_name == "plugman.nvim" or plugin_name == "mini.deps" then
