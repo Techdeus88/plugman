@@ -319,7 +319,7 @@ function M._load_lazy_plugin(plugin)
 
     if not lazy_plugins[plugin.name] or loaded_plugins[plugin.name] then return end
 
-    notify.info(string.format('Loading %s...', plugin.name))
+    logger.debug(string.format('Loading %s...', plugin.name))
     local result = M._load_plugin_immediately(plugin)
     lazy_plugins[plugin.name] = nil
     return result
