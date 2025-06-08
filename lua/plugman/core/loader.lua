@@ -140,19 +140,21 @@ end
 function M.load_all(opts)
     local utils = require("plugman.utils")
     local logger = require("plugman.utils.logger")
-    
+
     -- Get plugin directories from config
     local plugins_dir = opts.paths and opts.paths.plugins_dir or "plugins"
     local plugins_path = opts.paths and opts.paths.plugins_path or vim.fn.stdpath('config') .. '/lua'
-    
+
     local plugins = {}
     local full_path = plugins_path .. '/' .. plugins_dir
-    
+
     if vim.fn.isdirectory(full_path) == 1 then
         -- Load all Lua files in the directory
         local files = vim.fn.globpath(full_path, "*.lua", false, true)
+        print(vim.inspect(files))
         for _, file in ipairs(files) do
             local ok, plugin_spec = pcall(dofile, file)
+            print(vim.inspect(plugin_spec))
             if ok and plugin_spec then
                 if type(plugin_spec) == "table" then
                     -- Handle single plugin spec
@@ -168,7 +170,7 @@ function M.load_all(opts)
                     end
                 end
             else
-                logger.error(string.format('Failed to load plugin spec from %s: %s', 
+                logger.error(string.format('Failed to load plugin spec from %s: %s',
                     file, plugin_spec))
             end
         end
@@ -235,7 +237,7 @@ end
 
 function M._setup_lazy_loading(plugin)
     logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
-    
+
     if plugin.lazy then
         require("plugman")._lazy_plugins[plugin.name] = plugin
     end
@@ -322,16 +324,16 @@ function M.setup_command_loading(Plugin)
     for _, cmd in ipairs(commands) do
         vim.api.nvim_create_user_command(cmd, function()
             if Plugin.loaded then return end
-            
+
             local ok, err = pcall(M._load_lazy_plugin, Plugin)
             if not ok then
-                logger.error(string.format('Error launching plugin via command %s: %s', 
+                logger.error(string.format('Error launching plugin via command %s: %s',
                     cmd, err))
                 return
             end
-            
+
             Plugin:has_loaded()
-            logger.debug(string.format("Plugin successfully loaded (command): %s", 
+            logger.debug(string.format("Plugin successfully loaded (command): %s",
                 Plugin.name))
             vim.cmd(cmd)
         end, { desc = 'Load plugin: ' .. Plugin.name })
@@ -342,7 +344,7 @@ end
 function M._load_lazy_plugin(plugin)
     local lazy_plugins = require("plugman")._lazy_plugins
     local loaded_plugins = require("plugman")._loaded
-    
+
     if not lazy_plugins[plugin.name] or loaded_plugins[plugin.name] then return end
 
     notify.info(string.format('Loading %s...', plugin.name))
@@ -353,7 +355,7 @@ end
 
 function M._load_plugin_immediately(plugin)
     local loaded_plugins = require("plugman")._loaded
-    
+
     if loaded_plugins[plugin.name] then
         logger.debug(string.format('Plugin %s already loaded', plugin.name))
         return true
@@ -393,7 +395,7 @@ function M._load_plugin_config(Plugin)
                 local timing_fn = utils.get_timing_function(Plugin, phase)
                 timing_fn(function()
                     utils.safe_pcall(phase.action, Plugin)
-                    logger.debug(string.format("Phase %s completed for %s", 
+                    logger.debug(string.format("Phase %s completed for %s",
                         phase.name, Plugin.name))
                 end)
             end
@@ -416,11 +418,11 @@ function M.generate_startup_report()
     local total_time = (vim.uv.hrtime() - start_time) / 1e6
     local first_render_time = first_render and (first_render - start_time) / 1e6 or 0
     local final_render_time = final_render and (final_render - start_time) / 1e6 or 0
-    
+
     local total_plugins = vim.tbl_count(plugman._plugins)
     local loaded_plugins = vim.tbl_count(plugman._loaded)
     local lazy_plugins = vim.tbl_count(plugman._lazy_plugins)
-    
+
     local report = {
         "=== Plugman Startup Report ===",
         string.format("Total startup time: %.2f ms", total_time),
@@ -430,13 +432,13 @@ function M.generate_startup_report()
         string.format("Lazy plugins: %d", lazy_plugins),
         "=== Plugin Details ==="
     }
-    
+
     for name, plugin in pairs(plugman._plugins) do
         if plugin.load_time then
             table.insert(report, string.format("  %s: %s", name, plugin.load_time))
         end
     end
-    
+
     return table.concat(report, "\n")
 end
 

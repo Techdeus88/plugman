@@ -1,0 +1,12 @@
+return {
+    _all = {
+        lua = './test/nvim-shim'
+        coverage = false,
+    },
+    default = {
+        verbose = true,
+    },
+    tests = {
+        verbose = true,
+    },
+}
