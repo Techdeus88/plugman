@@ -417,7 +417,7 @@ function M.generate_startup_report()
     }
 
     for name, plugin in pairs(plugman._plugins) do
-        if plugin.load_time then
+            if plugin.load_time then
             table.insert(report, string.format("  %s: %s", name, plugin.load_time))
         end
     end

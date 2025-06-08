@@ -309,8 +309,8 @@ function M.show_one(type)
 end
 
 function M.show_startup_report()
-    _G.Plugman['report'] = loader.generate_startup_report()
-    vim.api.nvim_echo({ { Plugman['report'], "Normal" } }, true, {})
+    local report = loader.generate_startup_report()
+    vim.api.nvim_echo({ { report, "Normal" } }, true, {})
 end
 
 -- API Functions
