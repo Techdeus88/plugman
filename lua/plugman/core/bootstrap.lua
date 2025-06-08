@@ -64,26 +64,20 @@ function M.setup(opts)
 end
 
 ---Add plugin using MiniDeps
----@param plugin PlugmanPlugin plugin
+---@param plugin_register PlugmanRegister plugin
 ---@return boolean Success status
-function M.add(plugin)
+function M.add(plugin_register)
     if not M.MiniDeps then
         logger.error('MiniDeps not initialized')
         return false
     end
 
     local success, err = pcall(function()
-        M.MiniDeps.add({
-            source = plugin.source,
-            depends = plugin.depends,
-            hooks = plugin.hooks,
-            monitor = plugin.monitor,
-            checkout = plugin.checkout
-        })
+        M.MiniDeps.add(plugin_register)
     end)
 
     if not success then
-        logger.error(string.format('MiniDeps failed to add %s: %s', plugin.source, err))
+        logger.error(string.format('MiniDeps failed to add %s: %s', plugin_register.source, err))
         return false
     end
 

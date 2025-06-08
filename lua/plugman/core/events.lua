@@ -10,8 +10,6 @@ local EventManager = {
     callbacks = {},
 }
 
-
-
 ---Register an event handler
 ---@param event_name string Name of the event
 ---@param event_data table Event data containing handler and metadata

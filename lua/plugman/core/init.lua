@@ -1,42 +1,12 @@
 --Start-of-file--
 local M = {}
 
-local logger = require("plugman.utils.logger")
-require("plugman.types.plugin")
-
 ---@class PlugmanPlugin
 local Plugin = {}
 Plugin.__index = Plugin
 
----@param name string
----@return PlugmanPlugin|nil
-function Plugin:get_plugin(name)
-    local p = require("plugman")._plugins[name]
-    if p ~= nil then
-        return p
-    end
-    return nil
-end
-
----@return PlugmanPlugin|PlugmanRegister|PlugmanLoad|nil A slice of the plugmanplugin, plugmanregister for MiniDeps.add to register, and plugmanload to setup and load
----@param spec any
-function Plugin:new(spec)
-    local plugin = setmetatable(vim.tbl_deep_extend("force", vim.deepcopy(spec), {
-        enabled = spec.enabled or true,
-        added = false,
-        loaded = false,
-        loading = false,
-        load_time = nil,
-        dependents = {},
-    }), self)
-
-    plugin:format_register()
-    plugin:format_load()
-
-    plugin:validate()
-    return plugin
-end
-
+local logger = require("plugman.utils.logger")
+require("plugman.types.plugin")
 -- Format the "add" structure of a module
 function Plugin:format_register()
     local register_module = {}
@@ -45,12 +15,13 @@ function Plugin:format_register()
     register_module.hooks = self.hooks
     register_module.checkout = self.checkout
     register_module.monitor = self.monitor
+
     self.register = register_module
     setmetatable(self.register, self)
-  end
-  
-  -- Format the "config" structure of a module
-  function Plugin:format_load()
+end
+
+-- Format the "config" structure of a module
+function Plugin:format_load()
     local load_module = {}
     load_module.cmd = self.cmd
     load_module.event = self.event
@@ -61,57 +32,16 @@ function Plugin:format_register()
     load_module.init = self.init
     load_module.keys = self.keys
     load_module.require = self.require
+
     self.load = load_module
     setmetatable(self.load, self)
-  end
-
--- Helper functions
-function Plugin:validate()
-    local plugin = self
-    if not plugin.name then
-        logger.error("Plugin spec missing required 'name' field")
-        return false
-    end
-
-    -- Validate source format using utils
-    local utils = require("plugman.utils")
-    if not plugin.source or not utils.is_valid_github_url(plugin.source) then
-        logger.error(string.format("Plugin %s missing required 'source' field", plugin.name))
-        return false
-    end
-    if not plugin.register or not plugin.load then
-        logger.error(string.format("Plugin %s missing required register or load fields", plugin.name))
-        return false
-    end
-
-    return true
-end
-
-function Plugin:has_added()
-    if not self.added then
-        self.added = true
-        return true
-    end
-    logger.warn("Plugin already added")
-    return nil
-end
-
-function Plugin:has_loaded()
-    local end_time = vim.uv.hrtime()
-    if not self.loaded then
-        self.loaded = true
-        self.load_time = string.format("%.2f ms", (end_time - require("plugman")._start) / 1e6)
-        return true
-    end
-    logger.warn("Plugin aslready loaded")
-    return nil
 end
 
 ---Normalize plugin specification
 ---@param plugin_source string Plugin source URL or path
 ---@param plugin_spec table|string Plugin specification
 ---@param plugin_type string Type of plugin (e.g., 'git', 'local')
----@return PlugmanPlugin plugin specification
+---@return PlugmanPlugin|PlugmanRegister|PlugmanLoad|nil plugin specification
 function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     local result = vim.deepcopy(plugin_spec)
     local order = M._get_next_order()
@@ -150,6 +80,77 @@ function M.normalize_plugin(plugin_source, plugin_spec, plugin_type)
     logger.debug(string.format('Normalized plugin: %s', vim.inspect(p.name)))
 
     return p
+end
+
+---@return PlugmanPlugin|PlugmanRegister|PlugmanLoad|nil A slice of the plugmanplugin, plugmanregister for MiniDeps.add to register, and plugmanload to setup and load
+---@param spec any
+function Plugin:new(spec)
+    local plugin = setmetatable(vim.tbl_deep_extend("force", vim.deepcopy(spec), {
+        enabled = spec.enabled or true,
+        added = false,
+        loaded = false,
+        loading = false,
+        load_time = nil,
+        dependents = {},
+    }), self)
+
+    plugin:format_register()
+    plugin:format_load()
+
+    plugin:validate()
+    return plugin
+end
+
+-- Helper functions
+function Plugin:validate()
+    local plugin = self
+    if not plugin.name then
+        logger.error("Plugin spec missing required 'name' field")
+        return false
+    end
+
+    -- Validate source format using utils
+    local utils = require("plugman.utils")
+    if not plugin.source or not utils.is_valid_github_url(plugin.source) then
+        logger.error(string.format("Plugin %s missing required 'source' field", plugin.name))
+        return false
+    end
+    if not plugin.register or not plugin.load then
+        logger.error(string.format("Plugin %s missing required register or load fields", plugin.name))
+        return false
+    end
+
+    return true
+end
+
+---@param name string
+---@return PlugmanPlugin|nil
+function Plugin:get_plugin(name)
+    local p = require("plugman")._plugins[name]
+    if p ~= nil then
+        return p
+    end
+    return nil
+end
+
+function Plugin:has_added()
+    if not self.added then
+        self.added = true
+        return true
+    end
+    logger.warn("Plugin already added")
+    return nil
+end
+
+function Plugin:has_loaded()
+    local end_time = vim.uv.hrtime()
+    if not self.loaded then
+        self.loaded = true
+        self.load_time = string.format("%.2f ms", (end_time - require("plugman")._start) / 1e6)
+        return true
+    end
+    logger.warn("Plugin aslready loaded")
+    return nil
 end
 
 ---Get next plugin order number

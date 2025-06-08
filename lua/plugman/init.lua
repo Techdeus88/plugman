@@ -185,7 +185,7 @@ function M.handle_priority_plugins(Plugins)
     local sorted_plugins = loader._sort_priority_plugins(Plugins)
     local results = {}
     for _, Plugin in ipairs(sorted_plugins) do
-        M.register_plugin(Plugin.opts.register)
+        M.register_plugin(Plugin.opts)
         local success = loader.load_plugin(Plugin.opts)
         Plugin.opts:has_loaded()
         results[Plugin.name] = success
@@ -229,7 +229,6 @@ end
 
 function M.register_plugins(Plugins)
     for _, Plugin in pairs(Plugins) do
-        print(vim.inspect(Plugin))
         if Plugin ~= nil then
             M.register_plugin(Plugin)
         end
@@ -281,7 +280,7 @@ function M.handle_add(Plugin)
     M._plugins[Plugin.name] = Plugin
 
     -- Register plugin
-    if Plugin.register then
+    if Plugin.register and Plugin.type == "plugin" then
         local add_ok = safe_pcall(loader.add_plugin, Plugin.register)
         if add_ok then
             if type(Plugin.has_added) == 'function' then
