@@ -80,6 +80,8 @@ end
 
 function M.setup_plugins()
     logger.debug("Setting up plugins")
+    local priority_plugins = {}
+    local lazy_plugins = {}
 
     local all_plugins = loader.load_all(M.opts)
     if not all_plugins or #all_plugins == 0 then
@@ -88,7 +90,7 @@ function M.setup_plugins()
     end
 
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugins))
-
+    
     -- Pre-Register plugins first (format)
     for _, plugin_spec in ipairs(all_plugins) do
         if not plugin_spec then
@@ -98,7 +100,14 @@ function M.setup_plugins()
 
         local Plugin = M.pre_register_plugin(plugin_spec)
         if Plugin and Plugin.name then
+            -- Store formatted Plugin
             M._plugins[Plugin.name] = Plugin
+            -- Separate plugins by loading strategy
+            if Plugin.priority ~= nil or Plugin.lazy == false then
+                priority_plugins[Plugin.name] = Plugin
+            else
+                lazy_plugins[Plugin.name] = Plugin
+            end
         else
             logger.error(string.format('Failed to register plugin: %s', vim.inspect(plugin_spec)))
         end
@@ -106,24 +115,21 @@ function M.setup_plugins()
         ::continue::
     end
 
-    -- Separate plugins by loading strategy
-    local priority_plugins = {}
-    local lazy_plugins = {}
 
-    for name, plugin in pairs(M._plugins) do
-        if not plugin then
-            logger.error(string.format('Nil plugin found for name: %s', name))
-            goto continue
-        end
+    -- for name, plugin in pairs(M._plugins) do
+    --     if not plugin then
+    --         logger.error(string.format('Nil plugin found for name: %s', name))
+    --         goto continue
+    --     end
 
-        if plugin.priority ~= nil or plugin.lazy == false then
-            priority_plugins[name] = plugin
-        else
-            lazy_plugins[name] = plugin
-        end
+    --     if plugin.priority ~= nil or plugin.lazy == false then
+    --         priority_plugins[name] = plugin
+    --     else
+    --         lazy_plugins[name] = plugin
+    --     end
 
-        ::continue::
-    end
+    --     ::continue::
+    -- end
 
     -- Register & Load priority plugins first
     local results = M.handle_priority_plugins(priority_plugins)
@@ -134,9 +140,9 @@ function M.setup_plugins()
     local all_res = utils.deep_merge(results, lazy_results)
     local failed_plugins = {}
 
-    for name, success in pairs(all_res) do
-        M._loaded[name] = success
-        if not success then
+    for name, response in pairs(all_res) do
+    M._loaded[name] = response
+        if not response.result then
             logger.error(string.format('Failed to load plugin: %s', name))
             table.insert(failed_plugins, name)
         end
@@ -191,7 +197,7 @@ function M.handle_priority_plugins(Plugins)
         if success and type(plugin.has_loaded) == 'function' then
             plugin:has_loaded()
         end
-        results[plugin.name] = success
+        results[plugin.name] = { result = success, type = "priority" }
     end
     return results
 end
@@ -227,7 +233,7 @@ function M.handle_lazy_plugins(Plugins)
             logger.error(string.format('Error processing plugin %s: %s', name, tostring(err)))
             results[name] = false
         else
-            results[Plugin.name] = err
+            results[Plugin.name] = { result = err, type = "lazy" }
             logger.info(string.format('Plugin: %s added and setup for loading', name))
         end
 
