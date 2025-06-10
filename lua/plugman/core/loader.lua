@@ -141,12 +141,11 @@ function M.load_all(opts)
     local plugins_dir = opts.paths and opts.paths.plugins_dir or "plugins"
     local plugins_path = opts.paths and opts.paths.plugins_path or vim.fn.stdpath('config') .. '/lua'
     local full_path = plugins_path .. '/' .. plugins_dir
+    local plugins = {}
 
     if vim.fn.isdirectory(full_path) ~= 1 then
-        return {}
+        return plugins
     end
-
-    local plugins = {}
 
     for _, file in ipairs(vim.fn.globpath(full_path, "*.lua", false, true)) do
         local ok, plugins_spec = pcall(dofile, file)
@@ -181,11 +180,11 @@ function M.add_plugin(plugin)
 
     logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
 
-    local timing_fn = should_load_now(plugin) and bootstrap.Now or bootstrap.Later
+    local timing_fn = should_load_now(plugin) and bootstrap.now or bootstrap.later
 
     timing_fn(function()
         -- Register with MiniDeps
-        local deps_success, deps_err = pcall(bootstrap.Add, plugin)
+        local deps_success, deps_err = pcall(bootstrap.add, plugin)
         if not deps_success then
             logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
             notify.error(string.format('Failed to load %s', plugin.source))
@@ -196,7 +195,7 @@ function M.add_plugin(plugin)
         -- Process all plugin configuration in one go
         M._process_plugin_config(plugin)
 
-        return true
+        return trues
     end)
 end
 

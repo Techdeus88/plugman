@@ -59,7 +59,9 @@ function M.setup(opts)
     MiniDeps.setup(opts)
 
     M.MiniDeps = MiniDeps
-    M.Add, M.Now, M.Later = MiniDeps.add, MiniDeps.now, MiniDeps.later
+    M.add = MiniDeps.add
+    M.now = MiniDeps.now
+    M.later = MiniDeps.later
     logger.info('MiniDeps integration initialized')
     return true
 end
@@ -67,7 +69,7 @@ end
 ---Add plugin using MiniDeps
 ---@param plugin_register PlugmanRegister plugin
 ---@return boolean Success status
-function M.add(plugin_register)
+function M.add_plugin(plugin_register)
     if not M.MiniDeps then
         logger.error('MiniDeps not initialized')
         return false
@@ -88,7 +90,7 @@ end
 ---Remove plugin using MiniDeps
 ---@param name string Plugin name
 ---@return boolean Success status
-function M.remove(name)
+function M.remove_plugin(name)
     if not M.MiniDeps then
         logger.error('MiniDeps not initialized')
         return false
@@ -112,7 +114,7 @@ end
 
 ---Update plugins using MiniDeps
 ---@param name? string Plugin name (nil for all)
-function M.update(name)
+function M.update_plugin(name)
     if not M.MiniDeps then
         logger.error('MiniDeps not initialized')
         return false

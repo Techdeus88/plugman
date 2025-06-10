@@ -16,7 +16,6 @@ local notify = require("plugman.utils.notify")
 local bootstrap = require("plugman.core.bootstrap")
 local utils = require("plugman.utils")
 local core = require("plugman.core")
-local mini_deps = require("mini-deps")
 
 -- State
 M._start = 0
@@ -92,32 +91,18 @@ function M.setup_plugins()
         logger.error('No plugins found to load')
         return
     end
-    logger.debug(string.format('Loaded %d plugins from directories', #all_plugin_specs))
-    -- Pre-Register plugins first (format)
+    
     M.pre_register_plugins(all_plugin_specs)
-
-    -- Register & Load priority plugins first
-    local priority_results = M.handle_priority_plugins(M._priority_plugins)
-    -- Then Register & Load lazy plugins second
-    local lazy_results = M.handle_lazy_plugins(M._lazy_plugins)
-
-    -- Merge and validate results
-    local all_res = utils.deep_merge(priority_results, lazy_results)
-
-    for name, response in pairs(all_res) do
+    
+    -- Use a single consistent approach
+    local results = M.handle_all_plugins(M._plugins)
+    
+    for name, response in pairs(results) do
         M._loaded[name] = response
         if not response.result then
             logger.error(string.format('Failed to load plugin: %s', name))
             table.insert(M._failed_plugins, name)
         end
-    end
-
-    -- Report results
-    if #M._failed_plugins > 0 then
-        logger.warn(string.format('Failed to load %d plugins: %s',
-            #M._failed_plugins,
-            table.concat(M._failed_plugins, ', ')
-        ))
     end
 
     return #M._failed_plugins == 0
