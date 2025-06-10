@@ -198,7 +198,7 @@ function M._sort_priority_plugins(Plugins)
 end
 
 function M._setup_lazy_loading(Plugin)
-    logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
+    logger.debug(string.format('Setting up lazy loading for %s', Plugin.name))
     local res_event
     local res_ft
     local res_cmd
