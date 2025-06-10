@@ -147,6 +147,7 @@ function M.load_all(opts)
     end
 
     local plugins = {}
+
     for _, file in ipairs(vim.fn.globpath(full_path, "*.lua", false, true)) do
         local ok, plugins_spec = pcall(dofile, file)
         if ok and type(plugins_spec) == "table" then
@@ -196,25 +197,25 @@ function M._sort_priority_plugins(Plugins)
     return sorted_plugins
 end
 
-function M._setup_lazy_loading(plugin)
+function M._setup_lazy_loading(Plugin)
     logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
     local res_event
     local res_ft
     local res_cmd
 
-    if plugin.event then
-        res_event = M.setup_event_loading(plugin)
+    if Plugin.event then
+        res_event = M.setup_event_loading(Plugin)
     end
 
-    if plugin.ft then
-       res_ft = M.setup_filetype_loading(plugin)
+    if Plugin.ft then
+        res_ft = M.setup_filetype_loading(Plugin)
     end
 
-    if plugin.cmd then
-        res_cmd = M.setup_command_loading(plugin)
+    if Plugin.cmd then
+        res_cmd = M.setup_command_loading(Plugin)
     end
 
-    return not (res_event or res_ft or res_cmd)
+    return not utils.to_boolean(res_event or res_ft or res_cmd)
 end
 
 function M.setup_event_loading(Plugin)
@@ -303,17 +304,22 @@ function M.setup_command_loading(Plugin)
     return true
 end
 
+function M._load_priority_plugin(plugin)
+    local priority_plugins = require("plugman")._priority_plugins
+    if not priority_plugins[plugin.name] then return false end
+
+    return safe_pcall(M._load_plugin_immediately(plugin))
+end
+
 function M._load_lazy_plugin(plugin)
     local lazy_plugins = require("plugman")._lazy_plugins
     if not lazy_plugins[plugin.name] then return false end
 
-    logger.debug(string.format('Loading %s...', plugin.name))
-    local result = M._load_plugin_immediately(plugin)
-    -- lazy_plugins[plugin.name] = nil
-    return result
+    return safe_pcall(M._load_plugin_immediately(plugin))
 end
 
 function M._load_plugin_immediately(plugin)
+    logger.debug(string.format('Loading %s...', plugin.name))
     local loaded_plugins = require("plugman")._loaded
 
     if loaded_plugins[plugin.name] then

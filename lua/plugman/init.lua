@@ -79,7 +79,7 @@ function M.setup(opts)
     logger.debug('Starting plugin setup')
     local setup_res = M.setup_plugins()
     if not setup_res then
-        error(string.format("%s plugins failed to load. Fix now!", #M._failed_plugins))
+        logger.error(string.format("%s plugins failed to load. Fix now!", #M._failed_plugins))
     end
 end
 
@@ -134,9 +134,9 @@ function M.pre_register_plugins(plugin_specs)
             M._plugins[Plugin.name] = Plugin
             -- Store plugin by loading strategy
             if Plugin.priority ~= nil or Plugin.lazy == false then
-               M._priority_plugins[Plugin.name] = Plugin
+                M._priority_plugins[Plugin.name] = Plugin
             else
-               M._lazy_plugins[Plugin.name] = Plugin
+                M._lazy_plugins[Plugin.name] = Plugin
             end
         else
             logger.error(string.format('Failed to register plugin: %s', vim.inspect(plugin_spec)))
@@ -177,13 +177,26 @@ function M.handle_priority_plugins(Plugins)
     local sorted_plugins = loader._sort_priority_plugins(Plugins)
     local results = {}
     for _, plugin_data in ipairs(sorted_plugins) do
-        local plugin = plugin_data.opts
-        M.register_plugin(plugin)
-        local success = loader._load_plugin_immediately(plugin)
-        if success and type(plugin.has_loaded) == 'function' then
-            plugin:has_loaded()
+        local sorted_plugin = plugin_data.opts
+        if not sorted_plugin then
+            logger.error(string.format('No plugin found for name: %s', sorted_plugin.name))
+            results[sorted_plugin.name] = { result = false, type = "priority" }
+            goto continue
         end
-        results[plugin.name] = { result = success, type = "priority" }
+
+        local registered, _ = pcall(M.register_plugin, sorted_plugin)
+        if not registered then
+            logger.warn("Plugin not registered" .. sorted_plugin.name)
+        end
+        local success = loader._load_priority_plugin(sorted_plugin)
+        if not success then
+            logger.error(string.format('Error processing plugin %s: %s', sorted_plugin.name, tostring(success)))
+        else
+            sorted_plugin:has_loaded()
+            logger.info(string.format('Plugin: %s registered and loaded', sorted_plugin.name))
+        end
+        results[sorted_plugin.name] = { result = success, type = "priority" }
+        ::continue::
     end
     return results
 end
@@ -192,37 +205,40 @@ function M.handle_lazy_plugins(Plugins)
     local results = {}
     for name, Plugin in pairs(Plugins) do
         if not Plugin then
-            logger.error(string.format('Nil plugin found for name: %s', name))
-            results[name] = false
+            logger.error(string.format('No plugin found for name: %s', name))
+            results[name] = { result = false, type = "lazy" }
             goto continue
         end
 
-        -- Ensure plugin has proper configuration
-        if (Plugin.opts == nil) and (Plugin.config == nil) then
-            Plugin.opts = {}
-            Plugin.config = function()
-                local mod_name = Plugin.require or Plugin.name
-                local ok, mod = pcall(require, mod_name)
-                if ok and mod.setup then
-                    return mod.setup(Plugin.opts)
-                end
-            end
-        end
+        -- -- Ensure plugin has proper configuration
+        -- if (Plugin.opts == nil) and (Plugin.config == nil) then
+        --     Plugin.opts = {}
+        --     Plugin.config = function()
+        --         local mod_name = Plugin.require or Plugin.name
+        --         local ok, mod = pcall(require, mod_name)
+        --         if ok and mod.setup then
+        --             return mod.setup(Plugin.opts)
+        --         end
+        --     end
+        -- end
 
-        local success
-        M.register_plugin(Plugin)
+
+        local registered, _ = pcall(M.register_plugin, Plugin)
+        if not registered then
+            logger.warn("Plugin not registered" .. Plugin.name)
+        end
         local load_lazy_now = loader._setup_lazy_loading(Plugin)
         if load_lazy_now then
-            success = loader._load_lazy_plugin(Plugin)
-        end
-
-        if not success then
-            logger.error(string.format('Error processing plugin %s: %s', name, tostring(err)))
-            results[name] = { result = false, type = "lazy" }
-        else
+            local success = loader._load_lazy_plugin(Plugin)
+            if not success then
+                logger.error(string.format('Error processing plugin %s: %s', name, tostring(success)))
+            else
+                Plugin:has_loaded()
+                logger.info(string.format('Plugin: %s added and setup for loading', name))
+            end
             results[name] = { result = success, type = "lazy" }
-            Plugin:has_loaded()
-            logger.info(string.format('Plugin: %s added and setup for loading', name))
+        else
+            logger.info("Plugin loaded via evt, ft, or cmd" .. Plugin.name)
         end
         ::continue::
     end
@@ -269,10 +285,7 @@ function M.handle_add(Plugin)
 
     logger.debug(string.format('Adding plugin: %s', Plugin.name))
 
-    -- Store plugin
-    M._plugins[Plugin.name] = Plugin
-
-    -- Register plugin
+    -- Add plugin
     if Plugin.register and Plugin.type == "plugin" then
         local add_ok = safe_pcall(loader.add_plugin, Plugin.register)
         if add_ok then
