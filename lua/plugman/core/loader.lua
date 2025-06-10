@@ -168,19 +168,64 @@ function M.load_all(opts)
     return plugins
 end
 
+local function should_load_now(plugin)
+    -- Plugins that should load immediately
+    if plugin.priority then return true end
+    if plugin.lazy == false then return true end
+    if plugin.event or plugin.ft or plugin.cmd or plugin.lazy then return false end
+    return true -- Default to now if no specific timing is set
+end
+
 function M.add_plugin(plugin)
     if not validate_plugin(plugin) then return false end
+    
     return safe_pcall(function()
         logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
-        local deps_success, deps_err = pcall(mini_deps.add, plugin)
-
-        if not deps_success then
-            logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
-            notify.error(string.format('Failed to load %s', plugin.source))
-            return false
-        end
-        return true
+        
+        local timing_fn = should_load_now(plugin) and mini_deps.now or mini_deps.later
+        
+        timing_fn(function()
+            -- Register with MiniDeps
+            local deps_success, deps_err = pcall(mini_deps.add, plugin)
+            if not deps_success then
+                logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
+                notify.error(string.format('Failed to load %s', plugin.source))
+                return false
+            end
+            plugin:has_added()
+            
+            -- Process all plugin configuration in one go
+            M._process_plugin_config(plugin)
+            
+            return true
+        end)
     end)
+end
+
+function M._process_plugin_config(plugin)
+    -- Handle initialization
+    if plugin.init then
+        plugin.init()
+    end
+    
+    -- Handle configuration
+    if plugin.config or plugin.opts then
+        local merged_opts = M._merge_config(plugin)
+        M._process_config(plugin, merged_opts)
+    end
+    
+    -- Handle keymaps
+    if plugin.keys then
+        M._setup_keymaps(plugin)
+    end
+    
+    -- Handle post-configuration
+    if plugin.post then
+        plugin.post()
+    end
+    
+    -- Mark plugin as loaded
+    plugin:has_loaded()
 end
 
 function M._sort_priority_plugins(Plugins)
