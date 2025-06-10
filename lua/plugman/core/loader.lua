@@ -196,35 +196,25 @@ function M._sort_priority_plugins(Plugins)
     return sorted_plugins
 end
 
-function M._load_lazy_plugins(plugins)
-    local results = {}
-    for _, plugin in pairs(plugins) do
-        M._setup_lazy_loading(plugin)
-        local success = M._load_lazy_plugin(plugin)
-        results[plugin.name] = success
-        logger.info(string.format('Plugin: %s added and setup for loading', plugin.name))
-    end
-    return results
-end
-
 function M._setup_lazy_loading(plugin)
     logger.debug(string.format('Setting up lazy loading for %s', plugin.name))
-
-    if plugin.lazy then
-        require("plugman")._lazy_plugins[plugin.name] = plugin
-    end
+    local res_event
+    local res_ft
+    local res_cmd
 
     if plugin.event then
-        M.setup_event_loading(plugin)
+        res_event = M.setup_event_loading(plugin)
     end
 
     if plugin.ft then
-        M.setup_filetype_loading(plugin)
+       res_ft = M.setup_filetype_loading(plugin)
     end
 
     if plugin.cmd then
-        M.setup_command_loading(plugin)
+        res_cmd = M.setup_command_loading(plugin)
     end
+
+    return not (res_event or res_ft or res_cmd)
 end
 
 function M.setup_event_loading(Plugin)
@@ -315,13 +305,11 @@ end
 
 function M._load_lazy_plugin(plugin)
     local lazy_plugins = require("plugman")._lazy_plugins
-    local loaded_plugins = require("plugman")._loaded
-
-    if not lazy_plugins[plugin.name] or loaded_plugins[plugin.name] then return end
+    if not lazy_plugins[plugin.name] then return false end
 
     logger.debug(string.format('Loading %s...', plugin.name))
     local result = M._load_plugin_immediately(plugin)
-    lazy_plugins[plugin.name] = nil
+    -- lazy_plugins[plugin.name] = nil
     return result
 end
 
