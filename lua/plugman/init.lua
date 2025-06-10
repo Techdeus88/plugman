@@ -94,6 +94,7 @@ function M.setup_plugins()
     end
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugin_specs))
     -- Pre-Register plugins first (format)
+    print(vim.inspect(all_plugin_specs))
     M.pre_register_plugins(all_plugin_specs)
     print(vim.inspect(M._plugins))
     local results = M.handle_all_plugins(M._plugins)
