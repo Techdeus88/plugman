@@ -59,7 +59,7 @@ function M.setup(opts)
     MiniDeps.setup(opts)
 
     M.MiniDeps = MiniDeps
-    M.Add, M.Now, M.later = MiniDeps.add, MiniDeps.now, MiniDeps.later
+    M.Add, M.Now, M.Later = MiniDeps.add, MiniDeps.now, MiniDeps.later
     logger.info('MiniDeps integration initialized')
     return true
 end

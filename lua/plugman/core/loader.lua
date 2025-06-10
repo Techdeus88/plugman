@@ -6,7 +6,7 @@ local utils = require("plugman.utils")
 local logger = require('plugman.utils.logger')
 local notify = require("plugman.utils.notify")
 local EventManager = require("plugman.core.events")
-local mini_deps = require("plugman.core.bootstrap")
+local bootstrap = require("plugman.core.bootstrap")
 local cache = require("plugman.core.cache")
 
 -- State
@@ -181,11 +181,11 @@ function M.add_plugin(plugin)
 
     logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
 
-    local timing_fn = should_load_now(plugin) and mini_deps.Now or mini_deps.Later
+    local timing_fn = should_load_now(plugin) and bootstrap.Now or bootstrap.Later
 
     timing_fn(function()
         -- Register with MiniDeps
-        local deps_success, deps_err = pcall(mini_deps.Add, plugin)
+        local deps_success, deps_err = pcall(bootstrap.Add, plugin)
         if not deps_success then
             logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
             notify.error(string.format('Failed to load %s', plugin.source))
