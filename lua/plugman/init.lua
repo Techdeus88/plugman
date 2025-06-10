@@ -131,12 +131,12 @@ function M.pre_register_plugins(plugin_specs)
         local Plugin = M.pre_register_plugin(plugin_spec)
         if Plugin and Plugin.name then
             -- Store formatted Plugin
-            table.insert(M._plugins[Plugin.name], Plugin)
+            M._plugins[Plugin.name] = Plugin
             -- Store plugin by loading strategy
             if Plugin.priority ~= nil or Plugin.lazy == false then
-                table.insert(M._priority_plugins[Plugin.name], Plugin)
+               M._priority_plugins[Plugin.name] = Plugin
             else
-                table.insert(M._lazy_plugins[Plugin.name], Plugin)
+               M._lazy_plugins[Plugin.name] = Plugin
             end
         else
             logger.error(string.format('Failed to register plugin: %s', vim.inspect(plugin_spec)))
