@@ -91,12 +91,13 @@ function M.setup_plugins()
         logger.error('No plugins found to load')
         return
     end
-    
+
     M.pre_register_plugins(all_plugin_specs)
-    
+
+    print(vim.inspect(M._priority_plugins))
     -- Use a single consistent approach
-    local results = M.handle_all_plugins(M._plugins)
-    
+    local results = M.handle_all_plugins(M._priority_plugins)
+
     for name, response in pairs(results) do
         M._loaded[name] = response
         if not response.result then
