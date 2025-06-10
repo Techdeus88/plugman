@@ -182,11 +182,11 @@ function M.add_plugin(plugin)
     return safe_pcall(function()
         logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
         
-        local timing_fn = should_load_now(plugin) and MiniDeps.now or MiniDeps.later
+        local timing_fn = should_load_now(plugin) and mini_deps.Now or mini_deps.Later
         
         timing_fn(function()
             -- Register with MiniDeps
-            local deps_success, deps_err = pcall(mini_deps.add, plugin)
+            local deps_success, deps_err = pcall(mini_deps.Add, plugin)
             if not deps_success then
                 logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
                 notify.error(string.format('Failed to load %s', plugin.source))
