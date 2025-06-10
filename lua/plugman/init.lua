@@ -94,21 +94,17 @@ function M.setup_plugins()
     end
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugin_specs))
     -- Pre-Register plugins first (format)
-    print(vim.inspect(all_plugin_specs))
     M.pre_register_plugins(all_plugin_specs)
-    print(vim.inspect(M._plugins))
-    local results = M.handle_all_plugins(M._plugins)
-    
-    -- -- Register & Load priority plugins first
-    -- local priority_results = M.handle_priority_plugins(M._priority_plugins)
-    -- -- Then Register & Load lazy plugins second
-    -- local lazy_results = M.handle_lazy_plugins(M._lazy_plugins)
-    
-    -- -- Merge and validate results
-    -- local all_res = utils.deep_merge(priority_results, lazy_results)
-    
-    print(vim.inspect(results))
-    for name, response in pairs(results) do
+
+    -- Register & Load priority plugins first
+    local priority_results = M.handle_priority_plugins(M._priority_plugins)
+    -- Then Register & Load lazy plugins second
+    local lazy_results = M.handle_lazy_plugins(M._lazy_plugins)
+
+    -- Merge and validate results
+    local all_res = utils.deep_merge(priority_results, lazy_results)
+
+    for name, response in pairs(all_res) do
         M._loaded[name] = response
         if not response.result then
             logger.error(string.format('Failed to load plugin: %s', name))
@@ -185,7 +181,6 @@ function M.handle_all_plugins(Plugins)
         local res = loader.add_plugin(Plugin)
         if not res then
             logger.error("Plugin did not load" .. name)
-            M._failed_plugins[name] = res
         end
         results[name] = res
     end
