@@ -95,17 +95,18 @@ function M.setup_plugins()
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugin_specs))
     -- Pre-Register plugins first (format)
     M.pre_register_plugins(all_plugin_specs)
-
+    print(vim.inspect(M._plugins))
     local results = M.handle_all_plugins(M._plugins)
-
+    
     -- -- Register & Load priority plugins first
     -- local priority_results = M.handle_priority_plugins(M._priority_plugins)
     -- -- Then Register & Load lazy plugins second
     -- local lazy_results = M.handle_lazy_plugins(M._lazy_plugins)
-
+    
     -- -- Merge and validate results
     -- local all_res = utils.deep_merge(priority_results, lazy_results)
-
+    
+    print(vim.inspect(results))
     for name, response in pairs(results) do
         M._loaded[name] = response
         if not response.result then

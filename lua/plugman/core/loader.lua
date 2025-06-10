@@ -199,6 +199,7 @@ function M.add_plugin(plugin)
             
             return true
         end)
+        
     end)
 end
 
