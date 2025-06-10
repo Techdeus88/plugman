@@ -93,7 +93,7 @@ function M.setup_plugins()
     end
     logger.debug(string.format('Loaded %d plugins from directories', #all_plugin_specs))
     -- Pre-Register plugins first (format)
-    M.pre_register_plugins(all_plugin_specs, M._plugins, M._priority_plugins, M._lazy_plugins)
+    M.pre_register_plugins(all_plugin_specs)
     -- Register & Load priority plugins first
     local priority_results = M.handle_priority_plugins(M._priority_plugins)
     -- Then Register & Load lazy plugins second
@@ -121,7 +121,7 @@ function M.setup_plugins()
     return #M._failed_plugins == 0
 end
 
-function M.pre_register_plugins(plugin_specs, global_store, priority_store, lazy_store)
+function M.pre_register_plugins(plugin_specs)
     for _, plugin_spec in ipairs(plugin_specs) do
         if not plugin_spec then
             logger.error('Received nil plugin specification')
@@ -131,12 +131,12 @@ function M.pre_register_plugins(plugin_specs, global_store, priority_store, lazy
         local Plugin = M.pre_register_plugin(plugin_spec)
         if Plugin and Plugin.name then
             -- Store formatted Plugin
-            table.insert(global_store[Plugin.name], Plugin)
+            table.insert(M._plugins[Plugin.name], Plugin)
             -- Store plugin by loading strategy
             if Plugin.priority ~= nil or Plugin.lazy == false then
-                table.insert(priority_store[Plugin.name], Plugin)
+                table.insert(M._priority_plugins[Plugin.name], Plugin)
             else
-                table.insert(lazy_store[Plugin.name], Plugin)
+                table.insert(M._lazy_plugins[Plugin.name], Plugin)
             end
         else
             logger.error(string.format('Failed to register plugin: %s', vim.inspect(plugin_spec)))
