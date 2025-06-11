@@ -45,16 +45,22 @@ end
 function M.ensure_minideps()
     local minideps_path = vim.fn.stdpath('data') .. '/site/pack/deps/start/mini.deps'
     if not vim.loop.fs_stat(minideps_path) then
-        vim.notify("Installing MiniDeps...")
-        vim.cmd('!git clone --filter=blob:none https://github.com/echasnovski/mini.deps ' .. minideps_path)
-    end
+        local success = pcall(function()
+            -- Create the directory if it doesn't exist
+            vim.fn.mkdir(vim.fn.stdpath("data") .. "/site/pack/deps/start", "p")
 
-    if not pcall(require, 'mini.deps') then
-        vim.cmd('packadd mini.deps')
-        vim.cmd.echo('"Installed `mini.deps`" | redraw')
+            -- Clone the repository
+            vim.fn.system({
+                "git",
+                "clone",
+                "--depth", "1",
+                MINIDEPS_REPO,
+                MINIDEPS_PATH
+            })
+        end)
     end
-    
-    require('mini.deps').setup()
+    vim.cmd("packadd mini.deps | helptags ALL")
+    vim.cmd.echo('"Installed `mini.deps`" | redraw')
 end
 
 ---Setup MiniDeps integration
