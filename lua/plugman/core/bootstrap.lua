@@ -153,3 +153,5 @@ function M.update_plugin(name)
         end
     end
 end
+
+return M
