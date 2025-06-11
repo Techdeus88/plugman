@@ -11,10 +11,10 @@ function PlugmanPlugin.new(spec)
   if type(spec) == 'string' then
     spec = { source = spec }
   end
-  
+  local source = type(spec[1]) == "string" and spec[1] or spec.source
   -- Extract basic properties
-  self.source = spec[1] or spec.source
-  self.name = self:extract_name(self.source)
+  self.source = source
+  self.name = self:extract_name(source)
   self.enabled = spec.enabled ~= false
   self.lazy = spec.lazy
   
@@ -28,7 +28,7 @@ function PlugmanPlugin.new(spec)
   self.keys = spec.keys
   
   -- Dependencies
-  self.depends = spec.depends
+  self.depends = spec.depends or self.dependencies
   
   -- Hooks
   self.init = spec.init
