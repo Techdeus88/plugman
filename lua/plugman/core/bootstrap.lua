@@ -7,7 +7,6 @@ local MINIDEPS_PATH = vim.fn.stdpath("data") .. "/site/pack/deps/start/mini.deps
 
 local logger = require('plugman.utils.logger')
 
-
 local function install_minideps()
     local function is_minideps_installed()
         return vim.fn.isdirectory(MINIDEPS_PATH) == 1
