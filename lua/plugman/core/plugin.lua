@@ -74,15 +74,6 @@ function PlugmanPlugin:get_minideps_spec()
     depends = self.depends,
     hooks = self.hooks or {},
   }
-
-  if self.init then
-    spec.hooks['pre_install'] = function() self.init() end
-  end
-
-  if self.post then
-    spec.hooks['post_install'] = function() self.post() end
-  end
-
   return spec
 end
 
