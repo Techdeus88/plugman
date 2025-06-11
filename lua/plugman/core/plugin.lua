@@ -70,7 +70,7 @@ function PlugmanPlugin:get_minideps_spec()
     checkout = self.checkout,
     monitor = self.monitor,
     depends = self.depends,
-    hooks = self.hooks,
+    hooks = self.hooks or {},
   }
   
   if self.init then
