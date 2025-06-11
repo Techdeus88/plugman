@@ -227,6 +227,7 @@ end
 
 function M._sort_priority_plugins(Plugins)
     local sorted_plugins = {}
+    local final_sorted_plugins = {}
     for name, p_opts in pairs(Plugins) do
         table.insert(sorted_plugins, { name = name, opts = p_opts })
     end
@@ -236,7 +237,12 @@ function M._sort_priority_plugins(Plugins)
         local priority_b = b.opts.priority or 1000
         return priority_a < priority_b
     end)
-    return sorted_plugins
+
+    for _, p in ipairs(sorted_plugins) do
+        final_sorted_plugins[p.name] = p.opts
+    end
+
+    return final_sorted_plugins
 end
 
 function M._setup_lazy_loading(Plugin)

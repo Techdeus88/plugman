@@ -97,12 +97,15 @@ function Plugman.setup_plugins()
 
     Plugman.pre_register_plugins(all_plugin_specs)
 
-    -- Use a single consistent approach
-    -- local priority_results = Plugman.handle_priority_plugins(Plugman._priority_plugins)
-    -- local lazy_results = Plugman.handle_lazy_plugins(Plugman._lazy_plugins)
-    local results = Plugman.handle_all_plugins(Plugman._priority_plugins)
-    local results = Plugman.handle_all_plugins(Plugman._lazy_plugins)
-    
+    local sorted_plugins = loader._sort_priority_plugins(Plugman._priority_plugins)
+
+    print(vim.inspect(sorted_plugins[1]))
+    print(vim.inspect(Plugman._lazy_plugins[1]))
+
+    local priority_results = Plugman.handle_all_plugins(sorted_plugins)
+    local lazy_results = Plugman.handle_all_plugins(Plugman._lazy_plugins)
+    local results = utils.deep_merge(priority_results, lazy_results)
+
     for name, response in pairs(results) do
         Plugman._loaded[name] = response
         if not response.result then
