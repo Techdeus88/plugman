@@ -6,7 +6,7 @@ PlugmanPlugin.__index = PlugmanPlugin
 
 function PlugmanPlugin.new(spec)
   local self = setmetatable({}, PlugmanPlugin)
-  
+
   -- Handle string specs (simple plugins)
   if type(spec) == 'string' then
     spec = { source = spec }
@@ -17,40 +17,42 @@ function PlugmanPlugin.new(spec)
   self.name = self:extract_name(source)
   self.enabled = spec.enabled ~= false
   self.lazy = spec.lazy
-  
+
   -- Priority handling
   self.priority = spec.priority or 0
-  
+
   -- Lazy loading triggers
   self.event = spec.event
   self.cmd = spec.cmd
   self.ft = spec.ft
   self.keys = spec.keys
-  
+
   -- Dependencies
   self.depends = spec.depends or self.dependencies
-  
+
   -- Hooks
   self.init = spec.init
-  self.post = spec.post or spec.config
-  
+  self.post = spec.post
+
   -- MiniDeps options
   self.checkout = spec.checkout or spec.branch or spec.tag
   self.monitor = spec.monitor
   self.hooks = spec.hooks
-  
+
+  self.config = spec.config
   -- Additional options
   self.opts = spec.opts or {}
-  
+  self.require = spec.require or spec.name
+
   -- State
   self.loaded = false
   self.added = false
-  
+
   -- Determine if lazy
   if self.lazy == nil then
     self.lazy = self:should_be_lazy()
   end
-  
+
   return self
 end
 
@@ -72,15 +74,15 @@ function PlugmanPlugin:get_minideps_spec()
     depends = self.depends,
     hooks = self.hooks or {},
   }
-  
+
   if self.init then
     spec.hooks['pre_install'] = function() self.init() end
   end
-  
+
   if self.post then
     spec.hooks['post_install'] = function() self.post() end
   end
-  
+
   return spec
 end
 
@@ -91,28 +93,28 @@ function PlugmanPlugin:setup_keymaps()
   local keys = type(self.keys) == 'function' and self.keys() or self.keys
   local module_keys = self.keys
   if type(module_keys) ~= "table" then
-      logger.error(string.format("Invalid keys format for %s", self.name))
-      return
+    logger.error(string.format("Invalid keys format for %s", self.name))
+    return
   end
 
 
   for _, keymap in ipairs(module_keys) do
-      if type(keymap) == "table" and keymap[1] then
-          local opts = {
-              buffer = keymap.buffer,
-              desc = keymap.desc,
-              silent = keymap.silent ~= false,
-              remap = keymap.remap,
-              noremap = keymap.noremap ~= false,
-              nowait = keymap.nowait,
-              expr = keymap.expr,
-          }
-          for _, mode in ipairs(keymap.mode or { "n" }) do
-              vim.keymap.set(mode, keymap[1], keymap[2], opts)
-          end
-      else
-          logger.warn(string.format("Invalid keymap entry for %s", self.name))
+    if type(keymap) == "table" and keymap[1] then
+      local opts = {
+        buffer = keymap.buffer,
+        desc = keymap.desc,
+        silent = keymap.silent ~= false,
+        remap = keymap.remap,
+        noremap = keymap.noremap ~= false,
+        nowait = keymap.nowait,
+        expr = keymap.expr,
+      }
+      for _, mode in ipairs(keymap.mode or { "n" }) do
+        vim.keymap.set(mode, keymap[1], keymap[2], opts)
       end
+    else
+      logger.warn(string.format("Invalid keymap entry for %s", self.name))
+    end
   end
 end
 

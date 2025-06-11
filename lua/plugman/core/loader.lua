@@ -12,6 +12,36 @@ function M.setup(state)
   end
 end
 
+-- Configuration Functions
+function M._merge_config(plugin)
+  if not (plugin.config or plugin.opts) then return {} end
+
+  local default_opts = type(plugin.opts) == 'table' and plugin.opts or {}
+  local config_opts = type(plugin.config) == 'table' and plugin.config or {}
+
+  return vim.tbl_deep_extend('force', default_opts, config_opts)
+end
+
+function M._process_config(plugin, merged_opts)
+  if not plugin then return end
+
+  if type(plugin.config) == 'function' then
+      return plugin.config(plugin, merged_opts)
+  elseif type(plugin.config) == 'boolean' then
+      return plugin.config
+  elseif type(plugin.config) == 'string' then
+      return vim.cmd(plugin.config)
+  elseif merged_opts then
+      local mod_name = plugin.require or plugin.name
+      local ok, mod = pcall(require, mod_name)
+      if ok and mod.setup then
+          return mod.setup(merged_opts)
+      else
+          logger.error(string.format('Failed to require plugin: %s', mod_name))
+      end
+  end
+end
+
 -- Load a single plugin
 function M.load_plugin(plugin)
   if plugin.loaded then return end
@@ -34,6 +64,11 @@ function M.load_plugin(plugin)
   -- Setup keymaps
   plugin:setup_keymaps()
   
+    -- Handle configuration
+  if plugin.config or plugin.opts then
+      local merged_opts = M._merge_config(plugin)
+      M._process_config(plugin, merged_opts)
+  end
   -- Run post hook
   if plugin.post then
     local ok, err = pcall(plugin.post)
