@@ -78,12 +78,12 @@ function M.generate_content(state)
     for _, plugin in ipairs(state.loading_order.lazy) do
       local status = plugin.loaded and '✓' or '💤'
       local triggers = {}
-      if plugin.cmd then table.insert(triggers, 'cmd') end
-      if plugin.event then table.insert(triggers, 'event') end
-      if plugin.ft then table.insert(triggers, 'ft') end
-      if plugin.keys then table.insert(triggers, 'keys') end
-      
-      local trigger_str = #triggers > 0 and (' [' .. table.concat(triggers, ',') .. ']') or ''
+      if plugin.cmd then table.insert(triggers, { type = 'cmd', value = table.concat(plugin.cmd, ",")} ) end
+      if plugin.event then table.insert(triggers, { type = 'event', value = table.concat(plugin.event, ",") }) end
+      if plugin.ft then table.insert(triggers, { type = 'ft', value = table.concat(plugin.ft, ",")} ) end
+      if plugin.keys then table.insert(triggers, { type = 'keys', value = table.concat(plugin.keys, ",")}) end
+
+      local trigger_str = #triggers > 0 and (' [' .. table.concat(triggers, '- ') .. ']') or ''
       table.insert(lines, string.format('  %s %s%s', status, plugin.name, trigger_str))
     end
   end
