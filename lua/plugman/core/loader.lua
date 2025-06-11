@@ -182,7 +182,7 @@ function M.add_plugin(plugin)
     local load_now = should_load_now(plugin)
     local timing_fn = load_now and bootstrap.now or bootstrap.later
 
-    timing_fn(function()
+    return timing_fn(function()
         -- Register with MiniDeps
         bootstrap.deps_add(plugin)
         plugin:has_added()
