@@ -5,6 +5,10 @@ vim.api.nvim_create_user_command('PlugmanShow', function()
     require('plugman.ui').show()
 end, { desc = 'Show Plugman UI' })
 
+vim.api.nvim_create_user_command('PlugmanPluginsDetail', function()
+    require('plugman.ui').show_plugin_detail()
+end, { desc = 'Show Plugman Plugins UI' })
+
 vim.api.nvim_create_user_command('PlugmanShowOneList', function()
     require('plugman').show_one("list")
 end, { desc = 'Show Plugman UI List' })
