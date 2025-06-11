@@ -176,7 +176,7 @@ function Plugman.handle_all_plugins(Plugins)
     for name, Plugin in pairs(Plugins) do
         local res = loader.add_plugin(Plugin)
         if not res then
-            logger.error("Plugin did not load" .. name)
+            logger.error(string.format("Plugin did not load %s", name))
         end
         results[name] = res
     end
