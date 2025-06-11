@@ -85,8 +85,6 @@ function M.load_plugin_specs()
       end
     end
   end
-
-  print(vim.inspect(specs))
   -- Convert specs to PlugmanPlugin objects
   local PlugmanPlugin = require('plugman.core.plugin').PlugmanPlugin
   for _, spec in ipairs(specs) do
