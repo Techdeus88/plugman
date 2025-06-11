@@ -97,18 +97,20 @@ function Plugman.setup_plugins()
 
     Plugman.pre_register_plugins(all_plugin_specs)
 
+    -- Sort priority plugins but maintain the name->config mapping
     local sorted_plugins = loader._sort_priority_plugins(Plugman._priority_plugins)
-
-    print(vim.inspect(sorted_plugins[1]))
-    print(vim.inspect(Plugman._lazy_plugins[1]))
-
+    
+    -- Debug prints to verify structure
+    logger.debug("Priority plugins structure:")
+    logger.debug(vim.inspect(sorted_plugins))
+    
     local priority_results = Plugman.handle_all_plugins(sorted_plugins)
     local lazy_results = Plugman.handle_all_plugins(Plugman._lazy_plugins)
     local results = utils.deep_merge(priority_results, lazy_results)
 
     for name, response in pairs(results) do
         Plugman._loaded[name] = response
-        if not response.result then
+        if not response then
             logger.error(string.format('Failed to load plugin: %s', name))
             table.insert(Plugman._failed_plugins, name)
         end

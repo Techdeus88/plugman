@@ -238,6 +238,7 @@ function M._sort_priority_plugins(Plugins)
         return priority_a < priority_b
     end)
 
+    -- Maintain the name->config mapping
     for _, p in ipairs(sorted_plugins) do
         final_sorted_plugins[p.name] = p.opts
     end
