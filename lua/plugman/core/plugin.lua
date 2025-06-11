@@ -88,12 +88,13 @@ function PlugmanPlugin:setup_keymaps()
   local logger = require("plugman.utils.logger")
   if not self.keys then return end
 
-  local keys = type(self.keys) == 'table' and self.keys or { self.keys }
+  local keys = type(self.keys) == 'function' and self.keys() or self.keys
   local module_keys = self.keys
-  if type(module_keys) ~= "table" and type(module_keys) ~= "function" then
+  if type(module_keys) ~= "table" then
       logger.error(string.format("Invalid keys format for %s", self.name))
       return
   end
+
 
   for _, keymap in ipairs(module_keys) do
       if type(keymap) == "table" and keymap[1] then
