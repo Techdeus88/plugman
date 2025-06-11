@@ -9,7 +9,7 @@ local loader = require('plugman.core.loader')
 local cache = require('plugman.core.cache')
 local logger = require('plugman.utils.logger')
 local notify = require('plugman.utils.notify')
-local health = require('plugman.utils.health')
+local health = require('plugman.health')
 local dashboard = require('plugman.ui.dashboard')
 
 -- Plugman state
