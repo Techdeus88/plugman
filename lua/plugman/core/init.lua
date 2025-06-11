@@ -1,12 +1,12 @@
 --Start-of-file--
 local M = {}
 
----@class PlugmanPlugin
+local logger = require("plugman.utils.logger")
+
+require("plugman.types.plugin")
 local Plugin = {}
 Plugin.__index = Plugin
 
-local logger = require("plugman.utils.logger")
-require("plugman.types.plugin")
 -- Format the "add" structure of a module
 function Plugin:format_register()
     local register_module = {}

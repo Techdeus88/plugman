@@ -1,6 +1,15 @@
+---@class Plugman
+---@field private _plugins table<string, PlugmanPlugin>
+---@field private _priority_plugins table<string, PlugmanPlugin>
+---@field private _lazy_plugins table<string, PlugmanPlugin>
+---@field private _failed_plugins table<string, PlugmanPlugin>
+---@field private _loaded table<string, boolean>
+---@field private start number
+---@field private setup_done boolean
+---@field private opts table Configuration options
+local Plugman = {}
 
 -- Dependencies
-require("plugman.core.store").init()
 local cache = require("plugman.core.cache")
 local loader = require("plugman.core.loader")
 local event_manager = require("plugman.core.events")
@@ -12,6 +21,15 @@ local utils = require("plugman.utils")
 local core = require("plugman.core")
 
 local M = {}
+-- State
+Plugman._plugins = {}
+Plugman._start = 0
+Plugman._priority_plugins = {}
+Plugman._lazy_plugins = {}
+Plugman._failed_plugins = {}
+Plugman._loaded = {}
+Plugman._setup_done = false
+Plugman.opts = nil
 -- Constants
 local PLUGIN_STATES = {
     ADDED = 'added',
@@ -41,8 +59,9 @@ local function should_lazy_load(plugin)
 end
 
 -- Core Functions
-function M.setup(opts)
-    Store.start = Store.start == 0 and vim.uv.hrtime() or Store.start
+function Plugman.setup(opts)
+    _G.Plugman = Plugman
+    Plugman.start = Plugman.start == 0 and vim.uv.hrtime() or Plugman.start
     logger.debug('Starting Plugman setup')
 
     opts = vim.tbl_deep_extend("force", defaults, opts or {})
@@ -55,59 +74,61 @@ function M.setup(opts)
     bootstrap.setup(opts.minideps or {})
     event_manager.setup()
 
-    Store.setup_done = true
-    Store.opts = opts
+    Plugman.setup_done = true
+    Plugman.opts = opts
     logger.info('Plugman initialized successfully')
 
     -- Load plugins
     logger.debug('Starting plugin setup')
-    local setup_res = M.setup_plugins()
+    local setup_res = Plugman.setup_plugins()
     if not setup_res then
-        logger.error(string.format("%s plugins failed to load. Fix now!", #Store._failed_plugins))
+        logger.error(string.format("%s plugins failed to load. Fix now!", #Plugman._failed_plugins))
     end
 end
 
-function M.setup_plugins()
+function Plugman.setup_plugins()
     logger.debug("Setting up plugins")
 
-    local all_plugin_specs = loader.load_all(M.opts)
+    local all_plugin_specs = loader.load_all(Plugman.opts)
     if not all_plugin_specs or #all_plugin_specs == 0 then
         logger.error('No plugins found to load')
         return
     end
 
-    M.pre_register_plugins(all_plugin_specs)
+    Plugman.pre_register_plugins(all_plugin_specs)
 
     -- Use a single consistent approach
-    local results = M.handle_all_plugins(Store._priority_plugins)
-
+    -- local priority_results = Plugman.handle_priority_plugins(Plugman._priority_plugins)
+    -- local lazy_results = Plugman.handle_lazy_plugins(Plugman._lazy_plugins)
+    local results = Plugman.handle_all_plugins(Plugman._plugins)
+    
     for name, response in pairs(results) do
-        Store._loaded[name] = response
+        Plugman._loaded[name] = response
         if not response.result then
             logger.error(string.format('Failed to load plugin: %s', name))
-            table.insert(Store._failed_plugins, name)
+            table.insert(Plugman._failed_plugins, name)
         end
     end
 
-    return #Store._failed_plugins == 0
+    return #Plugman._failed_plugins == 0
 end
 
-function M.pre_register_plugins(plugin_specs)
+function Plugman.pre_register_plugins(plugin_specs)
     for _, plugin_spec in ipairs(plugin_specs) do
         if not plugin_spec then
             logger.error('Received nil plugin specification')
             goto continue
         end
         -- Pre-register plugin (format)
-        local Plugin = M.pre_register_plugin(plugin_spec)
+        local Plugin = Plugman.pre_register_plugin(plugin_spec)
         if Plugin and Plugin.name then
             -- Store formatted Plugin
-            Store._plugins[Plugin.name] = Plugin
+            Plugman._plugins[Plugin.name] = Plugin
             -- Store plugin by loading strategy
             if Plugin.priority ~= nil or Plugin.lazy == false then
-                Store._priority_plugins[Plugin.name] = Plugin
+                Plugman._priority_plugins[Plugin.name] = Plugin
             else
-                Store._lazy_plugins[Plugin.name] = Plugin
+                Plugman._lazy_plugins[Plugin.name] = Plugin
             end
         else
             logger.error(string.format('Failed to register plugin: %s', vim.inspect(plugin_spec)))
@@ -116,7 +137,7 @@ function M.pre_register_plugins(plugin_specs)
     end
 end
 
-function M.pre_register_plugin(plugin_spec)
+function Plugman.pre_register_plugin(plugin_spec)
     if not plugin_spec or not plugin_spec[1] then
         logger.error('Invalid plugin specification')
         return nil
@@ -130,9 +151,9 @@ function M.pre_register_plugin(plugin_spec)
 
     -- Check if plugin is already registered
     local name = extract_plugin_name(source)
-    if Store._plugins[name] then
+    if Plugman._plugins[name] then
         logger.warn(string.format('Plugin %s already registered', name))
-        return Store._plugins[name]
+        return Plugman._plugins[name]
     end
 
     local Plugin = core.normalize_plugin(source, plugin_spec, "plugin")
@@ -144,7 +165,7 @@ function M.pre_register_plugin(plugin_spec)
     return Plugin
 end
 
-function M.handle_all_plugins(Plugins)
+function Plugman.handle_all_plugins(Plugins)
     local results = {}
     for name, Plugin in pairs(Plugins) do
         local res = loader.add_plugin(Plugin)
@@ -156,7 +177,7 @@ function M.handle_all_plugins(Plugins)
     return results
 end
 
-function M.handle_priority_plugins(Plugins)
+function Plugman.handle_priority_plugins(Plugins)
     local sorted_plugins = loader._sort_priority_plugins(Plugins)
     local results = {}
     for _, plugin_data in ipairs(sorted_plugins) do
@@ -167,7 +188,7 @@ function M.handle_priority_plugins(Plugins)
             goto continue
         end
 
-        local registered, _ = pcall(M.register_plugin, sorted_plugin)
+        local registered, _ = pcall(Plugman.register_plugin, sorted_plugin)
         if not registered then
             logger.warn("Plugin not registered" .. sorted_plugin.name)
         end
@@ -184,7 +205,7 @@ function M.handle_priority_plugins(Plugins)
     return results
 end
 
-function M.handle_lazy_plugins(Plugins)
+function Plugman.handle_lazy_plugins(Plugins)
     local results = {}
     for name, Plugin in pairs(Plugins) do
         if not Plugin then
@@ -206,7 +227,7 @@ function M.handle_lazy_plugins(Plugins)
         -- end
 
 
-        local registered, _ = pcall(M.register_plugin, Plugin)
+        local registered, _ = pcall(Plugman.register_plugin, Plugin)
         if not registered then
             logger.warn("Plugin not registered" .. Plugin.name)
         end
@@ -228,7 +249,7 @@ function M.handle_lazy_plugins(Plugins)
     return results
 end
 
-function M.register_plugin(Plugin)
+function Plugman.register_plugin(Plugin)
     if not Plugin then
         logger.error('Attempted to register nil plugin')
         return nil
@@ -240,7 +261,7 @@ function M.register_plugin(Plugin)
     end
 
     local success, result = pcall(function()
-        return M.handle_add(Plugin)
+        return Plugman.handle_add(Plugin)
     end)
 
     if not success then
@@ -250,7 +271,7 @@ function M.register_plugin(Plugin)
     return success
 end
 
-function M.handle_add(Plugin)
+function Plugman.handle_add(Plugin)
     if not Plugin.name then
         logger.error('Plugin missing required name field')
         return
@@ -273,11 +294,11 @@ function M.handle_add(Plugin)
 
     -- Handle dependencies
     if Plugin.depends then
-        M._handle_dependencies(Plugin)
+        Plugman._handle_dependencies(Plugin)
     end
 end
 
-function M._handle_dependencies(Plugin)
+function Plugman._handle_dependencies(Plugin)
     if not Plugin or not Plugin.depends then
         return
     end
@@ -295,10 +316,10 @@ function M._handle_dependencies(Plugin)
             goto continue
         end
 
-        if not Store._plugins[dep_name] and not Store._loaded[dep_name] then
+        if not Plugman._plugins[dep_name] and not Plugman._loaded[dep_name] then
             local Dep = core.normalize_plugin(dep_source, dep, "dependent")
             if Dep then
-                Store._plugins[Dep.name] = Dep
+                Plugman._plugins[Dep.name] = Dep
                 local ok = safe_pcall(loader.add_plugin, Dep)
                 if not ok then
                     logger.warn(string.format('Dependency %s not loaded for %s',
@@ -315,17 +336,17 @@ function M._handle_dependencies(Plugin)
 end
 
 -- Plugin Management Functions
-function M.remove(name)
-    if not Store._plugins[name] then
+function Plugman.remove(name)
+    if not Plugman._plugins[name] then
         logger.error(string.format('Plugin %s not found', name))
         return
     end
 
     local success = bootstrap.clean(name)
     if success then
-        Store._plugins[name] = nil
-        Store._lazy_plugins[name] = nil
-        Store._loaded[name] = nil
+        Plugman._plugins[name] = nil
+        Plugman._lazy_plugins[name] = nil
+        Plugman._loaded[name] = nil
         cache.remove_plugin(name)
         logger.info(string.format('Removed plugin: %s', name))
         notify.info(string.format('Removed %s', name))
@@ -335,9 +356,9 @@ function M.remove(name)
     end
 end
 
-function M.update(name)
+function Plugman.update(name)
     if name then
-        if not Store._plugins[name] then
+        if not Plugman._plugins[name] then
             logger.error(string.format('Plugin %s not found', name))
             return
         end
@@ -349,41 +370,41 @@ function M.update(name)
     end
 end
 
-function M.status(name)
+function Plugman.status(name)
     if name then
         return {
             name = name,
-            loaded = Store._loaded[name] or false,
-            lazy = Store._lazy_plugins[name] ~= nil,
-            config = Store._plugins[name]
+            loaded = Plugman._loaded[name] or false,
+            lazy = Plugman._lazy_plugins[name] ~= nil,
+            config = Plugman._plugins[name]
         }
     end
 
     local status = {}
-    for plugin_name, _ in pairs(Store._plugins) do
-        status[plugin_name] = M.status(plugin_name)
+    for plugin_name, _ in pairs(Plugman._plugins) do
+        status[plugin_name] = Plugman.status(plugin_name)
     end
     return status
 end
 
 -- UI Functions
-function M.show()
+function Plugman.show()
     require('plugman.ui').show()
 end
 
-function M.show_one(type)
+function Plugman.show_one(type)
     if type == "list" then
-        M.list()
+        Plugman.list()
     elseif type == "loaded" then
-        M.loaded()
+        Plugman.loaded()
     elseif type == "lazy" then
-        M.lazy()
+        Plugman.lazy()
     elseif type == "startup" then
-        M.show_startup_report()
+        Plugman.show_startup_report()
     end
 end
 
-function M.show_startup_report()
+function Plugman.show_startup_report()
     local report = loader.generate_startup_report()
     vim.notify(table.concat({ report }, "\n"), vim.log.levels.INFO, {
         title = "Startup metrics",
@@ -394,11 +415,11 @@ function M.show_startup_report()
 end
 
 -- API Functions
-M.list = function() return vim.tbl_keys(Store._plugins) end
-M.loaded = function() return vim.tbl_keys(Store._loaded) end
-M.lazy = function() return vim.tbl_keys(Store._lazy_plugins) end
+Plugman.list = function() return vim.tbl_keys(Plugman._plugins) end
+Plugman.loaded = function() return vim.tbl_keys(Plugman._loaded) end
+Plugman.lazy = function() return vim.tbl_keys(Plugman._lazy_plugins) end
 
 -- Create user commands
-vim.api.nvim_create_user_command("PlugmanStartupReport", M.show_startup_report, {})
+vim.api.nvim_create_user_command("PlugmanStartupReport", Plugman.show_startup_report, {})
 
-return M
+return Plugman
