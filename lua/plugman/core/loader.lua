@@ -192,9 +192,12 @@ function M.add_plugin(plugin)
             local load_lazy_now = M._setup_lazy_loading(plugin)
             if load_lazy_now then
                 M.load_plugin(plugin)
+                return true
             end
+            return true
         else
             M.load_plugin(plugin)
+            return true
         end
     end)
 end
