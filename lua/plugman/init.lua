@@ -24,7 +24,6 @@ M.state = {
 function M.setup(opts)
   opts = opts or {}
   M.state.config = vim.tbl_deep_extend('force', M.state.config, opts)
-  print(vim.inspect(M.state.config))
   -- Initialize MiniDeps
   local b_ok, _ = pcall(bootstrap.setup, M.state.config.minideps)
   if not b_ok then
@@ -89,7 +88,7 @@ function M.load_plugin_specs()
 
   print(vim.inspect(specs))
   -- Convert specs to PlugmanPlugin objects
-  local PlugmanPlugin = require('plugman.core.plugin')
+  local PlugmanPlugin = require('plugman.core.plugin').PlugmanPlugin
   for _, spec in ipairs(specs) do
     local plugin = PlugmanPlugin.new(spec)
     if plugin.enabled then
