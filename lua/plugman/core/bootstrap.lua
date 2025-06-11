@@ -67,7 +67,7 @@ end
 ---@param opts? table|nil MiniDeps options
 function M.init(opts)
     -- Install MiniDeps: only if unavailable
-    M.ensure_minideps()
+    install_minideps()
     -- Ensure MiniDeps is available
     local has_minideps, MiniDeps = pcall(require, 'mini.deps')
 
