@@ -24,13 +24,18 @@ M.state = {
 function M.setup(opts)
   opts = opts or {}
   M.state.config = vim.tbl_deep_extend('force', M.state.config, opts)
-  
+  print(vim.inspect(M.state.config))
   -- Initialize MiniDeps
-  bootstrap.setup(M.state.config.minideps)
+  local b_ok, _ = pcall(bootstrap.setup, M.state.config.minideps)
+  if not b_ok then
+    logger.warn("MiniDeps not rigght")
+  end
   
   -- Initialize cache
-  cache.init(M.state.config.cache)
-  
+  local c_ok, _ = pcall(cache.init, M.state.config.cache)
+  if not c_ok then
+    logger.warn("Cache not right")
+  end
   -- Initialize logger
   logger.init(M.state.config.logging)
   

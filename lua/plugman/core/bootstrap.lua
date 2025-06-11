@@ -59,7 +59,7 @@ end
 
 ---Setup MiniDeps integration
 ---@param opts? table|nil MiniDeps options
-function M.setup(opts)
+function M.init(opts)
     -- Install MiniDeps: only if unavailable
     M.ensure_minideps()
     -- Ensure MiniDeps is available
