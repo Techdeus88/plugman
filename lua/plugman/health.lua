@@ -1,22 +1,18 @@
 local M = {}
 
----Check Plugman health
 function M.check()
     local health = vim.health or require('health')
-    if not health then
-        vim.notify('Health check module not available', vim.log.levels.ERROR)
-        return
-    end
 
-    health.start('Plugman Health Check')
+    health.report_start('Plugman Health Check')
 
     -- Check MiniDeps
     local has_minideps, minideps = pcall(require, 'mini.deps')
     if has_minideps then
-        health.ok('MiniDeps is available')
+        health.report_ok('MiniDeps is available')
     else
-        health.error('MiniDeps not found', 'Please install mini.deps')
+        health.report_error('MiniDeps is not available')
     end
+
 
     -- Check cache directory
     local cache_dir = vim.fn.stdpath('cache')
@@ -34,39 +30,40 @@ function M.check()
         health.error('Data directory not found')
     end
 
+
     -- Check plugin directory
-    local plugin_dir = data_dir .. '/site/pack/deps/start'
-    if vim.fn.isdirectory(plugin_dir) == 1 then
-        health.ok('Plugin directory exists: ' .. plugin_dir)
+    local plugins_dir = vim.fn.stdpath('config') .. '/lua/plugins'
+    if vim.fn.isdirectory(plugins_dir) == 1 then
+        health.report_ok('Plugins directory exists: ' .. plugins_dir)
     else
-        health.warn('Plugin directory not found, will be created on first use')
+        health.report_warn('Plugins directory not found: ' .. plugins_dir)
     end
 
-    -- Check loaded plugins
+    -- Check modules directory
+    local modules_dir = vim.fn.stdpath('config') .. '/lua/modules'
+    if vim.fn.isdirectory(modules_dir) == 1 then
+        health.report_ok('Modules directory exists: ' .. modules_dir)
+    else
+        health.report_warn('Modules directory not found: ' .. modules_dir)
+    end
+
+    -- Get Plugman state
     local plugman = require('plugman')
-    if not plugman then
-        health.error('Plugman module not found')
-        return
-    end
+    if plugman.state.initialized then
+        health.report_ok('Plugman is initialized')
 
-    local loaded_count = #plugman.loaded()
-    local total_count = #plugman.list()
-    local lazy_count = #plugman.lazy()
+        local total_plugins = vim.tbl_count(plugman.state.plugins)
+        local loaded_plugins = 0
 
-    health.info(string.format('Plugins: %d loaded, %d total', loaded_count, total_count))
-    if lazy_count > 0 then
-        health.info(string.format('%d plugins are lazy-loaded', lazy_count))
-    end
-
-    -- Check for failed plugins
-    local failed_count = 0
-    for name, status in pairs(plugman.status()) do
-        if not status.loaded and not status.lazy then
-            failed_count = failed_count + 1
+        for _, plugin in pairs(plugman.state.plugins) do
+            if plugin.loaded then
+                loaded_plugins = loaded_plugins + 1
+            end
         end
-    end
-    if failed_count > 0 then
-        health.warn(string.format('%d plugins failed to load', failed_count))
+
+        health.report_info(string.format('Total plugins: %d, Loaded: %d', total_plugins, loaded_plugins))
+    else
+        health.report_warn('Plugman is not initialized')
     end
 
     -- Check logger

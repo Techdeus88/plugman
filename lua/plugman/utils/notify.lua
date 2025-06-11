@@ -33,19 +33,20 @@ end
 ---Send info notification
 ---@param message string Message to show
 function M.info(message)
-    notify_func('[Plugman] ' .. message, vim.log.levels.INFO)
+  notify_func(message, vim.log.levels.INFO, { title = 'Plugman' })
 end
 
----Send warning notification
----@param message string Message to show
 function M.warn(message)
-    notify_func('[Plugman] ' .. message, vim.log.levels.WARN)
+  notify_func(message, vim.log.levels.WARN, { title = 'Plugman' })
 end
 
----Send error notification
----@param message string Message to show
 function M.error(message)
-    notify_func('[Plugman] ' .. message, vim.log.levels.ERROR)
+  notify_func(message, vim.log.levels.ERROR, { title = 'Plugman' })
+end
+
+function M.success(message)
+  notify_func(message, vim.log.levels.INFO, { title = 'Plugman ✓' })
 end
 
 return M
+
