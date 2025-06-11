@@ -1,12 +1,12 @@
 if vim.g.loaded_plugman then
-    return
+	return
 end
 if vim.g.plugman_no_auto_setup == nil then
-    vim.g.plugman_no_auto_setup = true
+	vim.g.plugman_no_auto_setup = true
 end
 -- Auto-setup with sensible defaults
 if not vim.g.plugman_no_auto_setup then
-    _G.Plugman = require('plugman')
-    Plugman.setup()
+	_G.Plugman = require('plugman')
+	Plugman.setup()
 end
 vim.g.loaded_plugman = true
