@@ -14,7 +14,7 @@ function PlugmanPlugin.new(spec)
   
   -- Extract basic properties
   self.source = spec[1] or spec.source
-  self.name = spec.name or self:extract_name(self.source)
+  self.name = self:extract_name(self.source)
   self.enabled = spec.enabled ~= false
   self.lazy = spec.lazy
   
@@ -28,7 +28,7 @@ function PlugmanPlugin.new(spec)
   self.keys = spec.keys
   
   -- Dependencies
-  self.depends = spec.depends or spec.dependencies or {}
+  self.depends = spec.depends
   
   -- Hooks
   self.init = spec.init
