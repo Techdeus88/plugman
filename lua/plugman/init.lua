@@ -61,36 +61,58 @@ end
 function M.load_plugin_specs()
   local specs = {}
   
+  -- Validate config paths
+  if not M.state.config.paths or not M.state.config.paths.plugins_dir then
+    logger.error("Invalid plugins directory configuration")
+    return
+  end
+  
   -- Load from plugins directory
-  local plugins_dir = string.format("%s%s", vim.fn.stdpath('config') .. '/lua/', M.state.config.paths.plugins_dir)
-  if vim.fn.isdirectory(plugins_dir) == 1 then
-    for _, file in ipairs(vim.fn.glob(plugins_dir .. '/*.lua', false, true)) do
-      local name = vim.fn.fnamemodify(file, ':t:r')
-      local ok, spec = pcall(require, 'plugins.' .. name)
-      print(vim.inspect(spec))
-      print("--------------------------------------------")
-      if ok then
-        if type(spec) == 'table' then
-          if spec[1] or spec.source then
+  local plugins_dir = string.format("%s/lua/%s", vim.fn.stdpath('config'), M.state.config.paths.plugins_dir)
+  if vim.fn.isdirectory(plugins_dir) == 0 then
+    logger.warn("Plugins directory not found: " .. plugins_dir)
+    return
+  end
+  
+  for _, file in ipairs(vim.fn.glob(plugins_dir .. '/*.lua', false, true)) do
+    local name = vim.fn.fnamemodify(file, ':t:r')
+    local ok, spec = pcall(require, 'plugins.' .. name)
+    
+    if ok then
+      if type(spec) == 'table' then
+        if spec[1] or spec.source then
+          -- Validate spec has required fields
+          if spec.source or (spec[1] and type(spec[1]) == 'string') then
             table.insert(specs, spec)
           else
-            for _, plugin_spec in ipairs(spec) do
+            logger.warn("Invalid plugin spec in " .. name .. ": missing source")
+          end
+        else
+          -- Handle array of specs
+          for _, plugin_spec in ipairs(spec) do
+            if type(plugin_spec) == 'table' and (plugin_spec.source or (plugin_spec[1] and type(plugin_spec[1]) == 'string')) then
               table.insert(specs, plugin_spec)
+            else
+              logger.warn("Invalid plugin spec in " .. name .. ": invalid spec format")
             end
           end
         end
       else
-        logger.error("Failed to load plugin spec: " .. file .. " - " .. spec)
+        logger.warn("Invalid plugin spec in " .. name .. ": not a table")
       end
+    else
+      logger.error("Failed to load plugin spec: " .. file .. " - " .. tostring(spec))
     end
   end
-  print(vim.inspect(specs))
+  
   -- Convert specs to PlugmanPlugin objects
   local PlugmanPlugin = require('plugman.core.plugin').PlugmanPlugin
   for _, spec in ipairs(specs) do
-    local plugin = PlugmanPlugin.new(spec)
-    if plugin.enabled then
+    local ok, plugin = pcall(PlugmanPlugin.new, spec)
+    if ok and plugin.enabled then
       manager.add_plugin(M.state, plugin)
+    else
+      logger.warn("Failed to create plugin from spec: " .. vim.inspect(spec))
     end
   end
 end
