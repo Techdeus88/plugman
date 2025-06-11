@@ -85,18 +85,33 @@ function PlugmanPlugin:get_minideps_spec()
 end
 
 function PlugmanPlugin:setup_keymaps()
+  local logger = require("plugman.utils.logger")
   if not self.keys then return end
-  
+
   local keys = type(self.keys) == 'table' and self.keys or { self.keys }
-  
-  for _, keymap in ipairs(keys) do
-    if type(keymap) == 'table' then
-      local lhs = keymap[1]
-      local rhs = keymap[2]
-      local opts = vim.tbl_extend('force', { desc = self.name }, keymap.opts or {})
-      
-      vim.keymap.set(keymap.mode or 'n', lhs, rhs, opts)
-    end
+  local module_keys = self.keys
+  if type(module_keys) ~= "table" and type(module_keys) ~= "function" then
+      logger.error(string.format("Invalid keys format for %s", self.name))
+      return
+  end
+
+  for _, keymap in ipairs(module_keys) do
+      if type(keymap) == "table" and keymap[1] then
+          local opts = {
+              buffer = keymap.buffer,
+              desc = keymap.desc,
+              silent = keymap.silent ~= false,
+              remap = keymap.remap,
+              noremap = keymap.noremap ~= false,
+              nowait = keymap.nowait,
+              expr = keymap.expr,
+          }
+          for _, mode in ipairs(keymap.mode or { "n" }) do
+              vim.keymap.set(mode, keymap[1], keymap[2], opts)
+          end
+      else
+          logger.warn(string.format("Invalid keymap entry for %s", self.name))
+      end
   end
 end
 

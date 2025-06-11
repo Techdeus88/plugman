@@ -3,6 +3,7 @@ local M = {}
 
 
 -- Core modules
+local bootstrap = require("plugman.core.bootstrap")
 local manager = require('plugman.core.manager')
 local loader = require('plugman.core.loader')
 local cache = require('plugman.core.cache')
@@ -25,7 +26,7 @@ function M.setup(opts)
   M.state.config = vim.tbl_deep_extend('force', M.state.config, opts)
   
   -- Initialize MiniDeps
-  require("plugman.core.bootstrap").ensure_minideps()
+  bootstrap.setup(M.state.config.minideps)
   
   -- Initialize cache
   cache.init(M.state.config.cache)
