@@ -100,7 +100,8 @@ function Plugman.setup_plugins()
     -- Use a single consistent approach
     -- local priority_results = Plugman.handle_priority_plugins(Plugman._priority_plugins)
     -- local lazy_results = Plugman.handle_lazy_plugins(Plugman._lazy_plugins)
-    local results = Plugman.handle_all_plugins(Plugman._plugins)
+    local results = Plugman.handle_all_plugins(Plugman._priority_plugins)
+    local results = Plugman.handle_all_plugins(Plugman._lazy_plugins)
     
     for name, response in pairs(results) do
         Plugman._loaded[name] = response

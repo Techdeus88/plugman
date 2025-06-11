@@ -171,7 +171,7 @@ local function should_load_now(plugin)
     -- Plugins that should load immediately
     if plugin.priority then return true end
     if plugin.lazy == false then return true end
-    if plugin.event or plugin.ft or plugin.cmd or plugin.lazy then return false end
+    if plugin.event or plugin.ft or plugin.cmd or plugin.lazy == true then return false end
     return true -- Default to now if no specific timing is set
 end
 
@@ -195,7 +195,7 @@ function M.add_plugin(plugin)
         -- Process all plugin configuration in one go
         M._process_plugin_config(plugin)
 
-        return trues
+        return true
     end)
 end
 
