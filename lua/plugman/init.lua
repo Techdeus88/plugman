@@ -58,11 +58,14 @@ function M.load_plugin_specs()
   local specs = {}
   
   -- Load from plugins directory
-  local plugins_dir = vim.fn.stdpath('config') .. '/lua/plugins'
+  local plugins_dir = string.format("%s%s", vim.fn.stdpath('config') .. '/lua/', M.state.config.paths.plugins_dir)
+  print(plugins_dir)
   if vim.fn.isdirectory(plugins_dir) == 1 then
     for _, file in ipairs(vim.fn.glob(plugins_dir .. '/*.lua', false, true)) do
+      print(file)
       local name = vim.fn.fnamemodify(file, ':t:r')
       local ok, spec = pcall(require, 'plugins.' .. name)
+      print(vim.inspect(spec))
       if ok then
         if type(spec) == 'table' then
           if spec[1] or spec.source then
@@ -78,25 +81,8 @@ function M.load_plugin_specs()
       end
     end
   end
-  
-  -- Load from modules directory
-  local modules_dir = vim.fn.stdpath('config') .. '/lua/modules'
-  if vim.fn.isdirectory(modules_dir) == 1 then
-    for _, file in ipairs(vim.fn.glob(modules_dir .. '/*.lua', false, true)) do
-      local name = vim.fn.fnamemodify(file, ':t:r')
-      local ok, spec = pcall(require, 'modules.' .. name)
-      if ok then
-        if type(spec) == 'table' then
-          for _, plugin_spec in ipairs(spec) do
-            table.insert(specs, plugin_spec)
-          end
-        end
-      else
-        logger.error("Failed to load module spec: " .. file .. " - " .. spec)
-      end
-    end
-  end
-  
+
+  print(vim.inspect(specs))
   -- Convert specs to PlugmanPlugin objects
   local PlugmanPlugin = require('plugman.core.plugin')
   for _, spec in ipairs(specs) do
