@@ -1,9 +1,9 @@
 ---@class Plugman
----@field private _plugins table<string, PlugmanPlugin>
----@field private _priority_plugins table<string, PlugmanPlugin>
----@field private _lazy_plugins table<string, PlugmanPlugin>
----@field private _failed_plugins table<string, PlugmanPlugin>
----@field private _loaded table<string, boolean>
+---@field public _plugins table<string, PlugmanPlugin>
+---@field public _priority_plugins table<string, PlugmanPlugin>
+---@field public _lazy_plugins table<string, PlugmanPlugin>
+---@field public _failed_plugins table<string, PlugmanPlugin>
+---@field public _loaded table<string, boolean>
 ---@field private start number
 ---@field private setup_done boolean
 ---@field private opts table Configuration options

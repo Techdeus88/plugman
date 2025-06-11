@@ -59,7 +59,6 @@ function M.setup(opts)
     MiniDeps.setup(opts)
 
     M.MiniDeps = MiniDeps
-    M.add = MiniDeps.add
     M.now = MiniDeps.now
     M.later = MiniDeps.later
     logger.info('MiniDeps integration initialized')
@@ -69,7 +68,7 @@ end
 ---Add plugin using MiniDeps
 ---@param plugin_register PlugmanRegister plugin
 ---@return boolean Success status
-function M.add_plugin(plugin_register)
+function M.deps_add(plugin_register)
     if not M.MiniDeps then
         logger.error('MiniDeps not initialized')
         return false

@@ -179,23 +179,23 @@ function M.add_plugin(plugin)
     if not validate_plugin(plugin) then return false end
 
     logger.debug(string.format('Adding plugin to MiniDeps: %s', vim.inspect(plugin)))
-
-    local timing_fn = should_load_now(plugin) and bootstrap.now or bootstrap.later
+    local load_now = should_load_now(plugin)
+    local timing_fn = load_now and bootstrap.now or bootstrap.later
 
     timing_fn(function()
         -- Register with MiniDeps
-        local deps_success, deps_err = pcall(bootstrap.add, plugin)
-        if not deps_success then
-            logger.error(string.format('Failed to add plugin to MiniDeps: %s', deps_err))
-            notify.error(string.format('Failed to load %s', plugin.source))
-            return false
-        end
+        bootstrap.deps_add(plugin)
         plugin:has_added()
 
         -- Process all plugin configuration in one go
-        M._process_plugin_config(plugin)
-
-        return true
+        if not load_now then
+            local load_lazy_now = M._setup_lazy_loading(plugin)
+            if load_lazy_now then
+                M.load_plugin(plugin)
+            end
+        else
+            M.load_plugin(plugin)
+        end
     end)
 end
 
