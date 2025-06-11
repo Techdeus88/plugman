@@ -82,7 +82,36 @@ end
 
 function M.show_plugin_detail()
     local plugman = require('plugman')
-    local plugins_detail = plugman.plugins_content()
+
+    local plugins = {
+        priority = plugman._priority_plugins,
+        now = plugman._now_plugins,
+        lazy = plugman._lazy_plugins
+    }
+    local lines = {
+        "All Plugins"
+    }
+    local p_number = 1
+    local total_plugins = 0
+    for type, p in pairs(plugins) do
+        local total_type_plugs = #p
+        local title_line = string.format("----------%s plugins-----------", type)
+        table.insert(lines, title_line)
+        for name, plugin in pairs(p) do\
+            local plugin_line = string.format("%s) %s-%s", p_number, name, plugin.type)
+            table.insert(lines, plugin_line)
+            table.insert(lines, "----------------------")
+            p_number = p_number + 1
+        end
+        local end_line = string.format("-------%s plugins--------", total_type_plugs)
+        table.insert(lines, end_line)
+        table.insert(lines, "----------------------")
+        table.insert(lines, "----------------------")
+        total_plugins = total_plugins + total_type_plugs
+    end
+    table.insert(lines, "----------------------")
+    table.insert(lines, "----------------------")
+    table.insert(lines, string.format("Total Plugins: %d", total_plugins))
 
     -- Create background buffer and window
     local bg_buf = vim.api.nvim_create_buf(false, true)
@@ -117,7 +146,7 @@ function M.show_plugin_detail()
 
 
     -- Set buffer content
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, plugins_detail)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.api.nvim_buf_set_option(buf, 'modifiable', false)
     vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
 

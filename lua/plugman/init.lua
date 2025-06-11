@@ -231,39 +231,6 @@ function Plugman.show_startup_report()
     return report
 end
 
-function Plugman.plugins_content()
-    local plugins = {
-        priority = Plugman._priority_plugins,
-        now = Plugman._now_plugins,
-        lazy = Plugman._lazy_plugins
-    }
-    local lines = {
-        "All Plugins"
-    }
-    local total_plugins = 0
-    for type, p in pairs(plugins) do
-        local total_type_plugs = #p
-        local title_line = string.format("----------%s plugins-----------", type)
-        table.insert(lines, title_line)
-
-        for i, plugin in ipairs(p) do
-            local plugin_line = string.format("%s) %s", i, plugin.name)
-            table.insert(lines, plugin_line)
-            table.insert(lines, "----------------------")
-        end
-        local end_line = string.format("-------%s plugins--------", total_type_plugs)
-        table.insert(lines, end_line)
-        table.insert(lines, "----------------------")
-        table.insert(lines, "----------------------")
-        total_plugins = total_plugins + total_type_plugs
-    end
-    table.insert(lines, "----------------------")
-    table.insert(lines, "----------------------")
-    table.insert(lines, string.format("Total Plugins: %d", total_plugins))
-
-    return lines
-end
-
 -- API Functions
 Plugman.list = function() return vim.tbl_keys(Plugman._plugins) end
 Plugman.loaded = function() return vim.tbl_keys(Plugman._loaded) end
