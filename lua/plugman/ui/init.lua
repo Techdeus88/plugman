@@ -97,7 +97,7 @@ function M.show_plugin_detail()
         local total_type_plugs = #p
         local title_line = string.format("----------%s plugins-----------", type)
         table.insert(lines, title_line)
-        for name, plugin in pairs(p) do\
+        for name, plugin in pairs(p) do
             local plugin_line = string.format("%s) %s-%s", p_number, name, plugin.type)
             table.insert(lines, plugin_line)
             table.insert(lines, "----------------------")
