@@ -74,11 +74,11 @@ function PlugmanPlugin:get_minideps_spec()
   }
   
   if self.init then
-    spec.hooks.pre_install = self.init
+    self.hooks.pre_install = self.init
   end
   
   if self.post then
-    spec.hooks.post_install = self.post
+    self.hooks.post_install = self.post
   end
   
   return spec
