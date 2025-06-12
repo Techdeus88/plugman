@@ -1,7 +1,4 @@
 local M = {}
-
-
-
 -- Core modules
 local bootstrap = require("plugman.core.bootstrap")
 local manager = require('plugman.core.manager')
@@ -25,32 +22,24 @@ M.state = {
 function M.setup(opts)
   opts = opts or {}
   M.state.config = vim.tbl_deep_extend('force', M.state.config, opts)
-  
   -- Initialize message handler
   messages.init(M.state.config.messages)
-  
   -- Initialize MiniDeps
   bootstrap.init(M.state.config.minideps)
   -- Initialize cache
   cache.init(M.state.config.cache)
   -- Initialize logger
   logger.init(M.state.config.logging)
-
   -- Load plugins from modules/plugins directories
   M.load_plugin_specs()
-
   -- Setup loading strategy
   loader.setup(M.state)
-
   -- Load plugins based on strategy
   M.load_plugins()
-
   -- Setup commands
   M.setup_commands()
-
   -- Mark as initialized
   M.state.initialized = true
-
   messages.plugman('SUCCESS', "Plugman initialized successfully")
 end
 

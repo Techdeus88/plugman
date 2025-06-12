@@ -89,7 +89,14 @@ function M.generate_content(state)
       if plugin.ft ~= nil then table.insert(triggers, { type = 'ft', value = table.concat(plugin.ft, ",")} ) end
       if plugin.keys ~= nil then table.insert(triggers, { type = 'keys', value = table.concat(plugin.keys, ",")}) end
 
-      local trigger_str = #triggers > 0 and (' [' .. triggers.type .. ': ' .. triggers.value .. ']') or ''
+      local trigger_str = ''
+      if #triggers > 0 then
+        local trigger_parts = {}
+        for _, trigger in ipairs(triggers) do
+          table.insert(trigger_parts, string.format('%s: %s', trigger.type, trigger.value))
+        end
+        trigger_str = ' [' .. table.concat(trigger_parts, ', ') .. ']'
+      end
       table.insert(lines, string.format('  %s %s%s', status, plugin.name, trigger_str))
     end
   end
