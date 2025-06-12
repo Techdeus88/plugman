@@ -3,18 +3,20 @@ local M = {}
 
 -- Constants
 local MINIDEPS_REPO = "https://github.com/echasnovski/mini.deps"
-local MINIDEPS_PATH = vim.fn.stdpath("data") .. "/site/pack/deps/start/mini.deps"
+local path_package = vim.fn.stdpath("data") .. "/site/"
+local MINIDEPS_PATH = path_package .. "pack/deps/start/mini.deps"
 
 local logger = require('plugman.utils.logger')
 
 local function install_minideps()
     local function is_minideps_installed()
-        return vim.fn.isdirectory(MINIDEPS_PATH) == 1
+        -- return vim.fn.isdirectory(MINIDEPS_PATH) == 1
+        return vim.uv.fs_stat(MINIDEPS_PATH)
     end
     local install = function()
         local success = pcall(function()
             -- Create the directory if it doesn't exist
-            vim.fn.mkdir(vim.fn.stdpath("data") .. "/site/pack/deps/start", "p")
+            vim.fn.mkdir(path_package .. "pack/deps/start", "p")
 
             -- Clone the repository
             vim.fn.system({
@@ -30,7 +32,7 @@ local function install_minideps()
 
     -- Installs MiniDeps if it is unavailable
     if not is_minideps_installed() then
-        vim.notify("Installing MiniDeps...")
+        vim.cmd('echo "Installing `mini.deps`" | redraw')
         local success = install()
         if not success then
             logger.error("Failed to install MiniDeps")
@@ -77,10 +79,9 @@ function M.init(opts)
 
     -- Setup MiniDeps with user options
     MiniDeps.setup(opts)
+    Add, Now, Later = MiniDeps.add, MiniDeps.now, MiniDeps.later
 
     M.MiniDeps = MiniDeps
-    M.now = MiniDeps.now
-    M.later = MiniDeps.later
     logger.info('MiniDeps integration initialized')
     return true
 end

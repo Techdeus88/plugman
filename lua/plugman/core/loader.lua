@@ -92,13 +92,15 @@ function M.setup_lazy_loading(plugin)
   if plugin.event then
     local events = type(plugin.event) == 'table' and plugin.event or { plugin.event }
 
-    vim.api.nvim_create_autocmd(events, {
-      callback = function()
-        M.load_plugin(plugin)
-        return true -- Remove autocmd after first trigger
-      end,
-      desc = "Lazy load " .. plugin.name
-    })
+    for _, event in ipairs(events) do
+      vim.api.nvim_create_autocmd(event, {
+        callback = function()
+          M.load_plugin(plugin)
+          return true -- Remove autocmd after first trigger
+        end,
+        desc = "Lazy load " .. plugin.name
+      })
+    end
   end
 
   -- Command-based loading
