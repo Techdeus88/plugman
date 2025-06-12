@@ -7,6 +7,7 @@ local path_package = vim.fn.stdpath("data") .. "/site/"
 local MINIDEPS_PATH = path_package .. "pack/deps/start/mini.deps"
 
 local logger = require('plugman.utils.logger')
+local notify = require('plugman.utils.notify')
 
 local function install_minideps()
     local function is_minideps_installed()
@@ -32,20 +33,25 @@ local function install_minideps()
 
     -- Installs MiniDeps if it is unavailable
     if not is_minideps_installed() then
-        vim.cmd('echo "Installing `mini.deps`" | redraw')
+        notify.info("Installing MiniDeps...")
         local success = install()
         if not success then
-            logger.error("Failed to install MiniDeps")
+            notify.error("Failed to install MiniDeps")
+            return false
         end
         -- Add MiniDeps to runtime path
         vim.cmd("packadd mini.deps | helptags ALL")
-        vim.cmd.echo('"Installed `mini.deps`" | redraw')
+        notify.success("MiniDeps installed successfully")
+        return true
     end
+    return true
 end
+
 -- Initialize MiniDeps if not already loaded
 function M.ensure_minideps()
     local minideps_path = vim.fn.stdpath('data') .. '/site/pack/deps/start/mini.deps'
     if not vim.loop.fs_stat(minideps_path) then
+        notify.info("Installing MiniDeps...")
         local success = pcall(function()
             -- Create the directory if it doesn't exist
             vim.fn.mkdir(vim.fn.stdpath("data") .. "/site/pack/deps/start", "p")
@@ -59,21 +65,28 @@ function M.ensure_minideps()
                 MINIDEPS_PATH
             })
         end)
+        if success then
+            vim.cmd("packadd mini.deps | helptags ALL")
+            notify.success("MiniDeps installed successfully")
+        else
+            notify.error("Failed to install MiniDeps")
+        end
     end
-    vim.cmd("packadd mini.deps | helptags ALL")
-    vim.cmd.echo('"Installed `mini.deps`" | redraw')
 end
 
 ---Setup MiniDeps integration
 ---@param opts? table|nil MiniDeps options
 function M.init(opts)
     -- Install MiniDeps: only if unavailable
-    install_minideps()
+    if not install_minideps() then
+        return false
+    end
+    
     -- Ensure MiniDeps is available
     local has_minideps, MiniDeps = pcall(require, 'mini.deps')
 
     if not has_minideps then
-        logger.error('MiniDeps not found. Please install mini.deps first.')
+        notify.error('MiniDeps not found. Please install mini.deps first.')
         return false
     end
 
@@ -82,7 +95,7 @@ function M.init(opts)
     Add, Now, Later = MiniDeps.add, MiniDeps.now, MiniDeps.later
 
     M.MiniDeps = MiniDeps
-    logger.info('MiniDeps integration initialized')
+    notify.success('MiniDeps integration initialized')
     return true
 end
 

@@ -26,11 +26,21 @@ return {
 
     -- Notification configuration
     notify = {
-        use_snacks_notify = true,
-        use_mini_notify = false,
+        use_snacks_notify = false,
+        use_mini_notify = true,
         use_noice = false,
         use_nvim_notify = false,
-        timeout = 3000
+        timeout = 3000,
+        stages = 'fade_in_slide_out',
+        background_colour = '#000000',
+        icons = {
+            ERROR = '✖',
+            WARN = '⚠',
+            INFO = 'ℹ',
+            SUCCESS = '✓'
+        },
+        -- Control whether to show notifications during plugin loading
+        show_loading_notifications = false
     },
 
     -- MiniDeps configuration

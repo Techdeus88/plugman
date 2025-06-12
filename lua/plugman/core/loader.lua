@@ -43,16 +43,23 @@ function M._process_config(plugin, merged_opts)
 end
 
 -- Load a single plugin
-function M.load_plugin(plugin)
+function M.load_plugin(plugin, should_notify)
+  should_notify = should_notify or (plugin.state and plugin.state.config.notify.show_loading_notifications) or false
   if plugin.loaded then return end
 
   logger.info("Loading plugin: " .. plugin.name)
+  if should_notify then
+    notify.info("Loading plugin: " .. plugin.name)
+  end
 
   -- Run init hook
   if plugin.init then
     local ok, err = pcall(plugin.init)
     if not ok then
       logger.error("Init hook failed for " .. plugin.name .. ": " .. err)
+      if should_notify then
+        notify.error("Init hook failed for " .. plugin.name .. ": " .. err)
+      end
     end
   end
 
@@ -75,18 +82,28 @@ function M.load_plugin(plugin)
     local ok, err = pcall(plugin.post)
     if not ok then
       logger.error("Post hook failed for " .. plugin.name .. ": " .. err)
+      if should_notify then
+        notify.error("Post hook failed for " .. plugin.name .. ": " .. err)
+      end
     end
   end
 
   plugin.loaded = true
   plugin.installed = true
 
-  logger.debug("Loaded plugin: " .. plugin.name)
+  logger.success("Loaded plugin: " .. plugin.name)
+  if should_notify then
+    notify.success("Loaded plugin: " .. plugin.name)
+  end
 end
 
 -- Setup lazy loading for a plugin
-function M.setup_lazy_loading(plugin)
-  logger.debug("Setting up lazy loading for: " .. plugin.name)
+function M.setup_lazy_loading(plugin, should_notify)
+  should_notify = should_notify or (plugin.state and plugin.state.config.notify.show_loading_notifications) or false
+  logger.info("Setting up lazy loading for: " .. plugin.name)
+  if should_notify then
+    notify.info("Setting up lazy loading for: " .. plugin.name)
+  end
 
   -- Event-based loading
   if plugin.event then
@@ -95,7 +112,7 @@ function M.setup_lazy_loading(plugin)
     for _, event in ipairs(events) do
       vim.api.nvim_create_autocmd(event, {
         callback = function()
-          M.load_plugin(plugin)
+          M.load_plugin(plugin, should_notify)
           return true -- Remove autocmd after first trigger
         end,
         desc = "Lazy load " .. plugin.name
@@ -109,7 +126,7 @@ function M.setup_lazy_loading(plugin)
 
     for _, cmd in ipairs(commands) do
       vim.api.nvim_create_user_command(cmd, function(opts)
-        M.load_plugin(plugin)
+        M.load_plugin(plugin, should_notify)
         -- Re-execute the command
         vim.cmd(cmd .. ' ' .. (opts.args or ''))
       end, {
@@ -126,7 +143,7 @@ function M.setup_lazy_loading(plugin)
     vim.api.nvim_create_autocmd('FileType', {
       pattern = filetypes,
       callback = function()
-        M.load_plugin(plugin)
+        M.load_plugin(plugin, should_notify)
       end,
       desc = "Lazy load " .. plugin.name
     })
@@ -142,7 +159,7 @@ function M.setup_lazy_loading(plugin)
 
         -- Create temporary keymap that loads plugin
         vim.keymap.set(keymap.mode or 'n', lhs, function()
-          M.load_plugin(plugin)
+          M.load_plugin(plugin, should_notify)
           -- Execute the actual keymap
           if type(rhs) == 'function' then
             rhs()
@@ -159,7 +176,7 @@ end
 function M.load_remaining_lazy_plugins(state)
   for _, plugin in ipairs(state.loading_order.lazy) do
     if not plugin.loaded and plugin.lazy == true then
-      M.load_plugin(plugin)
+      M.load_plugin(plugin, false) -- Don't notify for background loading
     end
   end
 end
