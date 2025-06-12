@@ -22,13 +22,13 @@ function PlugmanPlugin.new(spec)
   self.priority = spec.priority or 0
 
   -- Lazy loading triggers
-  self.event = type(spec.event) == "string" and { self.event } or self.event
-  self.cmd = type(spec.cmd) == "string" and { self.cmd } or self.cmd
-  self.ft = type(spec.ft) == "string" and { self.ft } or self.ft
+  self.event = type(spec.event) == "string" and { spec.event } or spec.event
+  self.cmd = type(spec.cmd) == "string" and { spec.cmd } or spec.cmd
+  self.ft = type(spec.ft) == "string" and { spec.ft } or spec.ft
   self.keys = self.keys
 
   -- Dependencies
-  self.depends = spec.depends or self.dependencies
+  self.depends = spec.depends or spec.dependencies
 
   -- Hooks
   self.init = spec.init
