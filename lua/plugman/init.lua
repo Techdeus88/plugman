@@ -9,6 +9,7 @@ local loader = require('plugman.core.loader')
 local cache = require('plugman.core.cache')
 local logger = require('plugman.utils.logger')
 local notify = require('plugman.utils.notify')
+local messages = require('plugman.utils.message_handler')
 local health = require('plugman.health')
 local dashboard = require('plugman.ui.dashboard')
 
@@ -24,6 +25,10 @@ M.state = {
 function M.setup(opts)
   opts = opts or {}
   M.state.config = vim.tbl_deep_extend('force', M.state.config, opts)
+  
+  -- Initialize message handler
+  messages.init(M.state.config.messages)
+  
   -- Initialize MiniDeps
   bootstrap.init(M.state.config.minideps)
   -- Initialize cache
@@ -46,8 +51,7 @@ function M.setup(opts)
   -- Mark as initialized
   M.state.initialized = true
 
-  logger.info("Plugman initialized successfully")
-  notify.info("Plugman ready!")
+  messages.plugman('SUCCESS', "Plugman initialized successfully")
 end
 
 -- Load plugin specifications from directories
