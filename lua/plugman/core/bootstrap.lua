@@ -8,6 +8,7 @@ local MINIDEPS_PATH = path_package .. "pack/deps/start/mini.deps"
 
 local logger = require('plugman.utils.logger')
 local notify = require('plugman.utils.notify')
+local messages = require('plugman.utils.message_handler')
 
 local function install_minideps()
     local function is_minideps_installed()
@@ -33,15 +34,15 @@ local function install_minideps()
 
     -- Installs MiniDeps if it is unavailable
     if not is_minideps_installed() then
-        notify.info("Installing MiniDeps...")
+        messages.minideps('INFO', "Installing MiniDeps...")
         local success = install()
         if not success then
-            notify.error("Failed to install MiniDeps")
+            messages.minideps('ERROR', "Failed to install MiniDeps")
             return false
         end
         -- Add MiniDeps to runtime path
         vim.cmd("packadd mini.deps | helptags ALL")
-        notify.success("MiniDeps installed successfully")
+        messages.minideps('SUCCESS', "MiniDeps installed successfully")
         return true
     end
     return true
@@ -51,7 +52,7 @@ end
 function M.ensure_minideps()
     local minideps_path = vim.fn.stdpath('data') .. '/site/pack/deps/start/mini.deps'
     if not vim.loop.fs_stat(minideps_path) then
-        notify.info("Installing MiniDeps...")
+        messages.minideps('INFO', "Installing MiniDeps...")
         local success = pcall(function()
             -- Create the directory if it doesn't exist
             vim.fn.mkdir(vim.fn.stdpath("data") .. "/site/pack/deps/start", "p")
@@ -67,9 +68,9 @@ function M.ensure_minideps()
         end)
         if success then
             vim.cmd("packadd mini.deps | helptags ALL")
-            notify.success("MiniDeps installed successfully")
+            messages.minideps('SUCCESS', "MiniDeps installed successfully")
         else
-            notify.error("Failed to install MiniDeps")
+            messages.minideps('ERROR', "Failed to install MiniDeps")
         end
     end
 end
@@ -86,7 +87,7 @@ function M.init(opts)
     local has_minideps, MiniDeps = pcall(require, 'mini.deps')
 
     if not has_minideps then
-        notify.error('MiniDeps not found. Please install mini.deps first.')
+        messages.minideps('ERROR', 'MiniDeps not found. Please install mini.deps first.')
         return false
     end
 
@@ -95,7 +96,7 @@ function M.init(opts)
     Add, Now, Later = MiniDeps.add, MiniDeps.now, MiniDeps.later
 
     M.MiniDeps = MiniDeps
-    notify.success('MiniDeps integration initialized')
+    messages.minideps('SUCCESS', 'MiniDeps integration initialized')
     return true
 end
 
@@ -104,7 +105,7 @@ end
 ---@return boolean Success status
 function M.deps_add(plugin_register)
     if not M.MiniDeps then
-        logger.error('MiniDeps not initialized')
+        messages.minideps('ERROR', 'MiniDeps not initialized')
         return false
     end
 
@@ -113,7 +114,7 @@ function M.deps_add(plugin_register)
     end)
 
     if not success then
-        logger.error(string.format('MiniDeps failed to add %s: %s', plugin_register.source, err))
+        messages.minideps('ERROR', string.format('Failed to add %s: %s', plugin_register.source, err))
         return false
     end
 
@@ -125,7 +126,7 @@ end
 ---@return boolean Success status
 function M.remove_plugin(name)
     if not M.MiniDeps then
-        logger.error('MiniDeps not initialized')
+        messages.minideps('ERROR', 'MiniDeps not initialized')
         return false
     end
 
@@ -136,10 +137,10 @@ function M.remove_plugin(name)
     end)
 
     if not success then
-        logger.error(string.format('MiniDeps failed to remove %s: %s', name, err))
+        messages.minideps('ERROR', string.format('Failed to remove %s: %s', name, err))
         return false
     else
-        logger.info(string.format('MiniDeps successfully removed: %s', name))
+        messages.minideps('SUCCESS', string.format('Successfully removed: %s', name))
         return true
     end
     -- logger.warn('Plugin removal not yet implemented in MiniDeps')
@@ -149,13 +150,13 @@ end
 ---@param name? string Plugin name (nil for all)
 function M.update_plugin(name)
     if not M.MiniDeps then
-        logger.error('MiniDeps not initialized')
+        messages.minideps('ERROR', 'MiniDeps not initialized')
         return false
     end
 
     if name then
         -- Update specific plugin
-        logger.warn('MiniDeps cannot update individual plugins')
+        messages.minideps('WARN', 'MiniDeps cannot update individual plugins')
         return false
         -- M..update(name)
     else
@@ -164,10 +165,10 @@ function M.update_plugin(name)
             M.MiniDeps.update()
         end)
         if not success then
-            logger.error(string.format('MiniDeps failed to update %s: %s', name, err))
+            messages.minideps('ERROR', string.format('Failed to update %s: %s', name, err))
             return false
         else
-            logger.info(string.format('MiniDeps successfully updated plugin: %s', name))
+            messages.minideps('SUCCESS', string.format('Successfully updated plugin: %s', name))
             return true
         end
     end

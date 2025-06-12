@@ -43,6 +43,26 @@ return {
         show_loading_notifications = false
     },
 
+    -- Message handler configuration
+    messages = {
+        show_notifications = true,
+        show_logs = true,
+        categories = {
+            plugman = true,
+            minideps = true,
+            mason = true,
+            treesitter = true,
+            plugin = true
+        },
+        -- Control which message types are shown
+        types = {
+            info = true,
+            success = true,
+            warn = true,
+            error = true
+        }
+    },
+
     -- MiniDeps configuration
     minideps = {
         cache = { enabled = true, path = vim.fn.stdpath("cache") .. "/mini-deps", ttl = 86400 },

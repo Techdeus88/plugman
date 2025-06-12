@@ -1,5 +1,6 @@
 local logger = require('plugman.utils.logger')
 local notify = require('plugman.utils.notify')
+local messages = require('plugman.utils.message_handler')
 
 local M = {}
 
@@ -37,7 +38,7 @@ function M._process_config(plugin, merged_opts)
     if ok and mod.setup then
       return mod.setup(merged_opts)
     else
-      logger.error(string.format('Failed to require plugin: %s', mod_name))
+      messages.plugin(plugin.name, 'ERROR', string.format('Failed to require plugin: %s', mod_name))
     end
   end
 end
@@ -47,19 +48,13 @@ function M.load_plugin(plugin, should_notify)
   should_notify = should_notify or (plugin.state and plugin.state.config.notify.show_loading_notifications) or false
   if plugin.loaded then return end
 
-  logger.info("Loading plugin: " .. plugin.name)
-  if should_notify then
-    notify.info("Loading plugin: " .. plugin.name)
-  end
+  messages.plugin(plugin.name, 'INFO', "Loading plugin", { notify = should_notify })
 
   -- Run init hook
   if plugin.init then
     local ok, err = pcall(plugin.init)
     if not ok then
-      logger.error("Init hook failed for " .. plugin.name .. ": " .. err)
-      if should_notify then
-        notify.error("Init hook failed for " .. plugin.name .. ": " .. err)
-      end
+      messages.plugin(plugin.name, 'ERROR', "Init hook failed: " .. err, { notify = should_notify })
     end
   end
 
@@ -81,29 +76,20 @@ function M.load_plugin(plugin, should_notify)
   if plugin.post then
     local ok, err = pcall(plugin.post)
     if not ok then
-      logger.error("Post hook failed for " .. plugin.name .. ": " .. err)
-      if should_notify then
-        notify.error("Post hook failed for " .. plugin.name .. ": " .. err)
-      end
+      messages.plugin(plugin.name, 'ERROR', "Post hook failed: " .. err, { notify = should_notify })
     end
   end
 
   plugin.loaded = true
   plugin.installed = true
 
-  logger.success("Loaded plugin: " .. plugin.name)
-  if should_notify then
-    notify.success("Loaded plugin: " .. plugin.name)
-  end
+  messages.plugin(plugin.name, 'SUCCESS', "Plugin loaded", { notify = should_notify })
 end
 
 -- Setup lazy loading for a plugin
 function M.setup_lazy_loading(plugin, should_notify)
   should_notify = should_notify or (plugin.state and plugin.state.config.notify.show_loading_notifications) or false
-  logger.info("Setting up lazy loading for: " .. plugin.name)
-  if should_notify then
-    notify.info("Setting up lazy loading for: " .. plugin.name)
-  end
+  messages.plugin(plugin.name, 'INFO', "Setting up lazy loading", { notify = should_notify })
 
   -- Event-based loading
   if plugin.event then
