@@ -89,7 +89,7 @@ function M.generate_content(state)
       if plugin.ft then table.insert(triggers, { type = 'ft', value = table.concat(plugin.ft, ",")} ) end
       if plugin.keys then table.insert(triggers, { type = 'keys', value = table.concat(plugin.keys, ",")}) end
 
-      local trigger_str = #triggers > 0 and (' [' .. table.concat(triggers, '- ') .. ']') or ''
+      local trigger_str = #triggers > 0 and (' [' .. triggers.type .. ': ' .. triggers.value .. ']') or ''
       table.insert(lines, string.format('  %s %s%s', status, plugin.name, trigger_str))
     end
   end
