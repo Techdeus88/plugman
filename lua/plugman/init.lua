@@ -140,8 +140,6 @@ function M.add(source, opts)
     else
       loader.setup_lazy_loading(plugin)
     end
-
-    notify.info("Added plugin: " .. plugin.name)
   end
 end
 

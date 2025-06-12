@@ -1,6 +1,12 @@
 local M = {}
 
 function M.open(state)
+  -- Check if we're in cmdwin
+  if vim.fn.getcmdwintype() ~= '' then
+    vim.notify('Cannot open dashboard in command-line window', vim.log.levels.ERROR)
+    return
+  end
+
   local buf = vim.api.nvim_create_buf(false, true)
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -95,6 +101,12 @@ function M.generate_content(state)
 end
 
 function M.refresh(buf, state)
+  -- Check if buffer is still valid
+  if not vim.api.nvim_buf_is_valid(buf) then
+    vim.notify('Dashboard buffer is no longer valid', vim.log.levels.WARN)
+    return
+  end
+
   local lines = M.generate_content(state)
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)

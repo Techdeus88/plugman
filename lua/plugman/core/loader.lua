@@ -26,28 +26,28 @@ function M._process_config(plugin, merged_opts)
   if not plugin then return end
 
   if type(plugin.config) == 'function' then
-      return plugin.config(plugin, merged_opts)
+    return plugin.config(plugin, merged_opts)
   elseif type(plugin.config) == 'boolean' then
-      return plugin.config
+    return plugin.config
   elseif type(plugin.config) == 'string' then
-      return vim.cmd(plugin.config)
+    return vim.cmd(plugin.config)
   elseif merged_opts then
-      local mod_name = plugin.require or plugin.name
-      local ok, mod = pcall(require, mod_name)
-      if ok and mod.setup then
-          return mod.setup(merged_opts)
-      else
-          logger.error(string.format('Failed to require plugin: %s', mod_name))
-      end
+    local mod_name = plugin.require or plugin.name
+    local ok, mod = pcall(require, mod_name)
+    if ok and mod.setup then
+      return mod.setup(merged_opts)
+    else
+      logger.error(string.format('Failed to require plugin: %s', mod_name))
+    end
   end
 end
 
 -- Load a single plugin
 function M.load_plugin(plugin)
   if plugin.loaded then return end
-  
+
   logger.info("Loading plugin: " .. plugin.name)
-  
+
   -- Run init hook
   if plugin.init then
     local ok, err = pcall(plugin.init)
@@ -55,20 +55,21 @@ function M.load_plugin(plugin)
       logger.error("Init hook failed for " .. plugin.name .. ": " .. err)
     end
   end
-  
+
   -- Install with MiniDeps
   local minideps = require('mini.deps')
   local spec = plugin:get_minideps_spec()
   minideps.add(spec)
-  
+
   -- Setup keymaps
   plugin:setup_keymaps()
-  
-    -- Handle configuration
+
+  -- Handle configuration
   if plugin.config or plugin.opts then
-      local merged_opts = M._merge_config(plugin)
-      M._process_config(plugin, merged_opts)
+    local merged_opts = M._merge_config(plugin)
+    M._process_config(plugin, merged_opts)
   end
+
   -- Run post hook
   if plugin.post then
     local ok, err = pcall(plugin.post)
@@ -76,21 +77,21 @@ function M.load_plugin(plugin)
       logger.error("Post hook failed for " .. plugin.name .. ": " .. err)
     end
   end
-  
+
   plugin.loaded = true
   plugin.installed = true
-  
+
   logger.debug("Loaded plugin: " .. plugin.name)
 end
 
 -- Setup lazy loading for a plugin
 function M.setup_lazy_loading(plugin)
   logger.debug("Setting up lazy loading for: " .. plugin.name)
-  
+
   -- Event-based loading
   if plugin.event then
     local events = type(plugin.event) == 'table' and plugin.event or { plugin.event }
-    
+
     vim.api.nvim_create_autocmd(events, {
       callback = function()
         M.load_plugin(plugin)
@@ -99,27 +100,27 @@ function M.setup_lazy_loading(plugin)
       desc = "Lazy load " .. plugin.name
     })
   end
-  
+
   -- Command-based loading
   if plugin.cmd then
     local commands = type(plugin.cmd) == 'table' and plugin.cmd or { plugin.cmd }
-    
+
     for _, cmd in ipairs(commands) do
       vim.api.nvim_create_user_command(cmd, function(opts)
         M.load_plugin(plugin)
         -- Re-execute the command
         vim.cmd(cmd .. ' ' .. (opts.args or ''))
-      end, { 
-        nargs = '*', 
-        desc = "Lazy load " .. plugin.name 
+      end, {
+        nargs = '*',
+        desc = "Lazy load " .. plugin.name
       })
     end
   end
-  
+
   -- Filetype-based loading
   if plugin.ft then
     local filetypes = type(plugin.ft) == 'table' and plugin.ft or { plugin.ft }
-    
+
     vim.api.nvim_create_autocmd('FileType', {
       pattern = filetypes,
       callback = function()
@@ -128,17 +129,15 @@ function M.setup_lazy_loading(plugin)
       desc = "Lazy load " .. plugin.name
     })
   end
-  
+
   -- Key-based loading
   if plugin.keys then
-    local keys = type(plugin.keys) == 'table' and plugin.keys or { plugin.keys }
-    
-    for _, keymap in ipairs(keys) do
+    for _, keymap in ipairs(plugin.keys) do
       if type(keymap) == 'table' then
         local lhs = keymap[1]
         local rhs = keymap[2]
         local opts = vim.tbl_extend('force', { desc = plugin.name }, keymap.opts or {})
-        
+
         -- Create temporary keymap that loads plugin
         vim.keymap.set(keymap.mode or 'n', lhs, function()
           M.load_plugin(plugin)
