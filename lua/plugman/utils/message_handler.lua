@@ -20,19 +20,22 @@ local MESSAGE_TYPES = {
     ERROR = { icon = '✖', level = vim.log.levels.ERROR }
 }
 
+-- Default configuration
+M.config = {
+    show_notifications = true,
+    show_logs = true,
+    categories = {
+        [CATEGORIES.PLUGMAN] = true,
+        [CATEGORIES.MINIDEPS] = true,
+        [CATEGORIES.MASON] = true,
+        [CATEGORIES.TREESITTER] = true,
+        [CATEGORIES.PLUGIN] = true
+    }
+}
+
 -- Initialize message handler
 function M.init(config)
-    M.config = vim.tbl_extend('force', {
-        show_notifications = true,
-        show_logs = true,
-        categories = {
-            [CATEGORIES.PLUGMAN] = true,
-            [CATEGORIES.MINIDEPS] = true,
-            [CATEGORIES.MASON] = true,
-            [CATEGORIES.TREESITTER] = true,
-            [CATEGORIES.PLUGIN] = true
-        }
-    }, config or {})
+    M.config = vim.tbl_extend('force', M.config, config or {})
 end
 
 -- Format message with category and type
