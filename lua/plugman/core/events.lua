@@ -202,8 +202,6 @@ function Events:on_keys(keys, callback, opts)
     for _, key in ipairs(keys) do
         local mode = key.mode or 'n'
         local lhs = key.lhs or key[1]
-        print(vim.inspect(keys))
-        print(vim.inspect(lhs))
         if lhs then
             local key_id = mode .. ':' .. lhs
             self.key_handlers[key_id] = {

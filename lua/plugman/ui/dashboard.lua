@@ -97,7 +97,7 @@ function M.generate_content(plugins, config)
     if a.plugin.priority ~= b.plugin.priority then
       return a.plugin.priority > b.plugin.priority
     end
-    return a.name < b.name
+    return string.lower(a.name) < string.lower(b.name)
   end)
 
   for _, item in ipairs(sorted_plugins) do
@@ -105,12 +105,13 @@ function M.generate_content(plugins, config)
     local plugin = item.plugin
 
     local status_icon = plugin.installed and icons.installed or icons.not_installed
+    local added_icon  = plugin.added and icons.added or icons.not_added
     local load_icon = plugin.loaded and icons.loaded or icons.not_loaded
-    local lazy_icon = plugin.lazy and icons.lazy or "  "
+    local lazy_icon = plugin.lazy and icons.lazy or plugin.lazy == false and icons.not_lazy
     local priority_icon = plugin.priority > 0 and icons.priority or "  "
 
     local line = string.format("  %s %s %s %s %s",
-      status_icon, load_icon, lazy_icon, priority_icon, name)
+      status_icon, added_icon, load_icon, lazy_icon, priority_icon, name)
 
     if plugin.priority > 0 then
       line = line .. string.format(" (priority: %d)", plugin.priority)

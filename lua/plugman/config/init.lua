@@ -57,9 +57,12 @@ local defaults = {
         icons = {
             installed = '●',
             not_installed = '○',
+            added = '󰄵',
+            not_added = '󰄗',
             loaded = '✓',
             not_loaded = '✗',
             lazy = '💤',
+            not_lazy = '󰑮',
             priority = '⚡',
         },
     },
