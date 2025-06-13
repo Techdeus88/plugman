@@ -68,13 +68,25 @@ function Events:setup_autocmds()
     -- Register events by group
     for group_name, events in pairs(EVENT_GROUPS) do
         local group = vim.api.nvim_create_augroup('Plugman' .. group_name, { clear = true })
-        for _, event in ipairs(events) do
-            vim.api.nvim_create_autocmd(event, {
-                group = group,
-                callback = function(args)
-                    self:handle_event(event, args)
-                end,
-            })
+        if group_name == "custom" then
+            for _, event in ipairs(events) do
+                vim.api.nvim_create_autocmd("User", {
+                    pattern = event,
+                    group = group,
+                    callback = function(args)
+                        self:handle_event(event, args)
+                    end,
+                })
+            end
+        else
+            for _, event in ipairs(events) do
+                vim.api.nvim_create_autocmd(event, {
+                    group = group,
+                    callback = function(args)
+                        self:handle_event(event, args)
+                    end,
+                })
+            end
         end
     end
 
