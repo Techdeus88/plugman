@@ -18,6 +18,7 @@ local config = {
   level = levels.INFO,
   file = nil,
   console = nil,
+  log_file = nil,
 }
 
 ---Setup logger
@@ -27,6 +28,7 @@ function M.setup(opts)
   config.level = levels[opts.level:upper()] or levels.INFO
   config.file = opts.file
   config.console = opts.console
+  config.log_file = opts.log_file
 
   if config.file then
     -- Ensure log directory exists
