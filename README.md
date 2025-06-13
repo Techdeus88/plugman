@@ -251,7 +251,6 @@ The plugin manager supports various event types:
 - `PLUGIN_LOAD`: Plugin loaded
 - `PLUGIN_UNLOAD`: Plugin unloaded
 
-
 ### Module based configuration
 -- lua/plugins/editor.lua
 return {
@@ -279,18 +278,76 @@ return {
     }
 }
 
+return {
+    'neovim/nvim-lspconfig',
+    ft = { 'lua', 'python', 'javascript', 'typescript' },
+    depends = {
+        'williamboman/mason.nvim',
+        'williamboman/mason-lspconfig.nvim',
+    },
+    keys = {
+        { 'n', '<leader>ld', vim.lsp.buf.definition, desc = 'Go to definition' },
+        { 'n', '<leader>lh', vim.lsp.buf.hover, desc = 'Hover documentation' },
+        { 'n', '<leader>lr', vim.lsp.buf.references, desc = 'Find references' },
+    },
+    init = function()
+        -- Setup before loading
+        vim.o.signcolumn = 'yes'
+    end,
+    config = function()
+        local lspconfig = require('lspconfig')
+        
+        -- Setup servers
+        lspconfig.lua_ls.setup({})
+        lspconfig.pyright.setup({})
+        lspconfig.tsserver.setup({})
+    end,
+    post = function()
+        -- Setup after loading
+        vim.cmd('LspStart')
+    end,
+}
+
 ### API configuration
--- Add plugins
-local plugman = require('plugman')
+
+-- Initialize Plugman
+require('plugman').setup({
+    plugin_dirs = { 'plugins', 'modules' },
+    lazy_by_default = true,
+    notify = { enabled = true },
+})
+
+-- Add plugins via API
+require('plugman').add('nvim-treesitter/nvim-treesitter', {
+    event = 'BufReadPost',
+    config = function()
+        require('nvim-treesitter.configs').setup({
+            ensure_installed = { 'lua', 'python', 'javascript' },
+            highlight = { enable = true },
+        })
+    end,
+})
 
 -- Simple plugin
-plugman.add('nvim-tree/nvim-tree.lua', {
-    cmd = 'NvimTreeToggle',
-    keys = { '<leader>e' },
+require('plugman').add('tpope/vim-surround')
+
+return {
+    'nvim-treesitter/nvim-treesitter',
+    event = { 'BufReadPost', 'BufNewFile' },
+    priority = 100,
     config = function()
-        require('nvim-tree').setup()
-    end
-})
+        require('nvim-treesitter.configs').setup({
+            ensure_installed = { 'lua', 'python', 'javascript', 'typescript' },
+            highlight = { enable = true },
+            indent = { enable = true },
+        })
+    end,
+    hooks = {
+        post_install = function()
+            vim.cmd('TSUpdate')
+        end,
+    }
+}
 
 -- Complex plugin with dependencies
 plugman.add('nvim-telescope/telescope.nvim', {
@@ -302,7 +359,7 @@ plugman.add('nvim-telescope/telescope.nvim', {
     },
     priority = 100,
     config = function()
-        require('telescope').setup({
+            require('telescope').setup({
             defaults = {
                 layout_strategy = 'horizontal'
             }

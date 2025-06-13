@@ -1,4 +1,140 @@
 local M = {}
+
+-- Core modules
+local Manager = require('plugman.core.manager')
+local Loader = require('plugman.core.loader')
+local Logger = require('plugman.utils.logger')
+local Notify = require('plugman.utils.notify')
+local UI = require('plugman.ui')
+local Config = require('plugman.config')
+
+-- Global state
+M.manager = nil
+M.loader = nil
+M.config = nil
+
+---Initialize Plugman
+---@param opts table Configuration options
+function M.setup(opts)
+    M.config = Config.setup(opts or {})
+    
+    -- Initialize core components
+    Logger.setup(M.config.log_level)
+    Notify.setup(M.config.notify)
+    
+    M.manager = Manager.new(M.config)
+    M.loader = Loader.new(M.manager, M.config)
+    
+    -- Setup auto-discovery of plugins
+    M._discover_plugins()
+    
+    -- Initialize loading sequence
+    M.loader:init()
+    
+    Logger.info("Plugman initialized successfully")
+    Notify.info("Plugman ready!")
+end
+
+---Add a plugin
+---@param source string Plugin source (GitHub repo, local path, etc.)
+---@param opts table|nil Plugin options
+function M.add(source, opts)
+    if not M.manager then
+        error("Plugman not initialized. Call setup() first.")
+    end
+    
+    return M.manager:add(source, opts)
+end
+
+---Remove a plugin
+---@param name string Plugin name
+function M.remove(name)
+    if not M.manager then
+        error("Plugman not initialized. Call setup() first.")
+    end
+    
+    return M.manager:remove(name)
+end
+
+---Update plugins
+---@param names table|nil Specific plugin names to update
+function M.update(names)
+    if not M.manager then
+        error("Plugman not initialized. Call setup() first.")
+    end
+    
+    return M.manager:update(names)
+end
+
+---Show UI
+function M.show()
+    if not M.manager then
+        error("Plugman not initialized. Call setup() first.")
+    end
+    
+    UI.show(M.manager)
+end
+
+---Get plugin status
+---@param name string Plugin name
+---@return table|nil Plugin status
+function M.status(name)
+    if not M.manager then
+        return nil
+    end
+    
+    return M.manager:status(name)
+end
+
+---Auto-discover plugins from configured directories
+function M._discover_plugins()
+    local plugin_dirs = M.config.plugin_dirs
+    
+    for _, dir in ipairs(plugin_dirs) do
+        local full_path = vim.fn.stdpath('config') .. '/lua/' .. dir:gsub('%.', '/')
+        
+        if vim.fn.isdirectory(full_path) == 1 then
+            M._load_plugin_directory(dir, full_path)
+        end
+    end
+end
+
+---Load plugins from directory
+---@param module_path string Module path
+---@param dir_path string Directory path
+function M._load_plugin_directory(module_path, dir_path)
+    local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
+    
+    for _, file in ipairs(files) do
+        local filename = vim.fn.fnamemodify(file, ':t:r')
+        local module_name = module_path .. '.' .. filename
+        
+        local ok, plugin_spec = pcall(require, module_name)
+        if ok then
+            if type(plugin_spec) == 'table' then
+                if plugin_spec[1] then
+                    -- Multiple plugins in one file
+                    for _, spec in ipairs(plugin_spec) do
+                        M.manager:add_spec(spec)
+                    end
+                else
+                    -- Single plugin spec
+                    M.manager:add_spec(plugin_spec)
+                end
+            elseif type(plugin_spec) == 'string' then
+                -- Simple string plugin
+                M.manager:add_spec(plugin_spec)
+            end
+        else
+            Logger.warn("Failed to load plugin spec from: " .. module_name)
+        end
+    end
+end
+
+return M
+
+
+local M = {}
 -- Core modules
 local bootstrap = require("plugman.core.bootstrap")
 local manager = require('plugman.core.manager')
