@@ -22,7 +22,7 @@ function Plugin.new(source, opts, type)
   -- Core properties
   self.enabled = opts.enabled ~= false
   self.lazy = opts.lazy
-  self.priority = opts.priority
+  self.priority = opts.priority or 0
 
   -- Loading triggers
   self.event = opts.event
