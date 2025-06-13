@@ -4,6 +4,7 @@ files = {
 globals = {
     "vim",
     "_G",
+    "Plugman",
     "use",
     "packer_plugins",
     "NOREF_NOERR_TRUNC",
