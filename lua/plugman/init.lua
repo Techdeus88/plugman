@@ -29,9 +29,7 @@ function M.setup(opts)
     end
     vim.opt.rtp:prepend(path_package)
   end
-
-  require('mini.deps').setup(M.config.mini_deps or {})
-
+  
   -- Initialize core components
   Logger.setup(M.config.log_level)
   Notify.setup(M.config.notify)

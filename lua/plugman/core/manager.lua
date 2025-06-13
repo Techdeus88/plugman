@@ -1,4 +1,3 @@
-local MiniDeps = require('mini.deps')
 local Plugin = require('plugman.core.plugin')
 local Cache = require('plugman.core.cache')
 local Logger = require('plugman.utils.logger')
@@ -19,15 +18,8 @@ function Manager.new(config)
   self.cache = Cache.new(config.cache_dir)
   self.loaded_plugins = {}
   self.pending_plugins = {}
-
   -- Initialize MiniDeps
-  MiniDeps.setup({
-    path = {
-      package = config.install_dir,
-      snapshot = config.snapshot_dir,
-    },
-    silent = config.silent,
-  })
+  MiniDeps.setup(config.mini_deps or {})
 
   return self
 end
