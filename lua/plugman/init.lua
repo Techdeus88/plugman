@@ -2,6 +2,7 @@ local M = {}
 
 -- Core modules
 local Manager = require('plugman.core.manager')
+local Messages = require('plugman.utils.message_handler')
 local Loader = require('plugman.core.loader')
 local Logger = require('plugman.utils.logger')
 local Notify = require('plugman.utils.notify')
@@ -17,29 +18,16 @@ M.config = nil
 ---@param opts table Configuration options
 function M.setup(opts)
   M.config = Config.setup(opts or {})
-
-  -- Initialize MiniDeps if not already done
-  if not package.loaded['mini.deps'] then
-    local path_package = vim.fn.stdpath('data') .. '/site/pack/deps/start/mini.deps'
-    if not vim.uv.fs_stat(path_package) then
-      vim.system({
-        'git', 'clone', '--filter=blob:none',
-        'https://github.com/echasnovski/mini.deps', path_package
-      })
-    end
-    vim.opt.rtp:prepend(path_package)
-  end
-  
   -- Initialize core components
   Logger.setup(M.config.log_level)
   Notify.setup(M.config.notify)
+  -- Initialize Message handler
+  Messages.init(M.config.messages)
 
   M.manager = Manager.new(M.config)
   M.loader = Loader.new(M.manager, M.config)
-
   -- Setup auto-discovery of plugins
   M._discover_plugins()
-
   -- Initialize loading sequence
   M.loader:init()
 
@@ -154,7 +142,6 @@ return M
 -- local cache = require('plugman.core.cache')
 -- local logger = require('plugman.utils.logger')
 -- local notify = require('plugman.utils.notify')
--- local messages = require('plugman.utils.message_handler')
 -- local health = require('plugman.health')
 -- local dashboard = require('plugman.ui.dashboard')
 
@@ -170,8 +157,6 @@ return M
 -- function M.setup(opts)
 --   opts = opts or {}
 --   M.state.config = vim.tbl_deep_extend('force', M.state.config, opts)
---   -- Initialize message handler
---   messages.init(M.state.config.messages)
 --   -- Initialize MiniDeps
 --   bootstrap.init(M.state.config.minideps)
 --   -- Initialize cache

@@ -49,6 +49,24 @@ local defaults = {
         },
         silent = false,
     },
+    messages = {
+        show_notifications = true,
+        show_logs = true,
+        categories = {
+            plugman = true,
+            minideps = true,
+            mason = true,
+            treesitter = true,
+            plugin = true
+        },
+        -- Control which message types are shown
+        types = {
+            info = true,
+            success = true,
+            warn = true,
+            error = true
+        }
+    },
     -- Performance
     performance = {
         cache_ttl = 3600, -- 1 hour
@@ -112,26 +130,6 @@ return M
 --     },
 
 --     -- Message handler configuration
---     messages = {
---         show_notifications = true,
---         show_logs = true,
---         categories = {
---             plugman = true,
---             minideps = true,
---             mason = true,
---             treesitter = true,
---             plugin = true
---         },
---         -- Control which message types are shown
---         types = {
---             info = true,
---             success = true,
---             warn = true,
---             error = true
---         }
---     },
-
---
 --     -- Plugin and module paths
 --     paths = {
 --         plugins_dir = "plugins",

@@ -1,3 +1,4 @@
+local Bootstrap = require("plugman.core.bootstrap")
 local Plugin = require('plugman.core.plugin')
 local Cache = require('plugman.core.cache')
 local Logger = require('plugman.utils.logger')
@@ -19,6 +20,8 @@ function Manager.new(config)
   self.loaded_plugins = {}
   self.pending_plugins = {}
 
+  -- Bootstrap and ensure MiniDeps is installed and setup
+  Bootstrap.init(config.mini_deps)
   -- Initialize MiniDeps
   require('mini.deps').setup(config.mini_deps or {})
   return self

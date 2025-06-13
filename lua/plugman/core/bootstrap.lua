@@ -5,9 +5,6 @@ local M = {}
 local MINIDEPS_REPO = "https://github.com/echasnovski/mini.deps"
 local path_package = vim.fn.stdpath("data") .. "/site/"
 local MINIDEPS_PATH = path_package .. "pack/deps/start/mini.deps"
-
-local logger = require('plugman.utils.logger')
-local notify = require('plugman.utils.notify')
 local messages = require('plugman.utils.message_handler')
 
 local function install_minideps()
@@ -82,7 +79,6 @@ function M.init(opts)
     if not install_minideps() then
         return false
     end
-    
     -- Ensure MiniDeps is available
     local has_minideps, MiniDeps = pcall(require, 'mini.deps')
 
