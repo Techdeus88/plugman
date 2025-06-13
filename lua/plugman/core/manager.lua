@@ -222,8 +222,8 @@ function Manager.setup_keymaps(plugin)
         nowait = keymap.nowait,
         expr = keymap.expr,
       }
-      local lhs = keymap.lhs or keymap[2]
-      local rhs = keymap.rhs or keymap[3]
+      local lhs = keymap.lhs or keymap[1]
+      local rhs = keymap.rhs or keymap[2]
 
       for _, mode in ipairs(keymap.mode or { "n" }) do
         vim.keymap.set(mode, lhs, rhs, opts)
