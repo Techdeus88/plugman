@@ -13,7 +13,7 @@ Manager.__index = Manager
 ---@return PlugmanManager
 function Manager.new(config)
   local self = setmetatable({}, Manager)
-
+  print(vim.inspect(config))
   self.config = config
   self.plugins = {}
   self.cache = Cache.new(config.cache_dir)
