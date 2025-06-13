@@ -200,9 +200,10 @@ end
 function Events:on_keys(keys, callback, opts)
     opts = opts or {}
     for _, key in ipairs(keys) do
-        local mode = key.mode or key[1] or 'n'
-        local lhs = key.lhs or key[2]
-
+        local mode = key.mode or 'n'
+        local lhs = key.lhs or key[1]
+        print(vim.inspect(keys))
+        print(vim.inspect(lhs))
         if lhs then
             local key_id = mode .. ':' .. lhs
             self.key_handlers[key_id] = {
@@ -219,7 +220,7 @@ function Events:on_keys(keys, callback, opts)
 
                 -- Then execute the original mapping
                 vim.schedule(function()
-                    local rhs = key.rhs or key[3]
+                    local rhs = key.rhs or key[2]
                     if rhs then
                         if type(rhs) == 'function' then
                             rhs()
