@@ -75,6 +75,7 @@ end
 ---Setup MiniDeps integration
 ---@param opts? table|nil MiniDeps options
 function M.init(opts)
+    print(vim.inspect(opts))
     -- Install MiniDeps: only if unavailable
     if not install_minideps() then
         return false
