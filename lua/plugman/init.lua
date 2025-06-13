@@ -19,7 +19,7 @@ M.config = nil
 function M.setup(opts)
   M.config = Config.setup(opts or {})
   -- Initialize core components
-  Logger.setup(M.config.log_level)
+  Logger.setup(M.config.logging)
   Notify.setup(M.config.notify)
   Messages.init(M.config.messages)
 

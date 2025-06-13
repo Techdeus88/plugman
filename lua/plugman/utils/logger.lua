@@ -17,14 +17,16 @@ local level_names = {
 local config = {
   level = levels.INFO,
   file = nil,
+  console = nil,
 }
 
 ---Setup logger
 ---@param level string Log level
----@param file string|nil Log file path
-function M.setup(level, file)
-  config.level = levels[level:upper()] or levels.INFO
-  config.file = file
+---@param config table|nil Log file path
+function M.setup(opts)
+  config.level = levels[opts.level:upper()] or levels.INFO
+  config.file = opts.file
+  config.console = opts.console
 
   if config.file then
     -- Ensure log directory exists
@@ -50,7 +52,10 @@ local function log(level, message, ...)
   local log_line = string.format('[%s] %s: %s', timestamp, level_name, formatted)
 
   -- Print to console
-  print(log_line)
+  if config.console then
+    print(log_line)
+  end
+
 
   -- Write to file
   if config.file then

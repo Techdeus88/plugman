@@ -7,13 +7,13 @@ local Cache = {}
 Cache.__index = Cache
 
 ---Create new cache
----@param cache_dir string Cache directory
+---@param config table Cache config table
 ---@return PlugmanCache
-function Cache.new(cache_dir)
+function Cache.new(config)
   local self = setmetatable({}, Cache)
 
-  self.cache_dir = cache_dir
-  self.cache_file = cache_dir .. '/plugman.json'
+  self.cache_dir = config.cache_dir
+  self.cache_file = config.cache_dir .. '/plugman.json'
   self.data = {}
 
   self:ensure_cache_dir()

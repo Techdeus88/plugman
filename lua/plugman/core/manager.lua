@@ -16,13 +16,11 @@ function Manager.new(config)
 
   self.config = config
   self.plugins = {}
-  self.cache = Cache.new(config.cache_dir)
+  self.cache = Cache.new(config.cache)
   self.loaded_plugins = {}
   self.pending_plugins = {}
   -- Bootstrap and ensure MiniDeps is installed and setup
   Bootstrap.init(config.mini_deps)
-  -- Initialize MiniDeps
-  require('mini.deps').setup(config.mini_deps or {})
   return self
 end
 

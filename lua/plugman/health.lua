@@ -22,9 +22,9 @@ function M.check(manager)
 
     -- Check directories
     local dirs = {
-        manager.config.install_dir,
-        manager.config.cache_dir,
-        manager.config.snapshot_dir,
+        manager.config.paths.install_dir,
+        manager.config.paths.cache_dir,
+        manager.config.paths.snapshot_dir,
     }
 
     for _, dir in ipairs(dirs) do

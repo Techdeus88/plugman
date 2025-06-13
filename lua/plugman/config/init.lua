@@ -2,29 +2,56 @@ local M = {}
 
 ---Default configuration
 local defaults = {
-    -- Installation directories
-    install_dir = vim.fn.stdpath('data') .. '/plugman',
-    cache_dir = vim.fn.stdpath('cache') .. '/plugman',
-    snapshot_dir = vim.fn.stdpath('cache') .. '/plugman/snapshots',
-    -- Plugin discovery
-    plugin_dirs = { 'plugins', 'modules' },
+    paths = {
+        -- Installation directories
+        install_dir = vim.fn.stdpath('data') .. '/plugman',
+        snapshot_dir = vim.fn.stdpath('cache') .. '/plugman/snapshots',
+        cache_dir = vim.fn.stdpath('cache') .. '/plugman',
+        plugins_dir = { 'plugins', 'modules' },
+        plugins_path = vim.fn.stdpath('config') .. '/lua'
+    },
     -- Behavior
-    silent = false,
-    lazy_by_default = true,
-    auto_install = true,
-    auto_update = false,
+    behavior = {
+        silent = false,
+        lazy_by_default = true,
+        auto_install = true,
+        auto_update = false,
+    },
+    cache = {
+        enabled = true,
+        auto_save = true
+    },
     -- Logging
-    log_level = 'info', -- debug, info, warn, error
-    log_file = vim.fn.stdpath('cache') .. '/plugman/plugman.log',
+    logging = {
+        level = 'INFO', -- DEBUG, INFO, WARN, ERROR
+        file = true,
+        console = false,
+        log_file = vim.fn.stdpath('cache') .. '/plugman/plugman.log',
+    },
     -- Notifications
     notify = {
         enabled = true,
         timeout = 3000,
         level = 'info',
+        use_snacks_notify = false,
+        use_mini_notify = true,
+        use_noice = false,
+        use_nvim_notify = false,
+        stages = 'fade_in_slide_out',
+        background_colour = '#000000',
+        icons = {
+            ERROR = '✖',
+            WARN = '⚠',
+            INFO = 'ℹ',
+            SUCCESS = '✓'
+        },
+        -- Show notifications during plugin loading
+        show_loading_notifications = false
     },
     -- UI
     ui = {
         border = 'rounded',
+        transparency = 0,
         width = 0.8,
         height = 0.8,
         icons = {
@@ -70,8 +97,9 @@ local defaults = {
     -- Performance
     performance = {
         cache_ttl = 3600, -- 1 hour
-        max_concurrent_installs = 4,
+        lazy_time = 2000, -- 2 seconds
         timeout = 30000,  -- 30 seconds
+        max_concurrent_installs = 4,
     },
 }
 
@@ -83,57 +111,3 @@ function M.setup(opts)
 end
 
 return M
-
--- return {
---     -- Cache configuration
---     cache = {
---         enabled = true,
---         auto_save = true
---     },
-
---     -- Logging configuration
---     logging = {
---         level = 'INFO', -- DEBUG, INFO, WARN, ERROR
---         file = true,
---         console = false,
---     },
-
---     -- UI configuration
---     ui = {
---         border = 'rounded',
---         size = { width = 0.8, height = 0.8 },
---         transparency = 0,
---     },
-
---     -- Performance configuration
---     performance = {
---         lazy_timer = 2000, -- ms delay for lazy plugins without triggers
---     },
-
---     -- Notification configuration
---     notify = {
---         use_snacks_notify = false,
---         use_mini_notify = true,
---         use_noice = false,
---         use_nvim_notify = false,
---         timeout = 3000,
---         stages = 'fade_in_slide_out',
---         background_colour = '#000000',
---         icons = {
---             ERROR = '✖',
---             WARN = '⚠',
---             INFO = 'ℹ',
---             SUCCESS = '✓'
---         },
---         -- Control whether to show notifications during plugin loading
---         show_loading_notifications = false
---     },
-
---     -- Message handler configuration
---     -- Plugin and module paths
---     paths = {
---         plugins_dir = "plugins",
---         -- Path to modules directory (for module-based configuration)
---         plugins_path = vim.fn.stdpath('config') .. '/lua'
---     }
--- }
