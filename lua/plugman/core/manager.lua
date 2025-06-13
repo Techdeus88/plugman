@@ -18,9 +18,9 @@ function Manager.new(config)
   self.cache = Cache.new(config.cache_dir)
   self.loaded_plugins = {}
   self.pending_plugins = {}
-  -- Initialize MiniDeps
-  MiniDeps.setup(config.mini_deps or {})
 
+  -- Initialize MiniDeps
+  require('mini.deps').setup(config.mini_deps or {})
   return self
 end
 
