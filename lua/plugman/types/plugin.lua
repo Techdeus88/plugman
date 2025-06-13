@@ -10,6 +10,7 @@
 ---@field path string The path where the plugin is installed
 ---@field enabled boolean|nil Whether the plugin is enabled (default: true)
 ---@field added boolean Whether the plugin has been added to MiniDeps
+---@field installed boolean Whether the plugin is on-disk
 ---@field loaded boolean Whether the plugin has been loaded
 ---@field loading boolean Whether the plugin is currently loading
 ---@field load_time string|nil The time it took to load the plugin in milliseconds

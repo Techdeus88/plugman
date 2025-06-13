@@ -1,5 +1,4 @@
-local Logger = require('plugman.utils.logger')
-
+--Start-of-file--
 ---@class PlugmanPlugin
 local Plugin = {}
 Plugin.__index = Plugin
@@ -39,6 +38,7 @@ function Plugin.new(source, opts)
 
   -- State
   self.added = false
+  self.installed = false
   self.loaded = false
 
   -- Determine if plugin should be lazy loaded
@@ -127,6 +127,7 @@ function Plugin:to_cache()
     name = self.name,
     source = self.source,
     added = self.added,
+    installed = self.installed,
     loaded = self.loaded,
     lazy = self.lazy,
     enabled = self.enabled,

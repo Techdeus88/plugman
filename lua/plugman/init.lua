@@ -18,6 +18,20 @@ M.config = nil
 function M.setup(opts)
   M.config = Config.setup(opts or {})
 
+  -- Initialize MiniDeps if not already done
+  if not package.loaded['mini.deps'] then
+    local path_package = vim.fn.stdpath('data') .. '/site/pack/deps/start/mini.deps'
+    if not vim.uv.fs_stat(path_package) then
+      vim.system({
+        'git', 'clone', '--filter=blob:none',
+        'https://github.com/echasnovski/mini.deps', path_package
+      })
+    end
+    vim.opt.rtp:prepend(path_package)
+  end
+
+  require('mini.deps').setup(M.config.mini_deps or {})
+
   -- Initialize core components
   Logger.setup(M.config.log_level)
   Notify.setup(M.config.notify)
