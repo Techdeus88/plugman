@@ -3,6 +3,7 @@ local Plugin = require('plugman.core.plugin')
 local Cache = require('plugman.core.cache')
 local Logger = require('plugman.utils.logger')
 local Notify = require('plugman.utils.notify')
+local Messages = require("plugman.utils.message_handler")
 
 ---@class PlugmanManager
 local Manager = {}
@@ -136,7 +137,8 @@ function Manager:install(plugin)
   end)
 
   if ok then
-    plugin.installed = true
+    plugin.installed = plugin:is_installed()
+    plugin.added = true
     self.cache:set_plugin(plugin.name, plugin:to_cache())
     Logger.info("Installed plugin: " .. plugin.name)
     Notify.info("Installed: " .. plugin.name)
@@ -157,71 +159,108 @@ function Manager:load(plugin)
   end
 
   -- Install if not installed
-  if not plugin.installed then
+  if not plugin.added then
     if not self:install(plugin) then
       return false
     end
   end
 
-  Logger.info("Loading plugin: " .. plugin.name)
-
-  -- Run init hook
-  if plugin.init then
-    local ok, err = pcall(plugin.init)
-    if not ok then
-      Logger.error("Plugin init failed: " .. plugin.name .. " - " .. tostring(err))
+  if not plugin.loaded then
+    Logger.info("Loading plugin: " .. plugin.name)
+    -- Run init hook
+    if plugin.init then
+      local ok, err = pcall(plugin.init)
+      if not ok then
+        Logger.error("Plugin init failed: " .. plugin.name .. " - " .. tostring(err))
+      end
     end
-  end
+    -- Handle configuration
+    if plugin.config or plugin.opts then
+      local merged_opts = self._merge_config(plugin)
+      self._process_config(plugin, merged_opts)
+    end
+    -- Setup keymaps
+    if plugin.keys then
+      self.setup_keymaps(plugin)
+    end
+    -- Run post hook
+    if plugin.post then
+      local post_ok, post_err = pcall(plugin.post)
+      if not post_ok then
+        Logger.error("Plugin post hook failed: " .. plugin.name .. " - " .. tostring(post_err))
+      end
+    end
 
-  -- Load plugin files
-  local ok, err = pcall(MiniDeps.now, plugin.source)
-  if not ok then
-    Logger.error("Failed to load plugin: " .. plugin.name .. " - " .. tostring(err))
+    self.loaded_plugins[plugin.name] = true
+    plugin.loaded = true
+
+    Logger.info("Loaded plugin: " .. plugin.name)
+    return true
+  else
+    Logger.warn("Plugin already loaded " .. plugin.name)
     return false
   end
-
-  -- Setup plugin
-  if plugin.config then
-    local config_ok, config_err = pcall(plugin.config)
-    if not config_ok then
-      Logger.error("Plugin config failed: " .. plugin.name .. " - " .. tostring(config_err))
-    end
-  end
-
-  -- Setup keymaps
-  if plugin.keys then
-    self:setup_keymaps(plugin)
-  end
-
-  -- Run post hook
-  if plugin.post then
-    local post_ok, post_err = pcall(plugin.post)
-    if not post_ok then
-      Logger.error("Plugin post hook failed: " .. plugin.name .. " - " .. tostring(post_err))
-    end
-  end
-
-  self.loaded_plugins[plugin.name] = true
-  plugin.loaded = true
-
-  Logger.info("Loaded plugin: " .. plugin.name)
-  return true
 end
 
 ---Setup keymaps for plugin
 ---@param plugin PlugmanPlugin
-function Manager:setup_keymaps(plugin)
-  for _, keymap in ipairs(plugin.keys) do
-    local mode = keymap.mode or keymap[1] or 'n'
-    local lhs = keymap.lhs or keymap[2]
-    local rhs = keymap.rhs or keymap[3]
-    local opts = keymap.opts or {}
+function Manager.setup_keymaps(plugin)
+  local keys = type(plugin.keys) == "function" and plugin.keys() or plugin.keys
+  if type(keys) ~= "table" then
+    Logger.error(string.format("Invalid keys format for %s", plugin.name))
+    return
+  end
 
-    if keymap.desc then
-      opts.desc = keymap.desc
+  for _, keymap in ipairs(keys) do
+    if type(keymap) == "table" and keymap[1] then
+      local opts = {
+        buffer = keymap.buffer,
+        desc = keymap.desc,
+        silent = keymap.silent ~= false,
+        remap = keymap.remap,
+        noremap = keymap.noremap ~= false,
+        nowait = keymap.nowait,
+        expr = keymap.expr,
+      }
+      local lhs = keymap.lhs or keymap[2]
+      local rhs = keymap.rhs or keymap[3]
+
+      for _, mode in ipairs(keymap.mode or { "n" }) do
+        vim.keymap.set(mode, lhs, rhs, opts)
+      end
+    else
+      Logger.warn(string.format("Invalid keymap entry for %s", plugin.name))
     end
+  end
+end
 
-    vim.keymap.set(mode, lhs, rhs, opts)
+-- Configuration Functions
+function Manager._merge_config(plugin)
+  if not (plugin.config or plugin.opts) then return {} end
+
+  local default_opts = type(plugin.opts) == 'table' and plugin.opts or {}
+  local config_opts = type(plugin.config) == 'table' and plugin.config or {}
+
+  return vim.tbl_deep_extend('force', default_opts, config_opts)
+end
+
+function Manager._process_config(plugin, merged_opts)
+  if not plugin then return end
+
+  if type(plugin.config) == 'function' then
+    return plugin.config(plugin, merged_opts)
+  elseif type(plugin.config) == 'boolean' then
+    return plugin.config
+  elseif type(plugin.config) == 'string' then
+    return vim.cmd(plugin.config)
+  elseif merged_opts then
+    local mod_name = plugin.require or plugin.name
+    local ok, mod = pcall(require, mod_name)
+    if ok and mod.setup then
+      return mod.setup(merged_opts)
+    else
+      messages.plugin(plugin.name, 'ERROR', string.format('Failed to require plugin: %s', mod_name))
+    end
   end
 end
 
