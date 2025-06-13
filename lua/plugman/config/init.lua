@@ -6,7 +6,6 @@ local defaults = {
         -- Installation directories
         install_dir = vim.fn.stdpath('data') .. '/plugman',
         snapshot_dir = vim.fn.stdpath('cache') .. '/plugman/snapshots',
-        cache_dir = vim.fn.stdpath('cache') .. '/plugman',
         plugins_dir = { 'plugins', 'modules' },
         plugins_path = vim.fn.stdpath('config') .. '/lua'
     },
@@ -18,6 +17,7 @@ local defaults = {
         auto_update = false,
     },
     cache = {
+        cache_dir = vim.fn.stdpath('cache') .. '/plugman',
         enabled = true,
         auto_save = true
     },
