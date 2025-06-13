@@ -34,11 +34,12 @@ function Manager:add_spec(spec)
 end
 
 ---Add plugin
+---@param type string Plugin type (plugin or dependency)
 ---@param source string Plugin source
 ---@param opts table Plugin options
 ---@return PlugmanPlugin
-function Manager:add(source, opts)
-  local plugin = Plugin.new(source, opts or {})
+function Manager:add(source, opts, type)
+  local plugin = Plugin.new(source, opts or {}, type)
   return self:add_plugin(plugin)
 end
 

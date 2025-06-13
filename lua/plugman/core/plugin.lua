@@ -61,18 +61,18 @@ end
 ---@return PlugmanPlugin
 function Plugin.from_spec(spec)
   if type(spec) == 'string' then
-    return Plugin.new(spec, {})
+    return Plugin.new(spec, {}, "plugin")
   elseif type(spec) == 'table' then
     local source = spec[1] or spec.source
     if not source then
-      error("Plugin spec must have source")
+      error(string.format("Plugin spec must have source - %s", vim.inspect(spec)))
     end
 
     local opts = vim.tbl_deep_extend('force', {}, spec)
     opts[1] = nil
     opts.source = nil
 
-    return Plugin.new(source, opts)
+    return Plugin.new(source, opts, "plugin")
   else
     error("Invalid plugin spec type: " .. type(spec))
   end
@@ -107,7 +107,7 @@ function Plugin:is_installed()
   local path = plugin_name == "mini.deps" or
       plugin_name == "plugman.nvim" and (vim.fn.stdpath("data") .. "/site/pack/deps/start/" .. plugin_name)
       or (vim.fn.stdpath("data") .. "/site/pack/deps/opt/" .. plugin_name)
-      return vim.fn.isdirectory(path) == 1
+  return vim.fn.isdirectory(path) == 1
 end
 
 ---Determine if plugin should be lazy loaded
