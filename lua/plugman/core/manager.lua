@@ -20,6 +20,7 @@ function Manager.new(config)
   self.loaded_plugins = {}
   self.pending_plugins = {}
 
+  print(vim.inspect(config.mini_deps))
   -- Bootstrap and ensure MiniDeps is installed and setup
   Bootstrap.init(config.mini_deps)
   -- Initialize MiniDeps

@@ -21,7 +21,6 @@ function M.setup(opts)
   -- Initialize core components
   Logger.setup(M.config.log_level)
   Notify.setup(M.config.notify)
-  -- Initialize Message handler
   Messages.init(M.config.messages)
 
   M.manager = Manager.new(M.config)
