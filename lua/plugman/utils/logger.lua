@@ -59,7 +59,7 @@ local function log(level, message, ...)
 
   -- Write to file
   if config.file then
-    local file = io.open(config.file, 'a')
+    local file = io.open(config.log_file, 'a')
     if file then
       file:write(log_line .. '\n')
       file:close()
