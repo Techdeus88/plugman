@@ -37,7 +37,7 @@ local defaults = {
         },
     },
     -- MiniDeps configuration
-    minideps = {
+    mini_deps = {
         cache = { enabled = true, path = vim.fn.stdpath("cache") .. "/mini-deps", ttl = 86400 },
         job = { n_threads = 4, timeout = 30000, retry = 2 },
         path = {
