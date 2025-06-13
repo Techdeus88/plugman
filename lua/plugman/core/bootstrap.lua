@@ -16,6 +16,7 @@ local function install_minideps()
     local install = function()
         print('install 2')
         local success = pcall(function()
+            print('installing')
             -- Create the directory if it doesn't exist
             vim.fn.mkdir(path_package .. "pack/deps/start", "p")
 
