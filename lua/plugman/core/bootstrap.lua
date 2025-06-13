@@ -8,11 +8,13 @@ local MINIDEPS_PATH = path_package .. "pack/deps/start/mini.deps"
 local messages = require('plugman.utils.message_handler')
 
 local function install_minideps()
+    print('install')
     local function is_minideps_installed()
         -- return vim.fn.isdirectory(MINIDEPS_PATH) == 1
         return vim.uv.fs_stat(MINIDEPS_PATH)
     end
     local install = function()
+        print('install 2')
         local success = pcall(function()
             -- Create the directory if it doesn't exist
             vim.fn.mkdir(path_package .. "pack/deps/start", "p")
