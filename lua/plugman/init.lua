@@ -36,7 +36,7 @@ end
 
 ---Add a plugin
 ---@param source string Plugin source (GitHub repo, local path, etc.)
----@param opts table|nil Plugin options
+---@param opts table Plugin options
 function M.add(source, opts)
   if not M.manager then
     error("Plugman not initialized. Call setup() first.")
@@ -87,9 +87,9 @@ end
 
 ---Auto-discover plugins from configured directories
 function M._discover_plugins()
-  local plugin_dirs = M.config.plugin_dirs
+  local plugins_dir = M.config.paths.plugins_dir
 
-  for _, dir in ipairs(plugin_dirs) do
+  for _, dir in ipairs(plugins_dir) do
     local full_path = vim.fn.stdpath('config') .. '/lua/' .. dir:gsub('%.', '/')
 
     if vim.fn.isdirectory(full_path) == 1 then
@@ -108,21 +108,18 @@ function M._load_plugin_directory(module_path, dir_path)
     local filename = vim.fn.fnamemodify(file, ':t:r')
     local module_name = module_path .. '.' .. filename
 
-    local ok, plugin_spec = pcall(require, module_name)
+    local ok, plugins_spec = pcall(require, module_name)
     if ok then
-      if type(plugin_spec) == 'table' then
-        if plugin_spec[1] then
-          -- Multiple plugins in one file
-          for _, spec in ipairs(plugin_spec) do
+      -- Handle single spec file
+      if type(plugins_spec[1]) == "string" then
+        M.manager:add_spec(plugins_spec)
+        -- Handle multi-spec file
+      else
+        for _, spec in ipairs(plugins_spec) do
+          if type(spec) == "table" and type(spec[1]) == "string" then
             M.manager:add_spec(spec)
           end
-        else
-          -- Single plugin spec
-          M.manager:add_spec(plugin_spec)
         end
-      elseif type(plugin_spec) == 'string' then
-        -- Simple string plugin
-        M.manager:add_spec(plugin_spec)
       end
     else
       Logger.warn("Failed to load plugin spec from: " .. module_name)
@@ -195,20 +192,7 @@ return M
 --   for _, file in ipairs(vim.fn.glob(plugins_dir .. '/*.lua', false, true)) do
 --     local ok, plugins_spec = pcall(dofile, file)
 --     if ok then
---       -- Handle single spec file
---       if type(plugins_spec[1]) == "string" then
---         table.insert(specs, plugins_spec)
---         -- Handle multi-spec file
---       else
---         for _, spec in ipairs(plugins_spec) do
---           if type(spec) == "table" and type(spec[1]) == "string" then
---             table.insert(specs, spec)
---           end
---         end
---       end
---     else
---       logger.error("Failed to load plugin spec: " .. file .. " - " .. tostring(plugins_spec))
---     end
+
 
 --   end
 

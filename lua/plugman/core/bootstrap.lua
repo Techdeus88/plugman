@@ -2,8 +2,8 @@
 local M = {}
 
 -- Constants
-local MINIDEPS_REPO = "https://github.com/echasnovski/mini.deps"
 local path_package = vim.fn.stdpath("data") .. "/site/"
+local MINIDEPS_REPO = "https://github.com/echasnovski/mini.deps"
 local MINIDEPS_PATH = path_package .. "pack/deps/start/mini.deps"
 local messages = require('plugman.utils.message_handler')
 
@@ -14,7 +14,6 @@ local function install_minideps()
     end
     local install = function()
         local success = pcall(function()
-            print('installing')
             -- Create the directory if it doesn't exist
             vim.fn.mkdir(path_package .. "pack/deps/start", "p")
 

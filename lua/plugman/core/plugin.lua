@@ -6,8 +6,10 @@ Plugin.__index = Plugin
 ---Create new plugin instance
 ---@param source string Plugin source
 ---@param opts table Plugin options
+---@param type string Plugin source
 ---@return PlugmanPlugin
-function Plugin.new(source, opts)
+function Plugin.new(source, opts, type)
+  ---@class PlugmanPlugin
   local self = setmetatable({}, Plugin)
 
   opts = opts or {}
@@ -15,6 +17,7 @@ function Plugin.new(source, opts)
   -- Extract name from source
   self.name = opts.name or self._extract_name(source)
   self.source = source
+  self.type = type
 
   -- Core properties
   self.enabled = opts.enabled ~= false
@@ -31,10 +34,14 @@ function Plugin.new(source, opts)
   self.init = opts.init
   self.config = opts.config
   self.post = opts.post
-  self.hooks = opts.hooks
+  self.opts = opts.opts
+  self.require = opts.require
 
   -- Dependencies
   self.depends = opts.depends or {}
+  self.hooks = opts.hooks
+  self.moitor = opts.monitor
+  self.checkout = opts.checkout
 
   -- State
   self.added = false
@@ -54,7 +61,7 @@ end
 ---@return PlugmanPlugin
 function Plugin.from_spec(spec)
   if type(spec) == 'string' then
-    return Plugin.new(spec)
+    return Plugin.new(spec, {})
   elseif type(spec) == 'table' then
     local source = spec[1] or spec.source
     if not source then
@@ -92,6 +99,15 @@ function Plugin._extract_name(source)
 
   -- Fallback
   return source
+end
+
+function Plugin:is_installed()
+  local plugin_name = self.name
+  -- Plugin Management
+  local path = plugin_name == "mini.deps" or
+      plugin_name == "plugman.nvim" and (vim.fn.stdpath("data") .. "/site/pack/deps/start/" .. plugin_name)
+      or (vim.fn.stdpath("data") .. "/site/pack/deps/opt/" .. plugin_name)
+      return vim.fn.isdirectory(path) == 1
 end
 
 ---Determine if plugin should be lazy loaded

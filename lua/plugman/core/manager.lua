@@ -12,6 +12,7 @@ Manager.__index = Manager
 ---@param config table Configuration
 ---@return PlugmanManager
 function Manager.new(config)
+  ---@class PlugmanManager
   local self = setmetatable({}, Manager)
 
   self.config = config
@@ -127,10 +128,9 @@ function Manager:install(plugin)
     MiniDeps.add({
       source = plugin.source,
       depends = plugin.depends,
-      hooks = {
-        post_install = plugin.post_install,
-        post_checkout = plugin.post_checkout,
-      }
+      hooks = plugin.hooks,
+      checkout = plugin.checkout,
+      monitor = plugin.monitor,
     })
   end)
 
