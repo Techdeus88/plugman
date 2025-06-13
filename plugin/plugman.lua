@@ -1,12 +1,19 @@
+-- Start-of-file--
 -- Auto-setup commands and API
 if vim.g.loaded_plugman then
     return
 end
 vim.g.loaded_plugman = 1
-
 -- Global API
 _G.Plugman = require('plugman')
-
+if vim.g.plugman_no_auto_setup == nil then
+	vim.g.plugman_no_auto_setup = true
+end
+-- Auto-setup with sensible defaults
+if not vim.g.plugman_no_auto_setup then
+	_G.Plugman = require('plugman')
+	Plugman.setup()
+end
 -- Commands
 vim.api.nvim_create_user_command('Plugman', function(opts)
     local cmd = opts.args
@@ -33,7 +40,6 @@ end, {
         end, commands)
     end,
 })
-
 -- Shorter alias
 vim.api.nvim_create_user_command('Pm', function(opts)
     vim.cmd('Plugman ' .. opts.args)
@@ -44,9 +50,7 @@ end, {
         return vim.fn.getcompletion('Plugman ' .. arglead, 'cmdline')
     end,
 })
-
--- Start-of-file--
--- Auto-setup Plugman commands
+--End-of-file--
 
 -- vim.api.nvim_create_user_command('PlugmanShow', function()
 --     require('plugman.ui.dashboard').open()
@@ -94,4 +98,3 @@ end, {
 --     nargs = '+',
 --     desc = 'Add a plugin'
 -- })
---End-of-file--

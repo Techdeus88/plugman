@@ -12,32 +12,32 @@ Manager.__index = Manager
 ---@param config table Configuration
 ---@return PlugmanManager
 function Manager.new(config)
-    local self = setmetatable({}, Manager)
-    
-    self.config = config
-    self.plugins = {}
-    self.cache = Cache.new(config.cache_dir)
-    self.loaded_plugins = {}
-    self.pending_plugins = {}
-    
-    -- Initialize MiniDeps
-    MiniDeps.setup({
-        path = {
-            package = config.install_dir,
-            snapshot = config.snapshot_dir,
-        },
-        silent = config.silent,
-    })
-    
-    return self
+  local self = setmetatable({}, Manager)
+
+  self.config = config
+  self.plugins = {}
+  self.cache = Cache.new(config.cache_dir)
+  self.loaded_plugins = {}
+  self.pending_plugins = {}
+
+  -- Initialize MiniDeps
+  MiniDeps.setup({
+    path = {
+      package = config.install_dir,
+      snapshot = config.snapshot_dir,
+    },
+    silent = config.silent,
+  })
+
+  return self
 end
 
 ---Add plugin from spec
 ---@param spec table|string Plugin specification
 ---@return PlugmanPlugin
 function Manager:add_spec(spec)
-    local plugin = Plugin.from_spec(spec)
-    return self:add_plugin(plugin)
+  local plugin = Plugin.from_spec(spec)
+  return self:add_plugin(plugin)
 end
 
 ---Add plugin
@@ -45,220 +45,220 @@ end
 ---@param opts table Plugin options
 ---@return PlugmanPlugin
 function Manager:add(source, opts)
-    local plugin = Plugin.new(source, opts or {})
-    return self:add_plugin(plugin)
+  local plugin = Plugin.new(source, opts or {})
+  return self:add_plugin(plugin)
 end
 
 ---Add plugin instance
 ---@param plugin PlugmanPlugin
 ---@return PlugmanPlugin
 function Manager:add_plugin(plugin)
-    if self.plugins[plugin.name] then
-        Logger.warn("Plugin already exists: " .. plugin.name)
-        return self.plugins[plugin.name]
-    end
-    
-    self.plugins[plugin.name] = plugin
-    
-    -- Cache plugin info
-    self.cache:set_plugin(plugin.name, plugin:to_cache())
-    
-    Logger.info("Added plugin: " .. plugin.name)
-    return plugin
+  if self.plugins[plugin.name] then
+    Logger.warn("Plugin already exists: " .. plugin.name)
+    return self.plugins[plugin.name]
+  end
+
+  self.plugins[plugin.name] = plugin
+
+  -- Cache plugin info
+  self.cache:set_plugin(plugin.name, plugin:to_cache())
+
+  Logger.info("Added plugin: " .. plugin.name)
+  return plugin
 end
 
 ---Remove plugin
 ---@param name string Plugin name
 ---@return boolean Success
 function Manager:remove(name)
-    local plugin = self.plugins[name]
-    if not plugin then
-        Logger.warn("Plugin not found: " .. name)
-        return false
-    end
-    
-    -- Remove from MiniDeps
-    if plugin.installed then
-        MiniDeps.remove(plugin.source)
-    end
-    
-    -- Clean up
-    self.plugins[name] = nil
-    self.loaded_plugins[name] = nil
-    self.cache:remove_plugin(name)
-    
-    Logger.info("Removed plugin: " .. name)
-    Notify.info("Removed: " .. name)
-    
-    return true
+  local plugin = self.plugins[name]
+  if not plugin then
+    Logger.warn("Plugin not found: " .. name)
+    return false
+  end
+
+  -- Remove from MiniDeps
+  if plugin.installed then
+    MiniDeps.remove(plugin.source)
+  end
+
+  -- Clean up
+  self.plugins[name] = nil
+  self.loaded_plugins[name] = nil
+  self.cache:remove_plugin(name)
+
+  Logger.info("Removed plugin: " .. name)
+  Notify.info("Removed: " .. name)
+
+  return true
 end
 
 ---Update plugins
 ---@param names table|nil Plugin names to update
 ---@return table Results
 function Manager:update(names)
-    local to_update = names or vim.tbl_keys(self.plugins)
-    local results = {}
-    
-    for _, name in ipairs(to_update) do
-        local plugin = self.plugins[name]
-        if plugin and plugin.installed then
-            local ok, err = pcall(MiniDeps.update, plugin.source)
-            results[name] = {
-                success = ok,
-                error = err
-            }
-            
-            if ok then
-                Logger.info("Updated plugin: " .. name)
-            else
-                Logger.error("Failed to update plugin: " .. name .. " - " .. tostring(err))
-            end
-        end
+  local to_update = names or vim.tbl_keys(self.plugins)
+  local results = {}
+
+  for _, name in ipairs(to_update) do
+    local plugin = self.plugins[name]
+    if plugin and plugin.installed then
+      local ok, err = pcall(MiniDeps.update, plugin.source)
+      results[name] = {
+        success = ok,
+        error = err
+      }
+
+      if ok then
+        Logger.info("Updated plugin: " .. name)
+      else
+        Logger.error("Failed to update plugin: " .. name .. " - " .. tostring(err))
+      end
     end
-    
-    Notify.info("Update completed for " .. #to_update .. " plugins")
-    return results
+  end
+
+  Notify.info("Update completed for " .. #to_update .. " plugins")
+  return results
 end
 
 ---Install plugin
 ---@param plugin PlugmanPlugin
 ---@return boolean Success
 function Manager:install(plugin)
-    if plugin.installed then
-        return true
-    end
-    
-    Logger.info("Installing plugin: " .. plugin.name)
-    
-    local ok, err = pcall(function()
-        MiniDeps.add({
-            source = plugin.source,
-            depends = plugin.depends,
-            hooks = {
-                post_install = plugin.post_install,
-                post_checkout = plugin.post_checkout,
-            }
-        })
-    end)
-    
-    if ok then
-        plugin.installed = true
-        self.cache:set_plugin(plugin.name, plugin:to_cache())
-        Logger.info("Installed plugin: " .. plugin.name)
-        Notify.info("Installed: " .. plugin.name)
-        return true
-    else
-        Logger.error("Failed to install plugin: " .. plugin.name .. " - " .. tostring(err))
-        Notify.error("Failed to install: " .. plugin.name)
-        return false
-    end
+  if plugin.installed then
+    return true
+  end
+
+  Logger.info("Installing plugin: " .. plugin.name)
+
+  local ok, err = pcall(function()
+    MiniDeps.add({
+      source = plugin.source,
+      depends = plugin.depends,
+      hooks = {
+        post_install = plugin.post_install,
+        post_checkout = plugin.post_checkout,
+      }
+    })
+  end)
+
+  if ok then
+    plugin.installed = true
+    self.cache:set_plugin(plugin.name, plugin:to_cache())
+    Logger.info("Installed plugin: " .. plugin.name)
+    Notify.info("Installed: " .. plugin.name)
+    return true
+  else
+    Logger.error("Failed to install plugin: " .. plugin.name .. " - " .. tostring(err))
+    Notify.error("Failed to install: " .. plugin.name)
+    return false
+  end
 end
 
 ---Load plugin
 ---@param plugin PlugmanPlugin
 ---@return boolean Success
 function Manager:load(plugin)
-    if self.loaded_plugins[plugin.name] then
-        return true
-    end
-    
-    -- Install if not installed
-    if not plugin.installed then
-        if not self:install(plugin) then
-            return false
-        end
-    end
-    
-    Logger.info("Loading plugin: " .. plugin.name)
-    
-    -- Run init hook
-    if plugin.init then
-        local ok, err = pcall(plugin.init)
-        if not ok then
-            Logger.error("Plugin init failed: " .. plugin.name .. " - " .. tostring(err))
-        end
-    end
-    
-    -- Load plugin files
-    local ok, err = pcall(MiniDeps.now, plugin.source)
-    if not ok then
-        Logger.error("Failed to load plugin: " .. plugin.name .. " - " .. tostring(err))
-        return false
-    end
-    
-    -- Setup plugin
-    if plugin.config then
-        local config_ok, config_err = pcall(plugin.config)
-        if not config_ok then
-            Logger.error("Plugin config failed: " .. plugin.name .. " - " .. tostring(config_err))
-        end
-    end
-    
-    -- Setup keymaps
-    if plugin.keys then
-        self:setup_keymaps(plugin)
-    end
-    
-    -- Run post hook
-    if plugin.post then
-        local post_ok, post_err = pcall(plugin.post)
-        if not post_ok then
-            Logger.error("Plugin post hook failed: " .. plugin.name .. " - " .. tostring(post_err))
-        end
-    end
-    
-    self.loaded_plugins[plugin.name] = true
-    plugin.loaded = true
-    
-    Logger.info("Loaded plugin: " .. plugin.name)
+  if self.loaded_plugins[plugin.name] then
     return true
+  end
+
+  -- Install if not installed
+  if not plugin.installed then
+    if not self:install(plugin) then
+      return false
+    end
+  end
+
+  Logger.info("Loading plugin: " .. plugin.name)
+
+  -- Run init hook
+  if plugin.init then
+    local ok, err = pcall(plugin.init)
+    if not ok then
+      Logger.error("Plugin init failed: " .. plugin.name .. " - " .. tostring(err))
+    end
+  end
+
+  -- Load plugin files
+  local ok, err = pcall(MiniDeps.now, plugin.source)
+  if not ok then
+    Logger.error("Failed to load plugin: " .. plugin.name .. " - " .. tostring(err))
+    return false
+  end
+
+  -- Setup plugin
+  if plugin.config then
+    local config_ok, config_err = pcall(plugin.config)
+    if not config_ok then
+      Logger.error("Plugin config failed: " .. plugin.name .. " - " .. tostring(config_err))
+    end
+  end
+
+  -- Setup keymaps
+  if plugin.keys then
+    self:setup_keymaps(plugin)
+  end
+
+  -- Run post hook
+  if plugin.post then
+    local post_ok, post_err = pcall(plugin.post)
+    if not post_ok then
+      Logger.error("Plugin post hook failed: " .. plugin.name .. " - " .. tostring(post_err))
+    end
+  end
+
+  self.loaded_plugins[plugin.name] = true
+  plugin.loaded = true
+
+  Logger.info("Loaded plugin: " .. plugin.name)
+  return true
 end
 
 ---Setup keymaps for plugin
 ---@param plugin PlugmanPlugin
 function Manager:setup_keymaps(plugin)
-    for _, keymap in ipairs(plugin.keys) do
-        local mode = keymap.mode or keymap[1] or 'n'
-        local lhs = keymap.lhs or keymap[2]
-        local rhs = keymap.rhs or keymap[3]
-        local opts = keymap.opts or {}
-        
-        if keymap.desc then
-            opts.desc = keymap.desc
-        end
-        
-        vim.keymap.set(mode, lhs, rhs, opts)
+  for _, keymap in ipairs(plugin.keys) do
+    local mode = keymap.mode or keymap[1] or 'n'
+    local lhs = keymap.lhs or keymap[2]
+    local rhs = keymap.rhs or keymap[3]
+    local opts = keymap.opts or {}
+
+    if keymap.desc then
+      opts.desc = keymap.desc
     end
+
+    vim.keymap.set(mode, lhs, rhs, opts)
+  end
 end
 
 ---Get plugin status
 ---@param name string Plugin name
 ---@return table|nil Status
 function Manager:status(name)
-    local plugin = self.plugins[name]
-    if not plugin then
-        return nil
-    end
-    
-    return {
-        name = plugin.name,
-        source = plugin.source,
-        installed = plugin.installed,
-        loaded = plugin.loaded,
-        lazy = plugin.lazy,
-        enabled = plugin.enabled,
-        priority = plugin.priority,
-    }
+  local plugin = self.plugins[name]
+  if not plugin then
+    return nil
+  end
+
+  return {
+    name = plugin.name,
+    source = plugin.source,
+    installed = plugin.installed,
+    loaded = plugin.loaded,
+    lazy = plugin.lazy,
+    enabled = plugin.enabled,
+    priority = plugin.priority,
+  }
 end
 
 ---Get all plugins
 ---@return table<string, PlugmanPlugin>
 function Manager:get_plugins()
-    return self.plugins
+  return self.plugins
 end
 
-return Manager                                              
+return Manager
 
 
 

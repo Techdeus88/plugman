@@ -6,48 +6,42 @@ local defaults = {
     install_dir = vim.fn.stdpath('data') .. '/plugman',
     cache_dir = vim.fn.stdpath('cache') .. '/plugman',
     snapshot_dir = vim.fn.stdpath('cache') .. '/plugman/snapshots',
-
-    -- Plugin discovery
-    plugin_dirs = { 'plugins', 'modules' },
-
-    -- Behavior
-    silent = false,
-    lazy_by_default = true,
-    auto_install = true,
-    auto_update = false,
-
-    -- Logging
-    log_level = 'info', -- debug, info, warn, error
-    log_file = vim.fn.stdpath('cache') .. '/plugman/plugman.log',
-
-    -- Notifications
-    notify = {
-        enabled = true,
-        timeout = 3000,
-        level = 'info',
-    },
-
-    -- UI
-    ui = {
-        border = 'rounded',
-        width = 0.8,
-        height = 0.8,
-        icons = {
-            installed = '●',
-            not_installed = '○',
-            loaded = '✓',
-            not_loaded = '✗',
-            lazy = '💤',
-            priority = '⚡',
-        },
-    },
-
-    -- Performance
-    performance = {
-        cache_ttl = 3600, -- 1 hour
-        max_concurrent_installs = 4,
-        timeout = 30000,  -- 30 seconds
-    },
+    -- -- Plugin discovery
+    -- plugin_dirs = { 'plugins', 'modules' },
+    -- -- Behavior
+    -- silent = false,
+    -- lazy_by_default = true,
+    -- auto_install = true,
+    -- auto_update = false,
+    -- -- Logging
+    -- log_level = 'info', -- debug, info, warn, error
+    -- log_file = vim.fn.stdpath('cache') .. '/plugman/plugman.log',
+    -- -- Notifications
+    -- notify = {
+    --     enabled = true,
+    --     timeout = 3000,
+    --     level = 'info',
+    -- },
+    -- -- UI
+    -- ui = {
+    --     border = 'rounded',
+    --     width = 0.8,
+    --     height = 0.8,
+    --     icons = {
+    --         installed = '●',
+    --         not_installed = '○',
+    --         loaded = '✓',
+    --         not_loaded = '✗',
+    --         lazy = '💤',
+    --         priority = '⚡',
+    --     },
+    -- },
+    -- -- Performance
+    -- performance = {
+    --     cache_ttl = 3600, -- 1 hour
+    --     max_concurrent_installs = 4,
+    --     timeout = 30000,  -- 30 seconds
+    -- },
 }
 
 ---Setup configuration
