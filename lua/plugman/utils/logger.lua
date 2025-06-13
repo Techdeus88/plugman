@@ -30,7 +30,7 @@ function M.setup(opts)
 
   if config.file then
     -- Ensure log directory exists
-    local log_dir = vim.fn.fnamemodify(config.file, ':h')
+    local log_dir = vim.fn.fnamemodify(config.log_file, ':h')
     if vim.fn.isdirectory(log_dir) == 0 then
       vim.fn.mkdir(log_dir, 'p')
     end

@@ -42,7 +42,7 @@ function M.add(source, opts)
     error("Plugman not initialized. Call setup() first.")
   end
 
-  return M.manager:add(source, opts)
+  return M.manager:add(source, opts, "plugin")
 end
 
 ---Remove a plugin
