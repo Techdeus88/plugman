@@ -54,7 +54,7 @@ local function notify(message, level, opts)
         return
     end
 
-    opts = opts or {}
+    opts = vim.tbl_extend("force", { title = "Plugman" }, opts)
     opts.timeout = opts.timeout or config.timeout
 
     if notify_func then
@@ -67,28 +67,28 @@ end
 ---@param message string Message
 ---@param opts table|nil Options
 function M.info(message, opts)
-    opts = vim.tbl_extend("force", { title = "Plugman" }, opts)
+    opts = opts or { title = "Plugman" }
     notify(message, vim.log.levels.INFO, opts)
 end
 ---Warn notification
 ---@param message string Message
 ---@param opts table|nil Options
 function M.warn(message, opts)
-    opts = vim.tbl_extend("force", { title = "Plugman" }, opts)
+    opts = opts or { title = "Plugman" }
     notify(message, vim.log.levels.WARN, opts)
 end
 ---Error notification
 ---@param message string Message
 ---@param opts table|nil Options
 function M.error(message, opts)
-    opts = vim.tbl_extend("force", { title = "Plugman" }, opts)
+    opts = opts or { title = "Plugman" }
     notify(message, vim.log.levels.ERROR, opts)
 end
 ---Success notification
 ---@param message string Message
 ---@param opts table|nil Options
 function M.success(message, opts)
-    opts = vim.tbl_extend("force", { title = 'Plugman ✓' }, opts)
+    opts = opts or { title = 'Plugman ✓' }
     notify(message, vim.log.levels.INFO, opts)
 end
 
