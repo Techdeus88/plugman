@@ -50,6 +50,16 @@ for _, events in pairs(EVENT_GROUPS) do
     end
 end
 
+-- Debounce configuration
+local DEBOUNCE_CONFIG = {
+    ['TextChanged'] = 100,
+    ['TextChangedI'] = 100,
+    ['TextChangedP'] = 100,
+    ['WinScrolled'] = 50,
+    ['CursorMoved'] = 50,
+    ['CursorMovedI'] = 50,
+}
+
 ---Create new events system
 ---@param loader PlugmanLoader
 ---@return PlugmanEvents
@@ -65,6 +75,7 @@ function Events.new(loader)
     self.event_history = {}
     self.debug_mode = false
     self.ungrouped_handlers = {}
+    self.debounce_timers = {}
 
     self:setup_autocmds()
 
@@ -112,41 +123,97 @@ function Events:setup_autocmds()
     })
 end
 
+---Handle event with debouncing
+---@param event string Event name
+---@param args table Event arguments
+function Events:handle_event(event, args)
+    -- Check if event should be debounced
+    local debounce_time = DEBOUNCE_CONFIG[event]
+    if debounce_time then
+        -- Cancel existing timer if any
+        if self.debounce_timers[event] then
+            self.debounce_timers[event]:stop()
+        end
+
+        -- Create new timer
+        self.debounce_timers[event] = vim.defer_fn(function()
+            self:_execute_handlers(event, args)
+            self.debounce_timers[event] = nil
+        end, debounce_time)
+    else
+        self:_execute_handlers(event, args)
+    end
+end
+
+---Execute handlers for an event
+---@param event string Event name
+---@param args table Event arguments
+function Events:_execute_handlers(event, args)
+    local handlers = self.event_handlers[event]
+    if not handlers then return end
+
+    -- Execute handlers in order
+    for _, handler in ipairs(handlers) do
+        local ok, err = pcall(handler, args)
+        if not ok then
+            Logger.error(string.format("Error in event handler for %s: %s", event, err))
+        end
+    end
+
+    -- Record event in history
+    table.insert(self.event_history, {
+        event = event,
+        time = vim.loop.now(),
+        args = args
+    })
+
+    -- Trim history if too long
+    if #self.event_history > 1000 then
+        table.remove(self.event_history, 1)
+    end
+end
+
 ---Register event handler
 ---@param events string|table Event name(s)
 ---@param callback function Callback function
 ---@param opts table|nil Options
 function Events:on_event(events, callback, opts)
     opts = opts or {}
-    local event_list = type(events) == 'table' and events or { events }
+    events = type(events) == 'table' and events or { events }
 
-    for _, event in ipairs(event_list) do
-        if not KNOWN_EVENTS[event] then
-            -- Handle ungrouped events
-            if not self.ungrouped_handlers[event] then
-                self.ungrouped_handlers[event] = {}
+    for _, event in ipairs(events) do
+        if not self.event_handlers[event] then
+            self.event_handlers[event] = {}
+        end
+
+        -- Add handler with priority
+        local handler = {
+            callback = callback,
+            priority = opts.priority or 0
+        }
+
+        table.insert(self.event_handlers[event], handler)
+        -- Sort by priority (higher first)
+        table.sort(self.event_handlers[event], function(a, b)
+            return a.priority > b.priority
+        end)
+    end
+end
+
+---Unregister event handler
+---@param events string|table Event name(s)
+---@param callback function Callback function
+function Events:off_event(events, callback)
+    events = type(events) == 'table' and events or { events }
+
+    for _, event in ipairs(events) do
+        if self.event_handlers[event] then
+            for i, handler in ipairs(self.event_handlers[event]) do
+                if handler.callback == callback then
+                    table.remove(self.event_handlers[event], i)
+                    break
+                end
             end
-            table.insert(self.ungrouped_handlers[event], {
-                callback = callback,
-                priority = opts.priority or 0,
-                group = opts.group,
-                debug = opts.debug
-            })
-        else
-            -- Handle known events
-            if not self.event_handlers[event] then
-                self.event_handlers[event] = {}
-            end
-            table.insert(self.event_handlers[event], {
-                callback = callback,
-                priority = opts.priority or 0,
-                group = opts.group,
-                debug = opts.debug
-            })
-            -- Sort handlers by priority (higher first)
-            table.sort(self.event_handlers[event], function(a, b)
-                return a.priority > b.priority
-            end)
         end
     end
 end
@@ -268,58 +335,6 @@ function Events:on_keys(keys, callback, opts)
                     end)
                 end, { desc = key.desc })
             end
-        end
-    end
-end
-
----Handle event
----@param event string Event name
----@param args table Event arguments
-function Events:handle_event(event, args)
-    -- Record event in history
-    table.insert(self.event_history, {
-        event = event,
-        args = args,
-        time = os.time()
-    })
-    -- Keep only last 100 events
-    if #self.event_history > 100 then
-        table.remove(self.event_history, 1)
-    end
-
-    -- Handle known events
-    local handlers = self.event_handlers[event]
-    if handlers then
-        for _, handler in ipairs(handlers) do
-            -- Skip if handler is in debug mode and debug mode is off
-            if handler.debug and not self.debug_mode then
-                goto continue
-            end
-
-            local ok, err = pcall(handler.callback, args)
-            if not ok then
-                Logger.error("Event handler failed for " .. event .. ": " .. tostring(err))
-            end
-
-            ::continue::
-        end
-    end
-
-    -- Handle ungrouped events
-    local ungrouped_handlers = self.ungrouped_handlers[event]
-    if ungrouped_handlers then
-        for _, handler in ipairs(ungrouped_handlers) do
-            -- Skip if handler is in debug mode and debug mode is off
-            if handler.debug and not self.debug_mode then
-                goto continue
-            end
-
-            local ok, err = pcall(handler.callback, args)
-            if not ok then
-                Logger.error("Ungrouped event handler failed for " .. event .. ": " .. tostring(err))
-            end
-
-            ::continue::
         end
     end
 end

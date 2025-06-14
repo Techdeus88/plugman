@@ -88,42 +88,66 @@ end
 ---Auto-discover plugins from configured directories
 function M._discover_plugins()
   local plugins_dir = M.config.paths.plugins_dir
+  local cache_key = 'plugin_discovery'
+  local cache = M.manager.cache
 
+  -- Try to get cached discovery results
+  local cached = cache:get_plugin(cache_key)
+  if cached and cached.timestamp and (vim.loop.now() - cached.timestamp) < 3600000 then -- 1 hour cache
+    for _, spec in ipairs(cached.specs) do
+      M.manager:add_spec(spec)
+    end
+    return
+  end
+
+  -- Build a map of directories to scan
+  local dirs_to_scan = {}
   for _, dir in ipairs(plugins_dir) do
     local full_path = vim.fn.stdpath('config') .. '/lua/' .. dir:gsub('%.', '/')
-
     if vim.fn.isdirectory(full_path) == 1 then
-      M._load_plugin_directory(dir, full_path)
+      dirs_to_scan[full_path] = dir
     end
   end
-end
 
----Load plugins from directory
----@param module_path string Module path
----@param dir_path string Directory path
-function M._load_plugin_directory(module_path, dir_path)
-  local files = vim.fn.glob(dir_path .. '/*.lua', false, true)
+  -- Collect all specs
+  local specs = {}
+  for full_path, module_path in pairs(dirs_to_scan) do
+    -- Use glob to find all Lua files recursively
+    local files = vim.fn.glob(full_path .. '/**/*.lua', false, true)
+    
+    for _, file in ipairs(files) do
+      -- Convert file path to module path
+      local relative_path = file:sub(#full_path + 2, -5) -- Remove .lua extension
+      local module_name = module_path .. '.' .. relative_path:gsub('/', '.')
 
-  for _, file in ipairs(files) do
-    local filename = vim.fn.fnamemodify(file, ':t:r')
-    local module_name = module_path .. '.' .. filename
-
-    local ok, plugins_spec = pcall(require, module_name)
-    if ok then
-      -- Handle single spec file
-      if type(plugins_spec[1]) == "string" then
-        M.manager:add_spec(plugins_spec)
+      local ok, plugins_spec = pcall(require, module_name)
+      if ok then
+        -- Handle single spec file
+        if type(plugins_spec[1]) == "string" then
+          table.insert(specs, plugins_spec)
         -- Handle multi-spec file
-      else
-        for _, spec in ipairs(plugins_spec) do
-          if type(spec) == "table" and type(spec[1]) == "string" then
-            M.manager:add_spec(spec)
+        else
+          for _, spec in ipairs(plugins_spec) do
+            if type(spec) == "table" and type(spec[1]) == "string" then
+              table.insert(specs, spec)
+            end
           end
         end
+      else
+        Logger.warn("Failed to load plugin spec from: " .. module_name)
       end
-    else
-      Logger.warn("Failed to load plugin spec from: " .. module_name)
     end
+  end
+
+  -- Cache the results
+  cache:set_plugin(cache_key, {
+    timestamp = vim.loop.now(),
+    specs = specs
+  })
+
+  -- Add all specs to manager
+  for _, spec in ipairs(specs) do
+    M.manager:add_spec(spec)
   end
 end
 

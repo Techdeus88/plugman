@@ -69,6 +69,7 @@ function M.generate_content(plugins, config)
   -- Stats
   local total = vim.tbl_count(plugins)
   local installed = 0
+  local priority = 0
   local added = 0
   local loaded = 0
   local lazy = 0
@@ -80,8 +81,8 @@ function M.generate_content(plugins, config)
     if plugin.lazy then lazy = lazy + 1 end
   end
 
-  table.insert(lines, string.format("  📊 Stats: %d total, %d installed, %d added, %d loaded, %d lazy",
-    total, installed, added, loaded, lazy))
+  table.insert(lines, string.format("  📊 Stats: %d total, %d installed, %d added, %d loaded, %d lazy %d priority",
+    total, installed, added, loaded, priority, lazy))
   table.insert(lines, "")
   table.insert(lines, "  ─────────────────────────────────────")
   table.insert(lines, "")
@@ -104,13 +105,14 @@ function M.generate_content(plugins, config)
     local name = item.name
     local plugin = item.plugin
 
-    local status_icon = plugin.installed and icons.installed or icons.not_installed
+    local status_icon = plugin:is_installed() and icons.installed or icons.not_installed
+    local add_icon = plugin.added and icons.added or icons.not_added
     local load_icon = plugin.loaded and icons.loaded or icons.not_loaded
     local lazy_icon = plugin.lazy and icons.lazy or plugin.lazy == false and icons.not_lazy
     local priority_icon = plugin.priority > 0 and icons.priority or "  "
 
     local line = string.format("  %s %s %s %s %s",
-      status_icon, load_icon, lazy_icon, priority_icon, name)
+      status_icon, add_icon, load_icon, lazy_icon, priority_icon, name)
 
     if plugin.priority > 0 then
       line = line .. string.format(" (priority: %d)", plugin.priority)

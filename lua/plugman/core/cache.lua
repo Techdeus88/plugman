@@ -3,6 +3,8 @@ local Logger = require('plugman.utils.logger')
 ---@class PlugmanCache
 ---@field cache_dir string
 ---@field cache_file string
+---@field data table
+---@field dirty boolean
 local Cache = {}
 Cache.__index = Cache
 
@@ -15,9 +17,21 @@ function Cache.new(config)
   self.cache_dir = config.cache_dir
   self.cache_file = config.cache_dir .. '/plugman.json'
   self.data = {}
+  self.dirty = false
+  self.last_save = 0
+  self.save_interval = config.save_interval or 5000 -- 5 seconds
 
   self:ensure_cache_dir()
   self:load()
+
+  -- Setup auto-save
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    callback = function()
+      if self.dirty then
+        self:save()
+      end
+    end,
+  })
 
   return self
 end
@@ -71,15 +85,31 @@ end
 
 ---Save cache to file
 function Cache:save()
-  -- Create a copy of data that can be serialized
-  local serializable_data = filter_serializable(self.data)
+  if not self.dirty then
+    return
+  end
 
-  local ok, json = pcall(vim.json.encode, serializable_data)
-  if ok then
-    vim.fn.writefile({ json }, self.cache_file)
-    Logger.debug("Cache saved successfully")
+  local filtered_data = filter_serializable(self.data)
+  local json = vim.json.encode(filtered_data)
+  vim.fn.writefile(vim.split(json, '\n'), self.cache_file)
+  self.dirty = false
+  self.last_save = vim.loop.now()
+  Logger.debug("Cache saved successfully")
+end
+
+---Schedule a save if needed
+function Cache:schedule_save()
+  if not self.dirty then
+    return
+  end
+
+  local now = vim.loop.now()
+  if now - self.last_save >= self.save_interval then
+    self:save()
   else
-    Logger.error("Failed to encode cache data")
+    vim.defer_fn(function()
+      self:save()
+    end, self.save_interval - (now - self.last_save))
   end
 end
 
@@ -87,53 +117,40 @@ end
 ---@param name string Plugin name
 ---@param data table Plugin data
 function Cache:set_plugin(name, data)
-  if not self.data.plugins then
-    self.data.plugins = {}
-  end
-
-  self.data.plugins[name] = data
-  self:save()
+  self.data[name] = data
+  self.dirty = true
+  self:schedule_save()
 end
 
 ---Get plugin data
 ---@param name string Plugin name
 ---@return table|nil Plugin data
 function Cache:get_plugin(name)
-  if not self.data.plugins then
-    return nil
-  end
-
-  return self.data.plugins[name]
+  return self.data[name]
 end
 
 ---Remove plugin data
 ---@param name string Plugin name
 function Cache:remove_plugin(name)
-  if self.data.plugins then
-    self.data.plugins[name] = nil
-    self:save()
-  end
+  self.data[name] = nil
+  self.dirty = true
+  self:schedule_save()
 end
 
----Clear cache
-function Cache:clear()
-  self.data = {}
-  self:save()
-  Logger.info("Cache cleared")
-end
-
----Get cache stats
----@return table Cache statistics
+---Get cache statistics
+---@return table Stats
 function Cache:stats()
-  local plugin_count = 0
-  if self.data.plugins then
-    plugin_count = vim.tbl_count(self.data.plugins)
+  local size = 0
+  local count = 0
+
+  for name, data in pairs(self.data) do
+    count = count + 1
+    size = size + #vim.json.encode(data)
   end
 
   return {
-    plugin_count = plugin_count,
-    cache_file = self.cache_file,
-    size = vim.fn.getfsize(self.cache_file),
+    plugin_count = count,
+    size = size
   }
 end
 

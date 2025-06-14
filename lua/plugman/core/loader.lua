@@ -52,10 +52,17 @@ function Loader:load_startup_plugins()
   local priority_plugins = {}
   local non_lazy_plugins = {}
   local lazy_plugins = {}
+  local plugin_deps = {}
 
+  -- First pass: categorize plugins and build dependency graph
   for name, plugin in pairs(plugins) do
     if not plugin.enabled then
       goto continue
+    end
+
+    -- Build dependency graph
+    if plugin.depends then
+      plugin_deps[name] = plugin.depends
     end
 
     if plugin.priority > 0 then
@@ -74,13 +81,40 @@ function Loader:load_startup_plugins()
     return a.priority > b.priority
   end)
 
-  -- Load priority plugins first
+  -- Load priority plugins first (these must be sequential)
   for _, plugin in ipairs(priority_plugins) do
     self.manager:load(plugin)
   end
 
-  -- Load non-lazy plugins
+  -- Group non-lazy plugins by dependencies
+  local independent_plugins = {}
+  local dependent_plugins = {}
+
   for _, plugin in ipairs(non_lazy_plugins) do
+    if not plugin_deps[plugin.name] or #plugin_deps[plugin.name] == 0 then
+      table.insert(independent_plugins, plugin)
+    else
+      table.insert(dependent_plugins, plugin)
+    end
+  end
+
+  -- Load independent plugins in parallel
+  if #independent_plugins > 0 then
+    local load_tasks = {}
+    for _, plugin in ipairs(independent_plugins) do
+      table.insert(load_tasks, function()
+        self.manager:load(plugin)
+      end)
+    end
+    vim.schedule(function()
+      for _, task in ipairs(load_tasks) do
+        task()
+      end
+    end)
+  end
+
+  -- Load dependent plugins sequentially
+  for _, plugin in ipairs(dependent_plugins) do
     self.manager:load(plugin)
   end
 
