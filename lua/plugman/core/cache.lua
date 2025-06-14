@@ -46,22 +46,33 @@ function Cache:load()
   end
 end
 
+---Filter out non-serializable data recursively
+---@param data any Data to filter
+---@return any Filtered data
+local function filter_serializable(data)
+  if type(data) ~= 'table' then
+    return data
+  end
+
+  local result = {}
+  for k, v in pairs(data) do
+    if type(v) == 'function' then
+      -- Skip functions
+      goto continue
+    elseif type(v) == 'table' then
+      result[k] = filter_serializable(v)
+    else
+      result[k] = v
+    end
+    ::continue::
+  end
+  return result
+end
+
 ---Save cache to file
 function Cache:save()
   -- Create a copy of data that can be serialized
-  local serializable_data = vim.deepcopy(self.data)
-  
-  -- Filter out non-serializable data from plugins
-  if serializable_data.plugins then
-    for _, plugin in pairs(serializable_data.plugins) do
-      -- Remove function fields
-      for k, v in pairs(plugin) do
-        if type(v) == 'function' then
-          plugin[k] = nil
-        end
-      end
-    end
-  end
+  local serializable_data = filter_serializable(self.data)
 
   local ok, json = pcall(vim.json.encode, serializable_data)
   if ok then
