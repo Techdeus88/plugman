@@ -133,20 +133,14 @@ function M.setup(opts)
     end
   end
 
-  -- Then discover and load plugins
+  -- Then discover and add plugins
   local plugin_specs = _discover_plugins()
   for _, spec in ipairs(plugin_specs) do
-    local plugin = M.manager:add_spec(spec)
-    if plugin then
-      -- Install if not installed
-      if not plugin.installed then
-        M.manager:install(plugin)
-      end
-    end
+    M.manager:add_spec(spec)
   end
 
-  -- Load startup plugins
-  M.loader:load_startup_plugins()
+  -- Initialize loader (this will handle installation and loading)
+  M.loader:init()
 
   -- Run initial health check
   local health_report = Health.check(M.manager)

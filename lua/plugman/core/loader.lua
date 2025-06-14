@@ -15,22 +15,23 @@ function Loader.new(manager, config)
 
   self.manager = manager
   self.config = config
-  self.events = Events.new(self)
+  -- Don't create events here, it will be set by init.lua
+  self.events = nil
 
   return self
 end
 
 ---Initialize loader
 function Loader:init()
+  -- Get the events instance from the main module
+  self.events = require('plugman').get_events()
+  
   self:setup_autocmds()
   self:setup_commands()
 
-  -- Schedule optional initial install (add to disk) and non-optional add to current session
+  -- Schedule initial install and load
   vim.schedule(function()
     self:install_all()
-  end)
-  -- Schedule initial load
-  vim.schedule(function()
     self:load_startup_plugins()
   end)
 end
