@@ -114,7 +114,7 @@ function M._discover_plugins()
   for full_path, module_path in pairs(dirs_to_scan) do
     -- Use glob to find all Lua files recursively
     local files = vim.fn.glob(full_path .. '/**/*.lua', false, true)
-    
+
     for _, file in ipairs(files) do
       -- Convert file path to module path
       local relative_path = file:sub(#full_path + 2, -5) -- Remove .lua extension
@@ -123,10 +123,13 @@ function M._discover_plugins()
       local ok, plugins_spec = pcall(require, module_name)
       print(vim.inspect(plugins_spec))
       if ok then
+        if type(plugins_spec) == "boolean" then
+          goto continue
+        end
         -- Handle single spec file
         if type(plugins_spec[1]) == "string" then
           table.insert(specs, plugins_spec)
-        -- Handle multi-spec file
+          -- Handle multi-spec file
         else
           for _, spec in ipairs(plugins_spec) do
             if type(spec) == "table" and type(spec[1]) == "string" then
@@ -137,6 +140,7 @@ function M._discover_plugins()
       else
         Logger.warn("Failed to load plugin spec from: " .. module_name)
       end
+      ::continue::
     end
   end
 
