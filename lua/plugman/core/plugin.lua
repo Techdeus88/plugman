@@ -63,6 +63,8 @@ function Plugin.from_spec(spec)
   if type(spec) == 'string' then
     return Plugin.new(spec, {}, "plugin")
   elseif type(spec) == 'table' then
+    print(vim.inspect(spec))
+    print(spec[1])
     local source = spec[1] or spec.source
     if not source then
       error(string.format("Plugin spec must have source - %s", vim.inspect(spec)))

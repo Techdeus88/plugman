@@ -48,9 +48,9 @@ end
 function Loader:load_startup_plugins()
   local plugins = self.manager:get_plugins()
 
-  -- Get priority, non-lazy, and lazy plugins
+  -- Get priority, normal (non-lazy), and lazy plugins
   local priority_plugins = {}
-  local non_lazy_plugins = {}
+  local normal_plugins = {}
   local lazy_plugins = {}
   local plugin_deps = {}
 
@@ -68,7 +68,7 @@ function Loader:load_startup_plugins()
     if plugin.priority > 0 then
       table.insert(priority_plugins, plugin)
     elseif plugin.lazy == false then
-      table.insert(non_lazy_plugins, plugin)
+      table.insert(normal_plugins, plugin)
     else
       table.insert(lazy_plugins, plugin)
     end
@@ -86,11 +86,11 @@ function Loader:load_startup_plugins()
     self.manager:load(plugin)
   end
 
-  -- Group non-lazy plugins by dependencies
+  -- Group normal plugins by dependencies
   local independent_plugins = {}
   local dependent_plugins = {}
 
-  for _, plugin in ipairs(non_lazy_plugins) do
+  for _, plugin in ipairs(normal_plugins) do
     if not plugin_deps[plugin.name] or #plugin_deps[plugin.name] == 0 then
       table.insert(independent_plugins, plugin)
     else
