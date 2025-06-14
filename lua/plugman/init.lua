@@ -101,7 +101,7 @@ local function _discover_plugins()
   local plugin_specs = _discover_plugin_specs()
 
   -- Combine and cache results
-  local all_specs = vim.list_extend(module_specs, plugin_specs)
+  local all_specs = plugin_specs
   discovery_cache = {
     timestamp = now,
     specs = all_specs,
