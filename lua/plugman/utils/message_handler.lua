@@ -61,12 +61,20 @@ function M.handle(category, message_type, message, opts)
 
     -- Log if enabled
     if should_log then
-        logger[message_type:lower()](formatted_message)
+        -- Convert message type to uppercase for logger
+        local log_method = message_type:upper()
+        if logger[log_method] then
+            logger[log_method](formatted_message)
+        end
     end
 
     -- Notify if enabled
     if should_notify then
-        notify[message_type:lower()](formatted_message)
+        -- Convert message type to lowercase for notify
+        local notify_method = message_type:lower()
+        if notify[notify_method] then
+            notify[notify_method](formatted_message)
+        end
     end
 end
 
