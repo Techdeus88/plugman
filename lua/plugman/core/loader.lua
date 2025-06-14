@@ -31,15 +31,19 @@ function Loader:init()
 
   -- Schedule initial install and load
   vim.schedule(function()
+    -- First ensure all plugins are added to session
     self:install_all()
-    self:load_startup_plugins()
+    -- Then load plugins after a short delay to ensure installs complete
+    vim.defer_fn(function()
+      self:load_startup_plugins()
+    end, 100) -- 100ms delay should be enough for installs
   end)
 end
 
 function Loader:install_all()
   local plugins = self.manager:get_plugins()
   for _, plugin in pairs(plugins) do
-    if not plugin:is_installed() then
+    if not plugin.added then  -- Changed from is_installed() to added
       self.manager:install(plugin)
     end
   end
