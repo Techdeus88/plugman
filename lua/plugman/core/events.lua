@@ -208,35 +208,66 @@ function Events:on_keys(keys, callback, opts)
     for _, key in ipairs(keys) do
         local mode = key.mode or 'n'
         if type(mode) == "table" then
-            mode = table.concat(mode, '')
-        end
-        local lhs = key.lhs or key[1]
-        if lhs then
-            local key_id = mode .. ':' .. lhs
-            self.key_handlers[key_id] = {
-                callback = callback,
-                priority = opts.priority or 0,
-                group = opts.group,
-                debug = opts.debug
-            }
+            -- Handle each mode separately
+            for _, m in ipairs(mode) do
+                local lhs = key.lhs or key[1]
+                if lhs then
+                    local key_id = m .. ':' .. lhs
+                    self.key_handlers[key_id] = {
+                        callback = callback,
+                        priority = opts.priority or 0,
+                        group = opts.group,
+                        debug = opts.debug
+                    }
 
-            -- Create lazy keymap
-            vim.keymap.set(mode, lhs, function()
-                -- Execute callback first
-                callback()
+                    -- Create lazy keymap for this mode
+                    vim.keymap.set(m, lhs, function()
+                        -- Execute callback first
+                        callback()
 
-                -- Then execute the original mapping
-                vim.schedule(function()
-                    local rhs = key.rhs or key[2]
-                    if rhs then
-                        if type(rhs) == 'function' then
-                            rhs()
-                        else
-                            vim.cmd(rhs)
+                        -- Then execute the original mapping
+                        vim.schedule(function()
+                            local rhs = key.rhs or key[2]
+                            if rhs then
+                                if type(rhs) == 'function' then
+                                    rhs()
+                                else
+                                    vim.cmd(rhs)
+                                end
+                            end
+                        end)
+                    end, { desc = key.desc })
+                end
+            end
+        else
+            local lhs = key.lhs or key[1]
+            if lhs then
+                local key_id = mode .. ':' .. lhs
+                self.key_handlers[key_id] = {
+                    callback = callback,
+                    priority = opts.priority or 0,
+                    group = opts.group,
+                    debug = opts.debug
+                }
+
+                -- Create lazy keymap
+                vim.keymap.set(mode, lhs, function()
+                    -- Execute callback first
+                    callback()
+
+                    -- Then execute the original mapping
+                    vim.schedule(function()
+                        local rhs = key.rhs or key[2]
+                        if rhs then
+                            if type(rhs) == 'function' then
+                                rhs()
+                            else
+                                vim.cmd(rhs)
+                            end
                         end
-                    end
-                end)
-            end, { desc = key.desc })
+                    end)
+                end, { desc = key.desc })
+            end
         end
     end
 end
