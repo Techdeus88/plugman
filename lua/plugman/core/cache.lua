@@ -12,8 +12,10 @@ Cache.__index = Cache
 ---@param config table Configuration
 ---@return PlugmanCache
 function Cache.new(config)
+  ---@class PlugmanCache
   local self = setmetatable({}, Cache)
 
+  self.config = config  -- Store full config
   self.cache_dir = config.paths.cache_dir
   self.cache_file = config.paths.cache_dir .. '/plugman.json'
   self.data = {}
@@ -38,8 +40,15 @@ end
 
 ---Ensure cache directory exists
 function Cache:ensure_cache_dir()
+  -- Ensure cache directory exists
   if vim.fn.isdirectory(self.cache_dir) == 0 then
     vim.fn.mkdir(self.cache_dir, 'p')
+  end
+  
+  -- Ensure snapshots directory exists
+  local snapshot_dir = self.config.paths.snapshot_dir
+  if vim.fn.isdirectory(snapshot_dir) == 0 then
+    vim.fn.mkdir(snapshot_dir, 'p')
   end
 end
 
