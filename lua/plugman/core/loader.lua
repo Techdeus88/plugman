@@ -42,8 +42,15 @@ end
 
 function Loader:install_all()
   local plugins = self.manager:get_plugins()
-  for _, plugin in pairs(plugins) do
-    if not plugin.added then  -- Changed from is_installed() to added
+  Logger.debug("Installing all plugins via loader:")
+  for name, plugin in pairs(plugins) do
+    Logger.debug(string.format("  Plugin: %s, added: %s, installed: %s", 
+      name, 
+      tostring(plugin.added), 
+      tostring(plugin.installed)
+    ))
+    if not plugin.added then
+      Logger.debug(string.format("  Installing plugin: %s", vim.inspect(plugin)))
       self.manager:install(plugin)
     end
   end

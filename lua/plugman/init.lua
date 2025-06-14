@@ -93,12 +93,23 @@ local function _discover_plugins()
   -- Check cache first
   local now = os.time()
   if now - discovery_cache.timestamp < Config.performance.cache_ttl then
+    Logger.debug("Using cached plugin specs")
     return discovery_cache.specs
   end
 
   -- Discover modules and plugins separately
   local module_specs = _discover_modules()
   local plugin_specs = _discover_plugin_specs()
+
+  Logger.debug("Discovered modules:")
+  for _, spec in ipairs(module_specs) do
+    Logger.debug(string.format("  - %s (type: %s, path: %s)", spec.name, spec.type, spec.path))
+  end
+
+  Logger.debug("Discovered plugins:")
+  for _, spec in ipairs(plugin_specs) do
+    Logger.debug(string.format("  - %s (type: %s, path: %s)", spec.name, spec.type, spec.path))
+  end
 
   -- Only return plugin specs for loading
   discovery_cache = {
@@ -127,15 +138,19 @@ function M.setup(opts)
 
   -- Load modules first (for API/setup)
   local module_specs = _discover_modules()
+  Logger.debug("Loading modules:")
   for _, spec in ipairs(module_specs) do
     if spec.path then
+      Logger.debug(string.format("  Loading module: %s from %s", spec.name, spec.path))
       dofile(spec.path)  -- Load module directly
     end
   end
 
   -- Then discover and add plugins
   local plugin_specs = _discover_plugins()
+  Logger.debug("Adding plugins to manager:")
   for _, spec in ipairs(plugin_specs) do
+    Logger.debug(string.format("  Adding plugin: %s", vim.inspect(spec)))
     M.manager:add_spec(spec)
   end
 

@@ -60,6 +60,7 @@ end
 ---@param spec table|string Plugin specification
 ---@return PlugmanPlugin
 function Plugin.from_spec(spec)
+  Logger.debug(string.format("Creating plugin from spec: %s", vim.inspect(spec)))
   if type(spec) == 'string' then
     return Plugin.new(spec, {}, "plugin")
   elseif type(spec) == 'table' then
@@ -72,6 +73,7 @@ function Plugin.from_spec(spec)
     opts[1] = nil
     opts.source = nil
 
+    Logger.debug(string.format("Created plugin with source: %s, opts: %s", source, vim.inspect(opts)))
     return Plugin.new(source, opts, "plugin")
   else
     error("Invalid plugin spec type: " .. type(spec))

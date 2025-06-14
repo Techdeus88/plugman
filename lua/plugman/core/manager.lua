@@ -30,7 +30,9 @@ end
 ---@param spec table|string Plugin specification
 ---@return PlugmanPlugin
 function Manager:add_spec(spec)
+  Logger.debug(string.format("Converting spec to plugin: %s", vim.inspect(spec)))
   local plugin = Plugin.from_spec(spec)
+  Logger.debug(string.format("Created plugin: %s", vim.inspect(plugin)))
   return self:add_plugin(plugin)
 end
 
@@ -53,6 +55,7 @@ function Manager:add_plugin(plugin)
     return self.plugins[plugin.name]
   end
 
+  Logger.debug(string.format("Adding plugin to manager: %s", vim.inspect(plugin)))
   self.plugins[plugin.name] = plugin
 
   -- Cache plugin info
@@ -124,16 +127,17 @@ function Manager:install(plugin)
     return true
   end
 
-  Logger.info("Installing plugin: " .. plugin.name)
+  Logger.debug(string.format("Installing plugin: %s", vim.inspect(plugin)))
 
-  -- Use deps_add from bootstrap module
-  local ok = Bootstrap.deps_add({
-    source = plugin.source,
-    depends = plugin.depends,
-    hooks = plugin.hooks,
-    checkout = plugin.checkout,
-    monitor = plugin.monitor,
-  })
+  local ok, err = pcall(function()
+    MiniDeps.add({
+      source = plugin.source,
+      depends = plugin.depends,
+      hooks = plugin.hooks,
+      checkout = plugin.checkout,
+      monitor = plugin.monitor,
+    })
+  end)
 
   if ok then
     plugin.installed = plugin:is_installed()
@@ -142,7 +146,7 @@ function Manager:install(plugin)
     Logger.info("Installed plugin: " .. plugin.name)
     return true
   else
-    Logger.error("Failed to install plugin: " .. plugin.name)
+    Logger.error("Failed to install plugin: " .. plugin.name .. " - " .. tostring(err))
     Notify.error("Failed to install: " .. plugin.name)
     return false
   end
