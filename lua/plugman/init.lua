@@ -124,7 +124,7 @@ function M.setup(opts)
   M.manager = Manager.new(M.config)
   M.loader = Loader.new(M.manager, M.config)
   M.events = Events.new(M.loader)
-  Cache.init()
+  M.cache = Cache.new(M.config)
 
   -- Discover and load plugins
   local specs = _discover_plugins()
