@@ -2,6 +2,22 @@ local Logger = require('plugman.utils.logger')
 
 local M = {}
 
+-- Cache for plugin sorting and stats
+local cache = {
+  sorted_plugins = nil,
+  stats = nil,
+  last_update = 0
+}
+
+-- Constants
+local CACHE_TTL = 5000 -- 5 seconds
+local SECTIONS = {
+  HEADER = 1,
+  STATS = 2,
+  PLUGINS = 3,
+  FOOTER = 4
+}
+
 ---Show dashboard
 ---@param manager PlugmanManager
 function M.show(manager)
@@ -11,13 +27,13 @@ function M.show(manager)
   -- Create buffer
   local buf = vim.api.nvim_create_buf(false, true)
 
-  -- Generate content
-  local lines = M.generate_content(plugins, config)
-
-  -- Set buffer content
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-  vim.api.nvim_buf_set_option(buf, 'filetype', 'plugman')
+  -- Generate content asynchronously
+  vim.schedule(function()
+    local lines = M.generate_content(plugins, config)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+    vim.api.nvim_buf_set_option(buf, 'filetype', 'plugman')
+  end)
 
   -- Create window
   local width = math.floor(vim.o.columns * config.ui.width)
@@ -39,6 +55,9 @@ function M.show(manager)
   -- Set window options
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'cursorline', true)
+  vim.api.nvim_win_set_option(win, 'number', false)
+  vim.api.nvim_win_set_option(win, 'relativenumber', false)
+  vim.api.nvim_win_set_option(win, 'signcolumn', 'no')
 
   -- Setup highlighting
   M.setup_highlighting()
@@ -49,6 +68,72 @@ function M.show(manager)
   Logger.info("Dashboard opened")
 end
 
+---Calculate plugin stats
+---@param plugins table<string, PlugmanPlugin>
+---@return table Stats
+local function calculate_stats(plugins)
+  local stats = {
+    total = 0,
+    installed = 0,
+    added = 0,
+    loaded = 0,
+    lazy = 0,
+    priority = 0
+  }
+
+  for _, plugin in pairs(plugins) do
+    stats.total = stats.total + 1
+    if plugin.installed then stats.installed = stats.installed + 1 end
+    if plugin.added then stats.added = stats.added + 1 end
+    if plugin.loaded then stats.loaded = stats.loaded + 1 end
+    if plugin.lazy then stats.lazy = stats.lazy + 1 end
+    if plugin.priority > 0 then stats.priority = stats.priority + 1 end
+  end
+
+  return stats
+end
+
+---Get cached or calculate stats
+---@param plugins table<string, PlugmanPlugin>
+---@return table Stats
+local function get_stats(plugins)
+  local now = vim.loop.now()
+  if cache.stats and (now - cache.last_update) < CACHE_TTL then
+    return cache.stats
+  end
+
+  cache.stats = calculate_stats(plugins)
+  cache.last_update = now
+  return cache.stats
+end
+
+---Sort plugins
+---@param plugins table<string, PlugmanPlugin>
+---@return table Sorted plugins
+local function sort_plugins(plugins)
+  local now = vim.loop.now()
+  if cache.sorted_plugins and (now - cache.last_update) < CACHE_TTL then
+    return cache.sorted_plugins
+  end
+
+  local sorted = {}
+  for name, plugin in pairs(plugins) do
+    table.insert(sorted, { name = name, plugin = plugin })
+  end
+
+  table.sort(sorted, function(a, b)
+    -- Sort by priority first, then by name
+    if a.plugin.priority ~= b.plugin.priority then
+      return a.plugin.priority > b.plugin.priority
+    end
+    return string.lower(a.name) < string.lower(b.name)
+  end)
+
+  cache.sorted_plugins = sorted
+  cache.last_update = now
+  return sorted
+end
+
 ---Generate dashboard content
 ---@param plugins table<string, PlugmanPlugin>
 ---@param config table Configuration
@@ -56,6 +141,7 @@ end
 function M.generate_content(plugins, config)
   local lines = {}
   local icons = config.ui.icons
+  local stats = get_stats(plugins)
 
   -- Header
   table.insert(lines, "                     🔌                   ")
@@ -65,57 +151,59 @@ function M.generate_content(plugins, config)
   table.insert(lines, "  ╰──────────────────────────────────────╯")
   table.insert(lines, "                     🔌                   ")
 
-
   -- Stats
-  local total = vim.tbl_count(plugins)
-  local installed = 0
-  local priority = 0
-  local added = 0
-  local loaded = 0
-  local lazy = 0
-
-  for _, plugin in pairs(plugins) do
-    if plugin.installed then installed = installed + 1 end
-    if plugin.added then added = added + 1 end
-    if plugin.loaded then loaded = loaded + 1 end
-    if plugin.lazy then lazy = lazy + 1 end
-  end
-
-  table.insert(lines, string.format("  📊 Stats: %d total, %d installed, %d added, %d loaded, %d lazy %d priority",
-    total, installed, added, loaded, priority, lazy))
+  table.insert(lines, string.format("  📊 Stats: %d total, %d installed, %d added, %d loaded, %d lazy, %d priority",
+    stats.total, stats.installed, stats.added, stats.loaded, stats.lazy, stats.priority))
   table.insert(lines, "")
   table.insert(lines, "  ─────────────────────────────────────")
   table.insert(lines, "")
 
   -- Plugin list
-  local sorted_plugins = {}
-  for name, plugin in pairs(plugins) do
-    table.insert(sorted_plugins, { name = name, plugin = plugin })
-  end
-
-  table.sort(sorted_plugins, function(a, b)
-    -- Sort by priority first, then by name
-    if a.plugin.priority ~= b.plugin.priority then
-      return a.plugin.priority > b.plugin.priority
-    end
-    return string.lower(a.name) < string.lower(b.name)
-  end)
+  local sorted_plugins = sort_plugins(plugins)
+  local current_section = nil
 
   for _, item in ipairs(sorted_plugins) do
     local name = item.name
     local plugin = item.plugin
 
+    -- Add section headers
+    if plugin.priority > 0 and current_section ~= 'priority' then
+      current_section = 'priority'
+      table.insert(lines, "  🚀 Priority Plugins:")
+      table.insert(lines, "")
+    elseif plugin.priority == 0 and not plugin.lazy and current_section ~= 'normal' then
+      current_section = 'normal'
+      table.insert(lines, "  ⚡ Normal Plugins:")
+      table.insert(lines, "")
+    elseif plugin.lazy and current_section ~= 'lazy' then
+      current_section = 'lazy'
+      table.insert(lines, "  💤 Lazy Plugins:")
+      table.insert(lines, "")
+    end
+
     local status_icon = plugin:is_installed() and icons.installed or icons.not_installed
     local add_icon = plugin.added and icons.added or icons.not_added
     local load_icon = plugin.loaded and icons.loaded or icons.not_loaded
     local lazy_icon = plugin.lazy and icons.lazy or plugin.lazy == false and icons.not_lazy
-    local priority_icon = plugin.priority > 0 and icons.priority or "  "
+    local priority_icon = plugin.priority > 0 and icons.priority or " "
 
-    local line = string.format("  %s %s %s %s %s",
+    local line = string.format("  %s %s %s %s %s %s",
       status_icon, add_icon, load_icon, lazy_icon, priority_icon, name)
 
     if plugin.priority > 0 then
       line = line .. string.format(" (priority: %d)", plugin.priority)
+    end
+
+    -- Add trigger information for lazy plugins
+    if plugin.lazy then
+      local triggers = {}
+      if plugin.cmd then table.insert(triggers, "cmd") end
+      if plugin.event then table.insert(triggers, "event") end
+      if plugin.ft then table.insert(triggers, "ft") end
+      if plugin.keys then table.insert(triggers, "keys") end
+      if #triggers > 0 then
+        line = line .. string.format(" [%s]", table.concat(triggers, ", "))
+      end
     end
 
     table.insert(lines, line)
@@ -126,12 +214,13 @@ function M.generate_content(plugins, config)
   table.insert(lines, "  ─────────────────────────────────────")
   table.insert(lines, "")
   table.insert(lines, "  Keymaps:")
-  table.insert(lines, "    i - Install plugin")
-  table.insert(lines, "    u - Update plugin")
-  table.insert(lines, "    d - Remove plugin")
-  table.insert(lines, "    r - Reload plugin")
-  table.insert(lines, "    U - Update all")
-  table.insert(lines, "    q - Quit")
+  table.insert(lines, "    <CR> - Show plugin details")
+  table.insert(lines, "    i    - Install plugin")
+  table.insert(lines, "    u    - Update plugin")
+  table.insert(lines, "    d    - Remove plugin")
+  table.insert(lines, "    r    - Reload plugin")
+  table.insert(lines, "    U    - Update all")
+  table.insert(lines, "    q    - Quit")
   table.insert(lines, "")
 
   return lines
@@ -140,14 +229,16 @@ end
 ---Setup highlighting
 function M.setup_highlighting()
   vim.cmd([[
-        highlight PlugmanHeader guifg=#61AFEF gui=bold
-        highlight PlugmanInstalled guifg=#98C379
-        highlight PlugmanNotInstalled guifg=#E06C75
-        highlight PlugmanLoaded guifg=#98C379
-        highlight PlugmanNotLoaded guifg=#ABB2BF
-        highlight PlugmanLazy guifg=#C678DD
-        highlight PlugmanPriority guifg=#E5C07B
-    ]])
+    highlight PlugmanHeader guifg=#61AFEF gui=bold
+    highlight PlugmanInstalled guifg=#98C379
+    highlight PlugmanNotInstalled guifg=#E06C75
+    highlight PlugmanLoaded guifg=#98C379
+    highlight PlugmanNotLoaded guifg=#ABB2BF
+    highlight PlugmanLazy guifg=#C678DD
+    highlight PlugmanPriority guifg=#E5C07B
+    highlight PlugmanSection guifg=#61AFEF gui=bold
+    highlight PlugmanTrigger guifg=#56B6C2
+  ]])
 end
 
 ---Show plugin details
@@ -176,7 +267,7 @@ function M.show_plugin_details(plugin, name, config)
   -- Plugin Spec
   table.insert(lines, "  │ Specification:")
   for k, v in pairs(plugin) do
-    if type(v) ~= 'function' then
+    if type(v) ~= 'function' and k ~= 'name' then
       local value = type(v) == 'table' and vim.inspect(v) or tostring(v)
       -- Format long values
       if #value > 50 then
@@ -190,7 +281,7 @@ function M.show_plugin_details(plugin, name, config)
   table.insert(lines, "  │")
   table.insert(lines, "  ╰──────────────────────╯")
   table.insert(lines, "")
-  table.insert(lines, "  Press 'q' to return to plugin list")
+  table.insert(lines, "  Press '<BS>' to return to plugin list")
 
   return lines
 end
@@ -228,6 +319,9 @@ function M.setup_keymaps(buf, win, manager)
 
   -- Return to plugin list
   vim.keymap.set('n', '<BS>', function()
+    -- Clear cache to force refresh
+    cache.sorted_plugins = nil
+    cache.stats = nil
     local lines = M.generate_content(manager:get_plugins(), config)
     vim.api.nvim_buf_set_option(buf, 'modifiable', true)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -239,6 +333,9 @@ function M.setup_keymaps(buf, win, manager)
     local plugin = get_current_plugin()
     if plugin and not plugin.installed then
       manager:install(plugin)
+      -- Clear cache to force refresh
+      cache.sorted_plugins = nil
+      cache.stats = nil
       vim.cmd('redraw')
     end
   end, opts)
@@ -248,6 +345,9 @@ function M.setup_keymaps(buf, win, manager)
     local plugin = get_current_plugin()
     if plugin and plugin.installed then
       manager:update({ plugin.name })
+      -- Clear cache to force refresh
+      cache.sorted_plugins = nil
+      cache.stats = nil
       vim.cmd('redraw')
     end
   end, opts)
@@ -257,6 +357,9 @@ function M.setup_keymaps(buf, win, manager)
     local plugin = get_current_plugin()
     if plugin then
       manager:remove(plugin.name)
+      -- Clear cache to force refresh
+      cache.sorted_plugins = nil
+      cache.stats = nil
       vim.cmd('redraw')
     end
   end, opts)
@@ -266,6 +369,9 @@ function M.setup_keymaps(buf, win, manager)
     local plugin = get_current_plugin()
     if plugin and plugin.installed then
       manager:load(plugin)
+      -- Clear cache to force refresh
+      cache.sorted_plugins = nil
+      cache.stats = nil
       vim.cmd('redraw')
     end
   end, opts)
@@ -273,6 +379,9 @@ function M.setup_keymaps(buf, win, manager)
   -- Update all
   vim.keymap.set('n', 'U', function()
     manager:update()
+    -- Clear cache to force refresh
+    cache.sorted_plugins = nil
+    cache.stats = nil
     vim.cmd('redraw')
   end, opts)
 end
