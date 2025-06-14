@@ -17,7 +17,7 @@ M.manager = nil
 M.loader = nil
 M.config = nil
 
--- Cache for plugin discovery
+-- Cache for plugin discovry
 local discovery_cache = {
   timestamp = 0,
   specs = {},
@@ -43,7 +43,7 @@ local function _discover_modules()
         name = module_name,
         type = 'module',
         path = file,
-        priority = 1  -- Modules are loaded first
+        priority = 1 -- Modules are loaded first
       })
     end
   end
@@ -61,7 +61,7 @@ local function _discover_plugin_specs()
     if vim.fn.isdirectory(dir) then
       -- Find all Lua files in the directory
       local files = vim.fn.glob(dir .. '/**/*.lua', true, true)
-      
+
       for _, file in ipairs(files) do
         local spec = dofile(file)
         if spec then
@@ -123,7 +123,7 @@ function M.setup(opts)
   Messages.init(M.config.messages)
   M.manager = Manager.new(M.config)
   M.loader = Loader.new(M.manager, M.config)
-  Events.init()
+  M.events = Events.new(M.loader)
   Cache.init()
 
   -- Discover and load plugins
@@ -208,7 +208,7 @@ end
 ---Get the event system instance
 ---@return table Event system instance
 function M.get_events()
-  return Events
+  return M.events
 end
 
 ---Get the cache instance
