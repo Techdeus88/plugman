@@ -9,7 +9,7 @@ local defaults = {
         -- Directories for plugin specifications
         plugins_dir = {
             'plugins',
-            'plugins.local' -- For local-only plugins
+            'modules' -- For local-only plugins
         },
         -- Installation directory
         install_dir = vim.fn.stdpath('data') .. '/site/pack/deps',
@@ -41,13 +41,14 @@ local defaults = {
     performance = {
         lazy_time = 2000, -- Time to wait before loading lazy plugins
         cache_ttl = 3600, -- Cache TTL in seconds
-        max_parallel = 4 -- Maximum number of parallel plugin operations
+        max_parallel = 4  -- Maximum number of parallel plugin operations
     },
 
     -- Logging configuration
     logging = {
         level = 'info',
-        file = vim.fn.stdpath('cache') .. '/plugman.log'
+        file = vim.fn.stdpath('cache') .. '/plugman.log',
+        console = false,
     },
 
     -- Notification settings
@@ -62,6 +63,34 @@ local defaults = {
         show_errors = true,
         show_warnings = true,
         show_info = true
+    },
+    minideps = {
+        job = {
+            -- Number of parallel threads to use. Default: 80% of all available.
+            n_threads = nil,
+
+            -- Timeout (in ms) for each job before force quit
+            timeout = 30000,
+        },
+
+        -- Paths describing where to store data
+        path = {
+            -- Directory for built-in package.
+            -- All plugins are actually stored in 'pack/deps' subdirectory.
+            package = vim.fn.stdpath('data') .. '/site',
+
+            -- Default file path for a snapshot
+            snapshot = vim.fn.stdpath('config') .. '/mini-deps-snap',
+
+            -- Log file
+            --minidoc_replace_start log = vim.fn.stdpath('log') .. '/mini-deps.log'
+            log = vim.fn.stdpath('log') .. '/mini-deps.log',
+            --minidoc_replace_end
+        },
+
+        -- Whether to disable showing non-error feedback
+        silent = false,
+
     }
 }
 

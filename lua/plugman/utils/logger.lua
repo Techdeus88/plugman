@@ -27,7 +27,6 @@ function M.setup(opts)
   config.level = levels[opts.level:upper()] or levels.INFO
   config.file = opts.file
   config.console = opts.console
-  config.log_file = opts.log_file
 
   if config.file then
     -- Ensure log directory exists
@@ -59,8 +58,8 @@ local function log(level, message, ...)
 
 
   -- Write to file
-  if config.file then
-    local file = io.open(config.log_file, 'a')
+  if config.file ~= nil then
+    local file = io.open(config.file, 'a')
     if file then
       file:write(log_line .. '\n')
       file:close()
