@@ -65,12 +65,26 @@ local defaults = {
     }
 }
 
+-- Store the config in the module
+M._config = vim.deepcopy(defaults)
+
 ---Setup configuration
 ---@param opts table|nil User configuration
 ---@return table Configuration
 function M.setup(opts)
     opts = opts or {}
-    return vim.tbl_deep_extend('force', defaults, opts)
+    M._config = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts)
+    -- Copy top-level keys for convenience (so Config.paths works)
+    for k, v in pairs(M._config) do
+        M[k] = v
+    end
+    return M._config
 end
+
+setmetatable(M, {
+    __index = function(_, k)
+        return M._config[k]
+    end
+})
 
 return M
