@@ -54,6 +54,7 @@ end
 ---@param loader PlugmanLoader
 ---@return PlugmanEvents
 function Events.new(loader)
+    ---@class PlugmanEvents
     local self = setmetatable({}, Events)
 
     self.loader = loader
@@ -199,6 +200,11 @@ end
 ---@param opts table|nil Options
 function Events:on_keys(keys, callback, opts)
     opts = opts or {}
+    -- Ensure keys is a table
+    if type(keys) ~= 'table' then
+        Logger.error("on_keys: keys parameter must be a table, got " .. type(keys))
+        return
+    end
     for _, key in ipairs(keys) do
         local mode = key.mode or 'n'
         local lhs = key.lhs or key[1]
