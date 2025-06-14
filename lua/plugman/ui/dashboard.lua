@@ -148,12 +148,58 @@ function M.setup_highlighting()
     ]])
 end
 
+---Show plugin details
+---@param plugin PlugmanPlugin
+---@param name string Plugin name
+---@param config table Configuration
+---@return table Lines
+function M.show_plugin_details(plugin, name, config)
+  local lines = {}
+  local icons = config.ui.icons
+
+  -- Header
+  table.insert(lines, string.format("  ╭─ %s Details ─╮", name))
+  table.insert(lines, "  │")
+
+  -- Status
+  local status_icon = plugin.installed and icons.installed or icons.not_installed
+  local load_icon = plugin.loaded and icons.loaded or icons.not_loaded
+  local lazy_icon = plugin.lazy and icons.lazy or icons.not_lazy
+  local priority_icon = plugin.priority > 0 and icons.priority or "  "
+
+  table.insert(lines, string.format("  │ Status: %s %s %s %s",
+    status_icon, load_icon, lazy_icon, priority_icon))
+  table.insert(lines, "  │")
+
+  -- Plugin Spec
+  table.insert(lines, "  │ Specification:")
+  for k, v in pairs(plugin) do
+    if type(v) ~= 'function' then
+      local value = type(v) == 'table' and vim.inspect(v) or tostring(v)
+      -- Format long values
+      if #value > 50 then
+        value = value:sub(1, 47) .. "..."
+      end
+      table.insert(lines, string.format("  │   %s: %s", k, value))
+    end
+  end
+
+  -- Footer
+  table.insert(lines, "  │")
+  table.insert(lines, "  ╰──────────────────────╯")
+  table.insert(lines, "")
+  table.insert(lines, "  Press 'q' to return to plugin list")
+
+  return lines
+end
+
 ---Setup keymaps
 ---@param buf number Buffer handle
 ---@param win number Window handle
 ---@param manager PlugmanManager
 function M.setup_keymaps(buf, win, manager)
   local opts = { buffer = buf, nowait = true, silent = true }
+  local config = manager.config
 
   -- Quit
   vim.keymap.set('n', 'q', function()
@@ -164,8 +210,27 @@ function M.setup_keymaps(buf, win, manager)
   local function get_current_plugin()
     local line = vim.api.nvim_get_current_line()
     local name = line:match("  [●○] [✓✗] [💤 ] [⚡ ] ([%w%-%._]+)")
-    return name and manager.plugins[name]
+    return name and manager.plugins[name], name
   end
+
+  -- Show plugin details
+  vim.keymap.set('n', '<CR>', function()
+    local plugin, name = get_current_plugin()
+    if plugin then
+      local details = M.show_plugin_details(plugin, name, config)
+      vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, details)
+      vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+    end
+  end, opts)
+
+  -- Return to plugin list
+  vim.keymap.set('n', '<BS>', function()
+    local lines = M.generate_content(manager:get_plugins(), config)
+    vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  end, opts)
 
   -- Install plugin
   vim.keymap.set('n', 'i', function()
