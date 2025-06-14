@@ -8,27 +8,135 @@ local Logger = require('plugman.utils.logger')
 local Notify = require('plugman.utils.notify')
 local UI = require('plugman.ui')
 local Config = require('plugman.config')
+local Events = require('plugman.core.events')
+local Cache = require('plugman.core.cache')
+local Health = require('plugman.health')
 
 -- Global state
 M.manager = nil
 M.loader = nil
 M.config = nil
 
+-- Cache for plugin discovery
+local discovery_cache = {
+  timestamp = 0,
+  specs = {},
+  modules = {}
+}
+
+---Discover modules in the modules directory
+---@return table List of discovered module specifications
+local function _discover_modules()
+  local modules_dir = Config.paths.modules_dir
+  if not vim.fn.isdirectory(modules_dir) then
+    return {}
+  end
+
+  local specs = {}
+  local files = vim.fn.glob(modules_dir .. '/**/*.lua', true, true)
+
+  for _, file in ipairs(files) do
+    local module_name = file:match(modules_dir .. '/(.+)%.lua$')
+    if module_name then
+      module_name = module_name:gsub('/', '.')
+      table.insert(specs, {
+        name = module_name,
+        type = 'module',
+        path = file,
+        priority = 1  -- Modules are loaded first
+      })
+    end
+  end
+
+  return specs
+end
+
+---Discover plugin specifications in the plugins directory
+---@return table List of discovered plugin specifications
+local function _discover_plugin_specs()
+  local specs = {}
+  local plugins_dirs = Config.paths.plugins_dir
+
+  for _, dir in ipairs(plugins_dirs) do
+    if vim.fn.isdirectory(dir) then
+      -- Find all Lua files in the directory
+      local files = vim.fn.glob(dir .. '/**/*.lua', true, true)
+      
+      for _, file in ipairs(files) do
+        local spec = dofile(file)
+        if spec then
+          -- Handle both single and multi-spec files
+          if spec.name then
+            -- Single spec file
+            spec.path = file
+            table.insert(specs, spec)
+          elseif type(spec) == 'table' then
+            -- Multi-spec file
+            for _, s in ipairs(spec) do
+              if s.name then
+                s.path = file
+                table.insert(specs, s)
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return specs
+end
+
+---Discover all plugins and modules
+---@return table List of all discovered specifications
+local function _discover_plugins()
+  -- Check cache first
+  local now = os.time()
+  if now - discovery_cache.timestamp < Config.performance.cache_ttl then
+    return discovery_cache.specs
+  end
+
+  -- Discover modules and plugins
+  local module_specs = _discover_modules()
+  local plugin_specs = _discover_plugin_specs()
+
+  -- Combine and cache results
+  local all_specs = vim.list_extend(module_specs, plugin_specs)
+  discovery_cache = {
+    timestamp = now,
+    specs = all_specs,
+    modules = module_specs
+  }
+
+  return all_specs
+end
+
 ---Initialize Plugman
 ---@param opts table Configuration options
 function M.setup(opts)
-  M.config = Config.setup(opts or {})
-  -- Initialize core components
+  -- Load configuration
+  Config.setup(opts)
+
+  -- Initialize components
   Logger.setup(M.config.logging)
   Notify.setup(M.config.notify)
   Messages.init(M.config.messages)
-
   M.manager = Manager.new(M.config)
   M.loader = Loader.new(M.manager, M.config)
-  -- Setup auto-discovery of plugins
-  M._discover_plugins()
-  -- Initialize loading sequence
-  M.loader:init()
+  Events.init()
+  Cache.init()
+
+  -- Discover and load plugins
+  local specs = _discover_plugins()
+  for _, spec in ipairs(specs) do
+    M.manager:add_spec(spec)
+  end
+
+  -- Load startup plugins
+  M.loader:load_startup_plugins()
+
+  -- Setup health checks
+  Health.setup()
 
   Logger.info("Plugman initialized successfully")
   Notify.info("Plugman ready!")
@@ -85,240 +193,28 @@ function M.status(name)
   return M.manager:status(name)
 end
 
----Auto-discover plugins from configured directories
-function M._discover_plugins()
-  local plugins_dir = M.config.paths.plugins_dir
-  local cache_key = 'plugin_discovery'
-  local cache = M.manager.cache
+---Get the plugin manager instance
+---@return table Plugin manager instance
+function M.get_manager()
+  return M.manager
+end
 
-  -- Try to get cached discovery results
-  local cached = cache:get_plugin(cache_key)
-  if cached and cached.timestamp and (vim.loop.now() - cached.timestamp) < 3600000 then -- 1 hour cache
-    for _, spec in ipairs(cached.specs) do
-      M.manager:add_spec(spec)
-    end
-    return
-  end
+---Get the plugin loader instance
+---@return table Plugin loader instance
+function M.get_loader()
+  return M.loader
+end
 
-  -- Build a map of directories to scan
-  local dirs_to_scan = {}
-  for _, dir in ipairs(plugins_dir) do
-    local full_path = vim.fn.stdpath('config') .. '/lua/' .. dir:gsub('%.', '/')
-    if vim.fn.isdirectory(full_path) == 1 then
-      dirs_to_scan[full_path] = dir
-    end
-  end
+---Get the event system instance
+---@return table Event system instance
+function M.get_events()
+  return Events
+end
 
-  -- Collect all specs
-  local specs = {}
-  for full_path, module_path in pairs(dirs_to_scan) do
-    -- Use glob to find all Lua files recursively
-    local files = vim.fn.glob(full_path .. '/**/*.lua', false, true)
-
-    for _, file in ipairs(files) do
-      -- Convert file path to module path
-      local relative_path = file:sub(#full_path + 2, -5) -- Remove .lua extension
-      local module_name = module_path .. '.' .. relative_path:gsub('/', '.')
-
-      local ok, plugins_spec = pcall(require, module_name)
-      if ok then
-        if type(plugins_spec) == "boolean" then
-          goto continue
-        end
-        -- Handle single spec file
-        if type(plugins_spec[1]) == "string" then
-          table.insert(specs, plugins_spec)
-          -- Handle multi-spec file
-        else
-          for _, spec in ipairs(plugins_spec) do
-            if type(spec) == "table" and type(spec[1]) == "string" then
-              table.insert(specs, spec)
-            end
-          end
-        end
-      else
-        Logger.warn("Failed to load plugin spec from: " .. module_name)
-      end
-      ::continue::
-    end
-  end
-
-  -- Cache the results
-  cache:set_plugin(cache_key, {
-    timestamp = vim.loop.now(),
-    specs = specs
-  })
-
-  -- Add all specs to manager
-  for _, spec in ipairs(specs) do
-    M.manager:add_spec(spec)
-  end
+---Get the cache instance
+---@return table Cache instance
+function M.get_cache()
+  return Cache
 end
 
 return M
-
-
--- local M = {}
--- -- Core modules
--- local bootstrap = require("plugman.core.bootstrap")
--- local manager = require('plugman.core.manager')
--- local loader = require('plugman.core.loader')
--- local cache = require('plugman.core.cache')
--- local logger = require('plugman.utils.logger')
--- local notify = require('plugman.utils.notify')
--- local health = require('plugman.health')
--- local dashboard = require('plugman.ui.dashboard')
-
--- -- Plugman state
--- M.state = {
---   initialized = false,
---   plugins = {},
---   loading_order = { priority = {}, normal = {}, lazy = {} },
---   config = require('plugman.config.defaults')
--- }
-
--- -- Setup function
--- function M.setup(opts)
---   opts = opts or {}
---   M.state.config = vim.tbl_deep_extend('force', M.state.config, opts)
---   -- Initialize MiniDeps
---   bootstrap.init(M.state.config.minideps)
---   -- Initialize cache
---   cache.init(M.state.config.cache)
---   -- Initialize logger
---   logger.init(M.state.config.logging)
---   -- Load plugins from modules/plugins directories
---   M.load_plugin_specs()
---   -- Setup loading strategy
---   loader.setup(M.state)
---   -- Load plugins based on strategy
---   M.load_plugins()
---   -- Setup commands
---   M.setup_commands()
---   -- Mark as initialized
---   M.state.initialized = true
---   messages.plugman('SUCCESS', "Plugman initialized successfully")
--- end
-
--- -- Load plugin specifications from directories
--- function M.load_plugin_specs()
---   local specs = {}
-
---   -- Validate config paths
---   if not M.state.config.paths or not M.state.config.paths.plugins_dir then
---     logger.error("Invalid plugins directory configuration")
---     return
---   end
-
---   -- Load from plugins directory
---   local plugins_dir = string.format("%s/lua/%s", vim.fn.stdpath('config'), M.state.config.paths.plugins_dir)
---   if vim.fn.isdirectory(plugins_dir) == 0 then
---     logger.warn("Plugins directory not found: " .. plugins_dir)
---     return
---   end
-
---   for _, file in ipairs(vim.fn.glob(plugins_dir .. '/*.lua', false, true)) do
---     local ok, plugins_spec = pcall(dofile, file)
---     if ok then
-
-
---   end
-
-
---   -- Convert specs to PlugmanPlugin objects
---   local PlugmanPlugin = require('plugman.core.plugin').PlugmanPlugin
---   for _, spec in ipairs(specs) do
---     local ok, plugin = pcall(PlugmanPlugin.new, spec)
---     if ok and plugin.enabled then
---       manager.add_plugin(M.state, plugin)
---     else
---       logger.warn("Failed to create plugin from spec: " .. vim.inspect(spec))
---     end
---   end
--- end
-
--- -- Load plugins based on loading strategy
--- function M.load_plugins()
---   -- Load priority plugins first
---   for _, plugin in ipairs(M.state.loading_order.priority) do
---     loader.load_plugin(plugin)
---   end
-
---   -- Load normal (non-lazy) plugins
---   for _, plugin in ipairs(M.state.loading_order.normal) do
---     loader.load_plugin(plugin)
---   end
-
---   -- Setup lazy loading for lazy plugins
---   for _, plugin in ipairs(M.state.loading_order.lazy) do
---     loader.setup_lazy_loading(plugin)
---   end
--- end
-
--- -- API function to add plugins dynamically
--- function M.add(source, opts)
---   opts = opts or {}
-
---   if type(source) == 'string' then
---     opts.source = source
---   else
---     opts = source
---   end
-
---   local PlugmanPlugin = require('plugman.core.plugin')
---   local plugin = PlugmanPlugin.new(opts)
-
---   if plugin.enabled then
---     manager.add_plugin(M.state, plugin)
-
---     -- Install and load immediately if not lazy
---     if not plugin.lazy then
---       loader.load_plugin(plugin)
---     else
---       loader.setup_lazy_loading(plugin)
---     end
---   end
--- end
-
--- -- Setup commands
--- function M.setup_commands()
---   vim.api.nvim_create_user_command('PlugmanDashboard', function()
---     dashboard.open(M.state)
---   end, { desc = 'Open Plugman dashboard' })
-
---   vim.api.nvim_create_user_command('PlugmanInstall', function()
---     manager.install_all(M.state)
---   end, { desc = 'Install all plugins' })
-
---   vim.api.nvim_create_user_command('PlugmanUpdate', function()
---     manager.update_all(M.state)
---   end, { desc = 'Update all plugins' })
-
---   vim.api.nvim_create_user_command('PlugmanClean', function()
---     manager.clean(M.state)
---   end, { desc = 'Clean unused plugins' })
-
---   vim.api.nvim_create_user_command('PlugmanHealth', function()
---     health.check()
---   end, { desc = 'Check Plugman health' })
-
---   vim.api.nvim_create_user_command('PlugmanReload', function()
---     M.reload()
---   end, { desc = 'Reload Plugman' })
--- end
-
--- -- Reload function
--- function M.reload()
---   -- Clear loaded modules
---   for name, _ in pairs(package.loaded) do
---     if name:match('^plugman%.') then
---       package.loaded[name] = nil
---     end
---   end
-
---   -- Re-setup
---   M.setup(M.state.config)
---   notify.info("Plugman reloaded!")
--- end
-
--- return M
