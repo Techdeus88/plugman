@@ -96,19 +96,18 @@ local function _discover_plugins()
     return discovery_cache.specs
   end
 
-  -- Discover modules and plugins
+  -- Discover modules and plugins separately
   local module_specs = _discover_modules()
   local plugin_specs = _discover_plugin_specs()
 
-  -- Combine and cache results
-  local all_specs = plugin_specs
+  -- Only return plugin specs for loading
   discovery_cache = {
     timestamp = now,
-    specs = all_specs,
-    modules = module_specs
+    specs = plugin_specs,  -- Only store plugin specs for loading
+    modules = module_specs -- Keep modules separate for API/setup
   }
 
-  return all_specs
+  return plugin_specs  -- Only return plugin specs
 end
 
 ---Initialize Plugman
@@ -126,10 +125,24 @@ function M.setup(opts)
   M.events = Events.new(M.loader)
   M.cache = Cache.new(M.config)
 
-  -- Discover and load plugins
-  local specs = _discover_plugins()
-  for _, spec in ipairs(specs) do
-    M.manager:add_spec(spec)
+  -- Load modules first (for API/setup)
+  local module_specs = _discover_modules()
+  for _, spec in ipairs(module_specs) do
+    if spec.path then
+      dofile(spec.path)  -- Load module directly
+    end
+  end
+
+  -- Then discover and load plugins
+  local plugin_specs = _discover_plugins()
+  for _, spec in ipairs(plugin_specs) do
+    local plugin = M.manager:add_spec(spec)
+    if plugin then
+      -- Install if not installed
+      if not plugin.installed then
+        M.manager:install(plugin)
+      end
+    end
   end
 
   -- Load startup plugins
