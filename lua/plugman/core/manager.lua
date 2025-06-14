@@ -126,15 +126,14 @@ function Manager:install(plugin)
 
   Logger.info("Installing plugin: " .. plugin.name)
 
-  local ok, err = pcall(function()
-    Add({
-      source = plugin.source,
-      depends = plugin.depends,
-      hooks = plugin.hooks,
-      checkout = plugin.checkout,
-      monitor = plugin.monitor,
-    })
-  end)
+  -- Use deps_add from bootstrap module
+  local ok = Bootstrap.deps_add({
+    source = plugin.source,
+    depends = plugin.depends,
+    hooks = plugin.hooks,
+    checkout = plugin.checkout,
+    monitor = plugin.monitor,
+  })
 
   if ok then
     plugin.installed = plugin:is_installed()
@@ -143,7 +142,7 @@ function Manager:install(plugin)
     Logger.info("Installed plugin: " .. plugin.name)
     return true
   else
-    Logger.error("Failed to install plugin: " .. plugin.name .. " - " .. tostring(err))
+    Logger.error("Failed to install plugin: " .. plugin.name)
     Notify.error("Failed to install: " .. plugin.name)
     return false
   end
