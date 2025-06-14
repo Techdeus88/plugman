@@ -89,7 +89,12 @@ function M.init(opts)
 
     -- Setup MiniDeps with user options
     MiniDeps.setup(opts)
-    Add, Now, Later = MiniDeps.add, MiniDeps.now, MiniDeps.later
+
+    -- Make MiniDeps functions available globally
+    _G.MiniDeps = MiniDeps
+    _G.Add = MiniDeps.add
+    _G.Now = MiniDeps.now
+    _G.Later = MiniDeps.later
 
     M.MiniDeps = MiniDeps
     messages.minideps('SUCCESS', 'MiniDeps integration initialized')

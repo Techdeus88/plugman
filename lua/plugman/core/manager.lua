@@ -127,7 +127,7 @@ function Manager:install(plugin)
   Logger.info("Installing plugin: " .. plugin.name)
 
   local ok, err = pcall(function()
-    MiniDeps.add({
+    Add({
       source = plugin.source,
       depends = plugin.depends,
       hooks = plugin.hooks,
