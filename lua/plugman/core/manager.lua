@@ -258,7 +258,7 @@ function Manager._process_config(plugin, merged_opts)
     if ok and mod.setup then
       return mod.setup(merged_opts)
     else
-      messages.plugin(plugin.name, 'ERROR', string.format('Failed to require plugin: %s', mod_name))
+      Messages.plugin(plugin.name, 'ERROR', string.format('Failed to require plugin: %s', mod_name))
     end
   end
 end

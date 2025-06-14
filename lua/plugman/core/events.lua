@@ -362,4 +362,6 @@ function Events:clear_event_history()
     self.event_history = {}
 end
 
+vim.keymap.set("n", "<leader>EE", function() return Events:get_event_history() end, { desc = "Events History" })
+
 return Events

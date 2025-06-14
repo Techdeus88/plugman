@@ -25,10 +25,23 @@ function Loader:init()
   self:setup_autocmds()
   self:setup_commands()
 
+  -- Schedule optional initial install (add to disk) and non-optional add to current session
+  vim.schedule(function()
+    self:install_all()
+  end)
   -- Schedule initial load
   vim.schedule(function()
     self:load_startup_plugins()
   end)
+end
+
+function Loader:install_all()
+  local plugins = self.manager:get_plugins()
+  for _, plugin in pairs(plugins) do
+    if not plugin:is_installed() then
+      self.manager:install(plugin)
+    end
+  end
 end
 
 ---Load startup plugins
@@ -47,7 +60,7 @@ function Loader:load_startup_plugins()
 
     if plugin.priority > 0 then
       table.insert(priority_plugins, plugin)
-    elseif not plugin.lazy then
+    elseif plugin.lazy == false then
       table.insert(non_lazy_plugins, plugin)
     else
       table.insert(lazy_plugins, plugin)
@@ -111,12 +124,12 @@ function Loader:setup_lazy_loading(plugin)
   end
 
   -- Fallback: load on timer for truly lazy plugins
-  if plugin.lazy == true and not plugin.event and not plugin.cmd and not plugin.ft and not plugin.keys then
+  if plugin.lazy == true and not (plugin.event or plugin.cmd or plugin.ft or plugin.keys) then
     vim.defer_fn(function()
       if not plugin.loaded then
         self.manager:load(plugin)
       end
-    end, self.config.performance.lazy_time) -- 2 second delay
+    end, self.config.performance.lazy_time) -- 2 second delay default
   end
 end
 
