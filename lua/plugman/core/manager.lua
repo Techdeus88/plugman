@@ -18,7 +18,7 @@ function Manager.new(config)
 
   self.config = config
   self.plugins = {}
-  self.cache = Cache.new(config.cache)
+  self.cache = Cache.new(config)
   self.loaded_plugins = {}
   self.pending_plugins = {}
   -- Bootstrap and ensure MiniDeps is installed and setup

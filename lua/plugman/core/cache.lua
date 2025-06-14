@@ -9,17 +9,17 @@ local Cache = {}
 Cache.__index = Cache
 
 ---Create new cache
----@param config table Cache config table
+---@param config table Configuration
 ---@return PlugmanCache
 function Cache.new(config)
   local self = setmetatable({}, Cache)
 
-  self.cache_dir = config.cache_dir
-  self.cache_file = config.cache_dir .. '/plugman.json'
+  self.cache_dir = config.paths.cache_dir
+  self.cache_file = config.paths.cache_dir .. '/plugman.json'
   self.data = {}
   self.dirty = false
   self.last_save = 0
-  self.save_interval = config.save_interval or 5000 -- 5 seconds
+  self.save_interval = config.performance.cache_ttl * 1000
 
   self:ensure_cache_dir()
   self:load()
