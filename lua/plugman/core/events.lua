@@ -207,6 +207,9 @@ function Events:on_keys(keys, callback, opts)
     end
     for _, key in ipairs(keys) do
         local mode = key.mode or 'n'
+        if type(mode) == "table" then
+            mode = table.concat(mode, '')
+        end
         local lhs = key.lhs or key[1]
         if lhs then
             local key_id = mode .. ':' .. lhs
