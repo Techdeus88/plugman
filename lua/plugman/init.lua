@@ -121,7 +121,6 @@ function M._discover_plugins()
       local module_name = module_path .. '.' .. relative_path:gsub('/', '.')
 
       local ok, plugins_spec = pcall(require, module_name)
-      print(vim.inspect(plugins_spec))
       if ok then
         if type(plugins_spec) == "boolean" then
           goto continue
