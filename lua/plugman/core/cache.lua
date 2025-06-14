@@ -48,7 +48,22 @@ end
 
 ---Save cache to file
 function Cache:save()
-  local ok, json = pcall(vim.json.encode, self.data)
+  -- Create a copy of data that can be serialized
+  local serializable_data = vim.deepcopy(self.data)
+  
+  -- Filter out non-serializable data from plugins
+  if serializable_data.plugins then
+    for _, plugin in pairs(serializable_data.plugins) do
+      -- Remove function fields
+      for k, v in pairs(plugin) do
+        if type(v) == 'function' then
+          plugin[k] = nil
+        end
+      end
+    end
+  end
+
+  local ok, json = pcall(vim.json.encode, serializable_data)
   if ok then
     vim.fn.writefile({ json }, self.cache_file)
     Logger.debug("Cache saved successfully")
