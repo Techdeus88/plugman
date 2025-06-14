@@ -135,8 +135,11 @@ function M.setup(opts)
   -- Load startup plugins
   M.loader:load_startup_plugins()
 
-  -- Setup health checks
-  Health.setup()
+  -- Run initial health check
+  local health_report = Health.check(M.manager)
+  if health_report.status ~= 'ok' then
+    Logger.warn("Initial health check found issues: " .. Health.format_report(health_report))
+  end
 
   Logger.info("Plugman initialized successfully")
   Notify.info("Plugman ready!")
