@@ -141,7 +141,6 @@ function Manager:install(plugin)
     plugin.added = true
     self.cache:set_plugin(plugin.name, plugin:to_cache())
     Logger.info("Installed plugin: " .. plugin.name)
-    print(vim.inspect(plugin))
     return true
   else
     Logger.error("Failed to install plugin: " .. plugin.name .. " - " .. tostring(err))
