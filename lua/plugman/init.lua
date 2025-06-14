@@ -121,6 +121,7 @@ function M._discover_plugins()
       local module_name = module_path .. '.' .. relative_path:gsub('/', '.')
 
       local ok, plugins_spec = pcall(require, module_name)
+      print(vim.inspect(plugins_spec))
       if ok then
         -- Handle single spec file
         if type(plugins_spec[1]) == "string" then
