@@ -65,8 +65,13 @@ local defaults = {
     }
 }
 
--- Store the config in the module
+-- Initialize with defaults
 M._config = vim.deepcopy(defaults)
+
+-- Copy defaults to top level for direct access
+for k, v in pairs(defaults) do
+    M[k] = v
+end
 
 ---Setup configuration
 ---@param opts table|nil User configuration
@@ -74,10 +79,16 @@ M._config = vim.deepcopy(defaults)
 function M.setup(opts)
     opts = opts or {}
     M._config = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts)
-    -- Copy top-level keys for convenience (so Config.paths works)
+    -- Update top-level keys
     for k, v in pairs(M._config) do
         M[k] = v
     end
+    return M._config
+end
+
+---Get current configuration
+---@return table Configuration
+function M.get()
     return M._config
 end
 

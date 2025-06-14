@@ -115,7 +115,7 @@ end
 ---@param opts table Configuration options
 function M.setup(opts)
   -- Load configuration
-  Config.setup(opts)
+  M.config = Config.setup(opts)
 
   -- Initialize components
   Logger.setup(M.config.logging)
