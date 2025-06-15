@@ -200,8 +200,8 @@ function M.generate_content(plugins, config)
   table.insert(lines, "                     🔌                   ")
 
   -- Stats
-  table.insert(lines, string.format("  📊 Stats: %d total (%d priority, %d normal, %d lazy), %d installed, %d added, %d loaded, %d lazy, %d priority",
-    stats.total, stats.priority, stats.normal, stats.lazy, stats.installed, stats.added, stats.loaded, stats.lazy, stats.priority))
+  table.insert(lines, string.format("  📊 Stats: %d total (%d priority, %d normal, %d lazy), %d installed, %d added, %d loaded",
+    stats.total, stats.priority, stats.normal, stats.lazy, stats.installed, stats.added, stats.loaded))
   table.insert(lines, "")
   table.insert(lines, "  ─────────────────────────────────────")
   table.insert(lines, "")
