@@ -74,7 +74,7 @@ function M.show(manager)
   -- Set up auto-refresh timer
   local timer = vim.loop.new_timer()
   timer:start(0, status.refresh_interval, vim.schedule_wrap(function()
-    refresh_dashboard(buf, manager)
+    M.refresh_dashboard(buf, manager)
   end))
 
   -- Store timer in buffer local variables for cleanup
@@ -567,7 +567,7 @@ function M.setup_keymaps(buf, win, manager)
 end
 
 -- Add a refresh function
-local function refresh_dashboard(buf, manager)
+function M.refresh_dashboard(buf, manager)
   if not vim.api.nvim_buf_is_valid(buf) then return end
   
   local lines = M.generate_content(manager:get_plugins(), manager.config)
