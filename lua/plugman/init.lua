@@ -143,13 +143,15 @@ function M.setup(opts)
   for _, spec in ipairs(module_specs) do
     if spec.path then
       Logger.debug(string.format("  Loading module: %s from %s", spec.name, spec.path))
-      dofile(spec.path) -- Load module directly
+      local ok, mod = pcall(require, spec.name)
+      if not ok then
+        Logger.error(string.format("Failed to load module: %s - %s", spec.name, mod))
+      end
     end
   end
 
   -- Then discover and add plugins
   local plugin_specs = _discover_plugins()
-  print(vim.inspect(plugin_specs))
   Logger.debug("Adding plugins to manager:")
   for _, spec in ipairs(plugin_specs) do
     Logger.debug(string.format("  Adding plugin: %s", vim.inspect(spec)))
