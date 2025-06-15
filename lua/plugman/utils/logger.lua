@@ -46,7 +46,7 @@ local function log(level, message, ...)
     return
   end
 
-  local formatted = string.format(message, ...)
+  local formatted = string.format("%s %s", message, table.concat(..., "-"))
   local timestamp = os.date('%Y-%m-%d %H:%M:%S')
   local level_name = level_names[level]
   local log_line = string.format('[%s] %s: %s', timestamp, level_name, formatted)
