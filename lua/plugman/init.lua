@@ -53,37 +53,31 @@ end
 
 ---Discover plugin specifications in the plugins directory
 ---@return table List of discovered plugin specifications
-local function _discover_plugin_specs()
+local function _discover_plugin_specs(module_path)
   local specs = {}
   local plugins_dirs = Config.paths.plugins_dir
 
-  for _, dir in ipairs(plugins_dirs) do
-    if vim.fn.isdirectory(dir) then
-      -- Find all Lua files in the directory
-      local files = vim.fn.glob(dir .. '/**/*.lua', true, true)
+  local files = vim.fn.glob(plugins_dirs .. '/*.lua', false, true)
+  for _, file in ipairs(files) do
+    local filename = vim.fn.fnamemodify(file, ':t:r')
+    local module_name = module_path .. '.' .. filename
 
-      for _, file in ipairs(files) do
-        local spec = dofile(file)
-        if spec then
-          -- Handle both single and multi-spec files
-          if spec.name then
-            -- Single spec file
-            spec.path = file
+    local ok, plugins_spec = pcall(require, module_name)
+    if ok then
+      if type(plugins_spec[1]) == "string" then
+        local spec = plugins_spec
+        table.insert(specs, spec)
+      else
+        for _, spec in ipairs(plugins_spec) do
+          if type(spec) == "table" and type(spec[1]) == "string" then
             table.insert(specs, spec)
-          elseif type(spec) == 'table' then
-            -- Multi-spec file
-            for _, s in ipairs(spec) do
-              if s.name then
-                s.path = file
-                table.insert(specs, s)
-              end
-            end
           end
         end
       end
+    else
+      vim.notify("Failed to load plugin spec from: " .. module_name, vim.log.levels.ERROR)
     end
   end
-
   return specs
 end
 
@@ -98,6 +92,7 @@ local function _discover_plugins()
   end
 
   -- Discover modules and plugins separately
+  
   local module_specs = _discover_modules()
   local plugin_specs = _discover_plugin_specs()
 
