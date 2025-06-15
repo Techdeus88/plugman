@@ -204,11 +204,11 @@ function M.generate_content(plugins, config)
     local plugin = item.plugin
 
     -- Add section headers
-    if plugin.priority > 0 and current_section ~= 'priority' then
+    if plugin.priority and plugin.priority > 0 and current_section ~= 'priority' then
       current_section = 'priority'
       table.insert(lines, "  🚀 Priority Plugins:")
       table.insert(lines, "")
-    elseif plugin.priority == 0 and not plugin.lazy and current_section ~= 'normal' then
+    elseif plugin.priority and plugin.priority == 0 and not plugin.lazy and current_section ~= 'normal' then
       current_section = 'normal'
       table.insert(lines, "  ⚡ Normal Plugins:")
       table.insert(lines, "")
