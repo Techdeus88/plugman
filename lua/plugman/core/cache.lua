@@ -75,6 +75,10 @@ end
 local function filter_serializable(data)
   -- Handle non-table types
   if type(data) ~= 'table' then
+    -- Skip functions
+    if type(data) == 'function' then
+      return nil
+    end
     return data
   end
 
@@ -97,7 +101,10 @@ local function filter_serializable(data)
   if is_array and max_index == #data then
     local result = {}
     for i = 1, max_index do
-      result[i] = filter_serializable(data[i])
+      local value = filter_serializable(data[i])
+      if value ~= nil then
+        result[i] = value
+      end
     end
     return result
   end
@@ -112,7 +119,9 @@ local function filter_serializable(data)
     
     -- Handle nested tables
     if type(v) == 'table' then
-      result[k] = filter_serializable(v)
+      local filtered = filter_serializable(v)      if filtered ~= nil then
+        result[k] = filtered
+      end
     else
       result[k] = v
     end
