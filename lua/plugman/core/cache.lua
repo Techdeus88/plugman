@@ -112,6 +112,11 @@ local function filter_serializable(data)
   -- Handle regular tables
   local result = {}
   for k, v in pairs(data) do
+    -- Skip if key is a function
+    if type(k) == 'function' then
+      goto continue
+    end
+    
     -- Skip functions and other non-serializable types
     if type(v) == 'function' or type(v) == 'userdata' or type(v) == 'thread' then
       goto continue
@@ -119,7 +124,8 @@ local function filter_serializable(data)
     
     -- Handle nested tables
     if type(v) == 'table' then
-      local filtered = filter_serializable(v)      if filtered ~= nil then
+      local filtered = filter_serializable(v)
+      if filtered ~= nil then
         result[k] = filtered
       end
     else
