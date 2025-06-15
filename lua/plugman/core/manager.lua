@@ -129,27 +129,20 @@ function Manager:install(plugin)
     return true
   end
 
-  Logger.debug(string.format("Installing plugin: %s", vim.inspect(plugin)))
-
-  local ok, err = pcall(function()
-    MiniDeps.add({
-      source = plugin.source,
-      depends = plugin.depends,
-      hooks = plugin.hooks,
-      checkout = plugin.checkout,
-      monitor = plugin.monitor,
-    })
-  end)
+  local ok, err = Bootstrap.add({
+    source = plugin.source,
+    depends = plugin.depends,
+    hooks = plugin.hooks,
+    checkout = plugin.checkout,
+    monitor = plugin.monitor,
+  })
 
   if ok then
     plugin.installed = plugin:is_installed()
     plugin.added = true
     self.cache:set_plugin(plugin.name, plugin:to_cache())
-    Logger.info("Installed plugin: " .. plugin.name)
     return true
   else
-    Logger.error("Failed to install plugin: " .. plugin.name .. " - " .. tostring(err))
-    Notify.error("Failed to install: " .. plugin.name)
     return false
   end
 end

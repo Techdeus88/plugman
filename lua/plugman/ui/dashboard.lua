@@ -1,4 +1,5 @@
 local Logger = require('plugman.utils.logger')
+local Bootstrap = require('plugman.core.bootstrap')
 
 local M = {}
 
@@ -16,6 +17,14 @@ local SECTIONS = {
   STATS = 2,
   PLUGINS = 3,
   FOOTER = 4
+}
+
+-- Status tracking
+local status = {
+  pending = {},  -- Plugins pending installation/update
+  running = {},  -- Currently running operations
+  last_update = 0,
+  refresh_interval = 100  -- ms
 }
 
 ---Show dashboard
@@ -61,6 +70,48 @@ function M.show(manager)
   M.setup_highlighting()
   -- Setup keymaps
   M.setup_keymaps(buf, win, manager)
+
+  -- Set up auto-refresh timer
+  local timer = vim.loop.new_timer()
+  timer:start(0, status.refresh_interval, vim.schedule_wrap(function()
+    refresh_dashboard(buf, manager)
+  end))
+
+  -- Store timer in buffer local variables for cleanup
+  vim.api.nvim_buf_set_var(buf, 'plugman_timer', timer)
+
+  -- Clean up timer when window is closed
+  vim.api.nvim_win_set_option(win, 'winblend', 0)
+  vim.api.nvim_win_set_option(win, 'winhl', 'Normal:PlugmanNormal')
+  
+  -- Set up autocommand to clean up timer
+  vim.api.nvim_create_autocmd('BufWipeout', {
+    buffer = buf,
+    callback = function()
+      local timer = vim.api.nvim_buf_get_var(buf, 'plugman_timer')
+      if timer then
+        timer:stop()
+        timer:close()
+      end
+    end
+  })
+
+  -- Register event handlers
+  Bootstrap.on('on_operation_start', function(op)
+    M.update_status(op.name, op.type, 'pending')
+  end)
+
+  Bootstrap.on('on_operation_progress', function(op)
+    M.update_status(op.name, op.type, 'running', op.progress, op.message)
+  end)
+
+  Bootstrap.on('on_operation_complete', function(op)
+    M.update_status(op.name, op.type, 'completed')
+  end)
+
+  Bootstrap.on('on_operation_error', function(op)
+    M.update_status(op.name, op.type, 'failed', 0, op.message)
+  end)
 
   Logger.info("Dashboard opened")
 end
@@ -190,6 +241,32 @@ function M.generate_content(plugins, config)
   local lines = {}
   local icons = config.ui.icons
   local stats = get_stats(plugins)
+  local now = vim.loop.now()
+
+  -- Update the pending operations section
+  if next(status.pending) then
+    table.insert(lines, "  ⏳ Pending Operations:")
+    for name, op in pairs(status.pending) do
+      local duration = math.floor((vim.loop.now() - op.start_time) / 1000)
+      local status_icon = op.state == 'running' and '⟳' or 
+                        op.state == 'completed' and '✓' or
+                        op.state == 'failed' and '✗' or '⏳'
+      
+      local line = string.format("  %s %s: %s (%ds)", 
+        status_icon, name, op.operation, duration)
+      
+      if op.progress > 0 then
+        line = line .. string.format(" [%d%%]", op.progress)
+      end
+      
+      if op.message and op.message ~= '' then
+        line = line .. string.format(" - %s", op.message)
+      end
+      
+      table.insert(lines, line)
+    end
+    table.insert(lines, "")
+  end
 
   -- Header
   table.insert(lines, "                     🔌                   ")
@@ -442,37 +519,28 @@ function M.setup_keymaps(buf, win, manager)
 
   -- Install plugin
   vim.keymap.set('n', 'i', function()
-    local plugin = get_current_plugin()
+    local plugin, name = get_current_plugin()
     if plugin and not plugin.installed then
+      M.update_status(name, 'install', 'pending')
       manager:install(plugin)
-      -- Clear cache to force refresh
-      cache.sorted_plugins = nil
-      cache.stats = nil
-      vim.cmd('redraw')
     end
   end, opts)
 
   -- Update plugin
   vim.keymap.set('n', 'u', function()
-    local plugin = get_current_plugin()
+    local plugin, name = get_current_plugin()
     if plugin and plugin.installed then
+      M.update_status(name, 'update', 'pending')
       manager:update({ plugin.name })
-      -- Clear cache to force refresh
-      cache.sorted_plugins = nil
-      cache.stats = nil
-      vim.cmd('redraw')
     end
   end, opts)
 
   -- Remove plugin
   vim.keymap.set('n', 'd', function()
-    local plugin = get_current_plugin()
+    local plugin, name = get_current_plugin()
     if plugin then
+      M.update_status(name, 'remove', 'pending')
       manager:remove(plugin.name)
-      -- Clear cache to force refresh
-      cache.sorted_plugins = nil
-      cache.stats = nil
-      vim.cmd('redraw')
     end
   end, opts)
 
@@ -496,6 +564,27 @@ function M.setup_keymaps(buf, win, manager)
     cache.stats = nil
     vim.cmd('redraw')
   end, opts)
+end
+
+-- Add a refresh function
+local function refresh_dashboard(buf, manager)
+  if not vim.api.nvim_buf_is_valid(buf) then return end
+  
+  local lines = M.generate_content(manager:get_plugins(), manager.config)
+  vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+end
+
+-- Add a status update function
+function M.update_status(plugin_name, operation, state, progress, message)
+  status.pending[plugin_name] = {
+    operation = operation,
+    state = state,
+    start_time = vim.loop.now(),
+    progress = progress or 0,
+    message = message or ''
+  }
 end
 
 return M

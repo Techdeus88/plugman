@@ -1,11 +1,88 @@
 -- This module wraps MiniDeps functionality
 local M = {}
+local Logger = require('plugman.utils.logger')
 
 -- Constants
 local path_package = vim.fn.stdpath("data") .. "/site/"
 local MINIDEPS_REPO = "https://github.com/echasnovski/mini.deps"
 local MINIDEPS_PATH = path_package .. "pack/deps/start/mini.deps"
 local messages = require('plugman.utils.message_handler')
+
+-- MiniDeps operation types
+local OPERATIONS = {
+  INSTALL = 'install',
+  UPDATE = 'update',
+  REMOVE = 'remove',
+  CLEAN = 'clean'
+}
+
+-- Operation status
+local STATUS = {
+  PENDING = 'pending',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
+
+-- Operation tracking
+local operations = {}
+
+-- Event callbacks
+local event_handlers = {
+  on_operation_start = {},
+  on_operation_progress = {},
+  on_operation_complete = {},
+  on_operation_error = {}
+}
+
+-- Register event handler
+function M.on(event, callback)
+  if not event_handlers[event] then
+    error('Invalid event: ' .. event)
+  end
+  table.insert(event_handlers[event], callback)
+end
+
+-- Trigger event
+local function trigger_event(event, ...)
+  for _, handler in ipairs(event_handlers[event]) do
+    handler(...)
+  end
+end
+
+-- Track operation
+local function track_operation(name, operation_type)
+  local op = {
+    name = name,
+    type = operation_type,
+    status = STATUS.PENDING,
+    start_time = vim.loop.now(),
+    progress = 0,
+    message = ''
+  }
+  operations[name] = op
+  trigger_event('on_operation_start', op)
+  return op
+end
+
+-- Update operation status
+local function update_operation(name, status, progress, message)
+  local op = operations[name]
+  if op then
+    op.status = status
+    op.progress = progress or op.progress
+    op.message = message or op.message
+    op.end_time = vim.loop.now()
+    
+    if status == STATUS.COMPLETED then
+      trigger_event('on_operation_complete', op)
+    elseif status == STATUS.FAILED then
+      trigger_event('on_operation_error', op)
+    else
+      trigger_event('on_operation_progress', op)
+    end
+  end
+end
 
 local function install_minideps()
     local function is_minideps_installed()
@@ -173,6 +250,79 @@ function M.update_plugin(name)
             return true
         end
     end
+end
+
+-- Wrap MiniDeps operations
+function M.add(plugin_spec)
+  local name = plugin_spec.source:match("([^/]+)%.git$") or plugin_spec.source
+  local op = track_operation(name, OPERATIONS.INSTALL)
+  
+  -- Create progress callback
+  local progress_callback = function(progress, message)
+    update_operation(name, STATUS.RUNNING, progress, message)
+  end
+  
+  -- Wrap the plugin spec with our progress callback
+  plugin_spec.progress = progress_callback
+  
+  -- Execute MiniDeps operation
+  local ok, err = pcall(function()
+    M.MiniDeps.add(plugin_spec)
+  end)
+  
+  if ok then
+    update_operation(name, STATUS.COMPLETED, 100, "Installation completed")
+  else
+    update_operation(name, STATUS.FAILED, 0, "Installation failed: " .. tostring(err))
+  end
+  
+  return ok, err
+end
+
+function M.update(plugin_name)
+  local op = track_operation(plugin_name, OPERATIONS.UPDATE)
+  
+  local progress_callback = function(progress, message)
+    update_operation(plugin_name, STATUS.RUNNING, progress, message)
+  end
+  
+  local ok, err = pcall(function()
+    M.MiniDeps.update(plugin_name, { progress = progress_callback })
+  end)
+  
+  if ok then
+    update_operation(plugin_name, STATUS.COMPLETED, 100, "Update completed")
+  else
+    update_operation(plugin_name, STATUS.FAILED, 0, "Update failed: " .. tostring(err))
+  end
+  
+  return ok, err
+end
+
+function M.remove(plugin_name)
+  local op = track_operation(plugin_name, OPERATIONS.REMOVE)
+  
+  local ok, err = pcall(function()
+    M.MiniDeps.clean(plugin_name)
+  end)
+  
+  if ok then
+    update_operation(plugin_name, STATUS.COMPLETED, 100, "Removal completed")
+  else
+    update_operation(plugin_name, STATUS.FAILED, 0, "Removal failed: " .. tostring(err))
+  end
+  
+  return ok, err
+end
+
+-- Get current operations
+function M.get_operations()
+  return operations
+end
+
+-- Get operation status
+function M.get_operation_status(name)
+  return operations[name]
 end
 
 return M
