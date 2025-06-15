@@ -149,6 +149,7 @@ function M.setup(opts)
 
   -- Then discover and add plugins
   local plugin_specs = _discover_plugins()
+  print(vim.inspect(plugin_specs))
   Logger.debug("Adding plugins to manager:")
   for _, spec in ipairs(plugin_specs) do
     Logger.debug(string.format("  Adding plugin: %s", vim.inspect(spec)))
