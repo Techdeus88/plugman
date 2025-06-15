@@ -15,7 +15,7 @@ function Cache.new(config)
   ---@class PlugmanCache
   local self = setmetatable({}, Cache)
 
-  self.config = config  -- Store full config
+  self.config = config -- Store full config
   self.cache_dir = config.paths.cache_dir
   self.cache_file = config.paths.cache_dir .. '/plugman.json'
   self.data = {}
@@ -44,7 +44,7 @@ function Cache:ensure_cache_dir()
   if vim.fn.isdirectory(self.cache_dir) == 0 then
     vim.fn.mkdir(self.cache_dir, 'p')
   end
-  
+
   -- Ensure snapshots directory exists
   local snapshot_dir = self.config.paths.snapshot_dir
   if vim.fn.isdirectory(snapshot_dir) == 0 then
@@ -116,11 +116,12 @@ local function filter_serializable(data)
     if type(k) == 'function' then
       goto continue
     end
-    
+
     -- Skip functions and other non-serializable types
     if type(v) == 'function' or type(v) == 'userdata' or type(v) == 'thread' then
-      goto continue    end
-    
+      goto continue
+    end
+
     -- Handle nested tables
     if type(v) == 'table' then
       local filtered = filter_serializable(v)

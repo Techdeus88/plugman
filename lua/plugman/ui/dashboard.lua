@@ -10,7 +10,7 @@ local cache = {
 }
 
 -- Constants
-local CACHE_TTL = 5000 -- 5 seconds
+local CACHE_TTL = 30000 -- 30 seconds
 local SECTIONS = {
   HEADER = 1,
   STATS = 2,
@@ -156,12 +156,15 @@ local function sort_plugins(plugins)
   for _, entry in ipairs(priority_plugins) do
     table.insert(sorted, entry)
   end
+  table.insert(sorted, "-----------------------")
   for _, entry in ipairs(normal_plugins) do
     table.insert(sorted, entry)
   end
+  table.insert(sorted, "-----------------------")
   for _, entry in ipairs(lazy_plugins) do
     table.insert(sorted, entry)
   end
+  table.insert(sorted, "-----------------------")
 
   cache.sorted_plugins = sorted
   cache.last_update = now
