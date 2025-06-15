@@ -92,8 +92,7 @@ end
 ---Error log
 ---@param message string Message
 ---@param ... any Additional arguments
-function M.error(message, ...)
-  log(levels.ERROR, message, ...)
+function M.error(message, ...) log(levels.ERROR, message, ...)
 end
 
 return M

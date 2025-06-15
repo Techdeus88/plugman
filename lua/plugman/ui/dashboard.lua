@@ -54,7 +54,7 @@ function M.show(manager)
 
   -- Set window options
   vim.api.nvim_win_set_option(win, 'wrap', false)
-  vim.api.nvim_win_set_option(win, 'cursorline', true)
+  vim.api.nvim_win_set_option(win, 'cursorline', true) 
   vim.api.nvim_win_set_option(win, 'number', false)
   vim.api.nvim_win_set_option(win, 'relativenumber', false)
   vim.api.nvim_win_set_option(win, 'signcolumn', 'no')
@@ -156,15 +156,15 @@ local function sort_plugins(plugins)
   for _, entry in ipairs(priority_plugins) do
     table.insert(sorted, entry)
   end
-  table.insert(sorted, "-----------------------")
+  table.insert(sorted, { type = 'separator' })
   for _, entry in ipairs(normal_plugins) do
     table.insert(sorted, entry)
   end
-  table.insert(sorted, "-----------------------")
+  table.insert(sorted, { type = 'separator' })
   for _, entry in ipairs(lazy_plugins) do
     table.insert(sorted, entry)
   end
-  table.insert(sorted, "-----------------------")
+  table.insert(sorted, { type = 'separator' })
 
   cache.sorted_plugins = sorted
   cache.last_update = now
@@ -200,50 +200,55 @@ function M.generate_content(plugins, config)
   local current_section = nil
 
   for _, item in ipairs(sorted_plugins) do
-    local name = item.name
-    local plugin = item.plugin
-
-    -- Add section headers
-    if plugin.priority and plugin.priority > 0 and current_section ~= 'priority' then
-      current_section = 'priority'
-      table.insert(lines, "  🚀 Priority Plugins:")
+    if item.type == 'separator' then
+      table.insert(lines, "  ─────────────────────────────────────")
       table.insert(lines, "")
-    elseif plugin.priority and plugin.priority == 0 and not plugin.lazy and current_section ~= 'normal' then
-      current_section = 'normal'
-      table.insert(lines, "  ⚡ Normal Plugins:")
-      table.insert(lines, "")
-    elseif plugin.lazy and current_section ~= 'lazy' then
-      current_section = 'lazy'
-      table.insert(lines, "  💤 Lazy Plugins:")
-      table.insert(lines, "")
-    end
+    else
+      local name = item.name
+      local plugin = item.plugin
 
-    local status_icon = plugin:is_installed() and icons.installed or icons.not_installed
-    local add_icon = plugin.added and icons.added or icons.not_added
-    local load_icon = plugin.loaded and icons.loaded or icons.not_loaded
-    local lazy_icon = plugin.lazy and icons.lazy or plugin.lazy == false and icons.not_lazy
-    local priority_icon = plugin.priority > 0 and icons.priority or " "
-
-    local line = string.format("  %s %s %s %s %s %s",
-      status_icon, add_icon, load_icon, lazy_icon, priority_icon, name)
-
-    if plugin.priority > 0 then
-      line = line .. string.format(" (priority: %d)", plugin.priority)
-    end
-
-    -- Add trigger information for lazy plugins
-    if plugin.lazy then
-      local triggers = {}
-      if plugin.cmd then table.insert(triggers, "cmd") end
-      if plugin.event then table.insert(triggers, "event") end
-      if plugin.ft then table.insert(triggers, "ft") end
-      if plugin.keys then table.insert(triggers, "keys") end
-      if #triggers > 0 then
-        line = line .. string.format(" [%s]", table.concat(triggers, ", "))
+      -- Add section headers
+      if plugin.priority and plugin.priority > 0 and current_section ~= 'priority' then
+        current_section = 'priority'
+        table.insert(lines, "  🚀 Priority Plugins:")
+        table.insert(lines, "")
+      elseif plugin.priority and plugin.priority == 0 and not plugin.lazy and current_section ~= 'normal' then
+        current_section = 'normal'
+        table.insert(lines, "  ⚡ Normal Plugins:")
+        table.insert(lines, "")
+      elseif plugin.lazy and current_section ~= 'lazy' then
+        current_section = 'lazy'
+        table.insert(lines, "  💤 Lazy Plugins:")
+        table.insert(lines, "")
       end
-    end
 
-    table.insert(lines, line)
+      local status_icon = plugin:is_installed() and icons.installed or icons.not_installed
+      local add_icon = plugin.added and icons.added or icons.not_added
+      local load_icon = plugin.loaded and icons.loaded or icons.not_loaded
+      local lazy_icon = plugin.lazy and icons.lazy or plugin.lazy == false and icons.not_lazy
+      local priority_icon = plugin.priority > 0 and icons.priority or " "
+
+      local line = string.format("  %s %s %s %s %s %s",
+        status_icon, add_icon, load_icon, lazy_icon, priority_icon, name)
+
+      if plugin.priority > 0 then
+        line = line .. string.format(" (priority: %d)", plugin.priority)
+      end
+
+      -- Add trigger information for lazy plugins
+      if plugin.lazy then
+        local triggers = {}
+        if plugin.cmd then table.insert(triggers, "cmd") end
+        if plugin.event then table.insert(triggers, "event") end
+        if plugin.ft then table.insert(triggers, "ft") end
+        if plugin.keys then table.insert(triggers, "keys") end
+        if #triggers > 0 then
+          line = line .. string.format(" [%s]", table.concat(triggers, ", "))
+        end
+      end
+
+      table.insert(lines, line)
+    end
   end
 
   -- Footer
