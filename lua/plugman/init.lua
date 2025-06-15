@@ -53,31 +53,37 @@ end
 
 ---Discover plugin specifications in the plugins directory
 ---@return table List of discovered plugin specifications
-local function _discover_plugin_specs(module_path)
+local function _discover_plugin_specs()
   local specs = {}
   local plugins_dirs = Config.paths.plugins_dir
 
-  local files = vim.fn.glob(plugins_dirs .. '/*.lua', false, true)
-  for _, file in ipairs(files) do
-    local filename = vim.fn.fnamemodify(file, ':t:r')
-    local module_name = module_path .. '.' .. filename
+  for _, dir in ipairs(plugins_dirs) do
+    local full_path = vim.fn.stdpath('config') .. '/lua/' .. dir:gsub('%.', '/')
+    if vim.fn.isdirectory(full_path) == 1 then
+      local files = vim.fn.glob(plugins_dirs .. '/*.lua', false, true)
+      for _, file in ipairs(files) do
+        local filename = vim.fn.fnamemodify(file, ':t:r')
+        local module_name = dir .. '.' .. filename
 
-    local ok, plugins_spec = pcall(require, module_name)
-    if ok then
-      if type(plugins_spec[1]) == "string" then
-        local spec = plugins_spec
-        table.insert(specs, spec)
-      else
-        for _, spec in ipairs(plugins_spec) do
-          if type(spec) == "table" and type(spec[1]) == "string" then
+        local ok, plugins_spec = pcall(require, module_name)
+        if ok then
+          if type(plugins_spec[1]) == "string" then
+            local spec = plugins_spec
             table.insert(specs, spec)
+          else
+            for _, spec in ipairs(plugins_spec) do
+              if type(spec) == "table" and type(spec[1]) == "string" then
+                table.insert(specs, spec)
+              end
+            end
           end
+        else
+          vim.notify("Failed to load plugin spec from: " .. module_name, vim.log.levels.ERROR)
         end
       end
-    else
-      vim.notify("Failed to load plugin spec from: " .. module_name, vim.log.levels.ERROR)
     end
   end
+
   return specs
 end
 
@@ -92,7 +98,7 @@ local function _discover_plugins()
   end
 
   -- Discover modules and plugins separately
-  
+
   local module_specs = _discover_modules()
   local plugin_specs = _discover_plugin_specs()
 
@@ -113,7 +119,7 @@ local function _discover_plugins()
     modules = module_specs -- Keep modules separate for API/setup
   }
 
-  return plugin_specs  -- Only return plugin specs
+  return plugin_specs -- Only return plugin specs
 end
 
 ---Initialize Plugman
@@ -137,7 +143,7 @@ function M.setup(opts)
   for _, spec in ipairs(module_specs) do
     if spec.path then
       Logger.debug(string.format("  Loading module: %s from %s", spec.name, spec.path))
-      dofile(spec.path)  -- Load module directly
+      dofile(spec.path) -- Load module directly
     end
   end
 
