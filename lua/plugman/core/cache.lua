@@ -119,8 +119,7 @@ local function filter_serializable(data)
     
     -- Skip functions and other non-serializable types
     if type(v) == 'function' or type(v) == 'userdata' or type(v) == 'thread' then
-      goto continue
-    end
+      goto continue    end
     
     -- Handle nested tables
     if type(v) == 'table' then
@@ -198,7 +197,11 @@ function Cache:stats()
 
   for name, data in pairs(self.data) do
     count = count + 1
-    size = size + #vim.json.encode(data)
+    -- Filter the data before encoding to remove functions
+    local filtered_data = filter_serializable(data)
+    if filtered_data then
+      size = size + #vim.json.encode(filtered_data)
+    end
   end
 
   return {
