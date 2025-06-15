@@ -75,7 +75,8 @@ local function calculate_stats(plugins)
     added = 0,
     loaded = 0,
     lazy = 0,
-    priority = 0
+    priority = 0,
+    normal = 0  -- Add normal plugins count
   }
 
   for _, plugin in pairs(plugins) do
@@ -84,7 +85,11 @@ local function calculate_stats(plugins)
     if plugin.added then stats.added = stats.added + 1 end
     if plugin.loaded then stats.loaded = stats.loaded + 1 end
     if plugin.lazy then stats.lazy = stats.lazy + 1 end
-    if plugin.priority > 0 then stats.priority = stats.priority + 1 end
+    if plugin.priority > 0 then 
+      stats.priority = stats.priority + 1 
+    elseif not plugin.lazy then
+      stats.normal = stats.normal + 1  -- Count normal plugins
+    end
   end
 
   return stats
@@ -195,8 +200,62 @@ function M.generate_content(plugins, config)
   table.insert(lines, "                     🔌                   ")
 
   -- Stats
-  table.insert(lines, string.format("  📊 Stats: %d total, %d installed, %d added, %d loaded, %d lazy, %d priority",
-    stats.total, stats.installed, stats.added, stats.loaded, stats.lazy, stats.priority))
+  table.insert(lines, string.format("  📊 Stats: %d total (%d priority, %d normal, %d lazy), %d installed, %d added, %d loaded, %d lazy, %d priority",
+    stats.total, stats.priority, stats.normal, stats.lazy, stats.installed, stats.added, stats.loaded, stats.lazy, stats.priority))
+  table.insert(lines, "")
+  table.insert(lines, "  ─────────────────────────────────────")
+  table.insert(lines, "")
+
+  -- After the stats section and before the plugin list:
+  table.insert(lines, "")
+  table.insert(lines, "  🔗 Dependencies:")
+  table.insert(lines, "")
+
+  -- Create a map of dependencies
+  local dependency_map = {}
+  for name, plugin in pairs(plugins) do
+    if plugin.depends then
+      for _, dep in ipairs(plugin.depends) do
+        if not dependency_map[dep] then
+          dependency_map[dep] = {
+            name = dep,
+            dependents = {},
+            plugin = plugins[dep]
+          }
+        end
+        table.insert(dependency_map[dep].dependents, name)
+      end
+    end
+  end
+
+  -- Sort and display dependencies
+  local sorted_deps = {}
+  for _, dep in pairs(dependency_map) do
+    table.insert(sorted_deps, dep)
+  end
+  table.sort(sorted_deps, function(a, b) return a.name < b.name end)
+
+  for _, dep in ipairs(sorted_deps) do
+    local dep_plugin = dep.plugin
+    local status_icon = dep_plugin and dep_plugin:is_installed() and icons.installed or icons.not_installed
+    local add_icon = dep_plugin and dep_plugin.added and icons.added or icons.not_added
+    
+    local line = string.format("  %s %s %s",
+      status_icon, add_icon, dep.name)
+    
+    -- Add dependents
+    if #dep.dependents > 0 then
+      line = line .. string.format(" [used by: %s]", table.concat(dep.dependents, ", "))
+    end
+    
+    -- Add load order if available
+    if dep_plugin and dep_plugin.load_order then
+      line = line .. string.format(" (order: %d)", dep_plugin.load_order)
+    end
+    
+    table.insert(lines, line)
+  end
+
   table.insert(lines, "")
   table.insert(lines, "  ─────────────────────────────────────")
   table.insert(lines, "")
@@ -234,8 +293,8 @@ function M.generate_content(plugins, config)
       local lazy_icon = plugin.lazy and icons.lazy or plugin.lazy == false and icons.not_lazy
       local priority_icon = plugin.priority > 0 and icons.priority or " "
 
-      local line = string.format("  %s %s %s %s %s %s",
-        status_icon, add_icon, load_icon, lazy_icon, priority_icon, name)
+      local line = string.format("  %s %s %s %s %s %s (order: %d)",
+        status_icon, add_icon, load_icon, lazy_icon, priority_icon, name, plugin.load_order or 0)
 
       if plugin.priority > 0 then
         line = line .. string.format(" (priority: %d)", plugin.priority)
