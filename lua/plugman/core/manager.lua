@@ -306,20 +306,82 @@ function Manager:install_batch(plugins)
 
   local results = {}
   local max_parallel = self.config.performance.max_parallel or 4
-
-  -- Group plugins by dependencies
+  
+  -- Group plugins by priority and dependencies
+  local priority_plugins = {}
   local independent_plugins = {}
   local dependent_plugins = {}
-
+  
   for _, plugin in ipairs(plugins) do
-    if not plugin.depends or #plugin.depends == 0 then
+    if plugin.priority and plugin.priority > 0 then
+      table.insert(priority_plugins, plugin)
+    elseif not plugin.depends or #plugin.depends == 0 then
       table.insert(independent_plugins, plugin)
     else
       table.insert(dependent_plugins, plugin)
     end
   end
 
-  -- Install independent plugins in parallel
+  -- Sort priority plugins by priority (highest first)
+  table.sort(priority_plugins, function(a, b)
+    return a.priority > b.priority
+  end)
+
+  -- Install priority plugins in parallel as the first batch
+  if #priority_plugins > 0 then
+    local function install_plugin(plugin)
+      local ok, err = pcall(function()
+        MiniDeps.add({
+          source = plugin.source,
+          depends = plugin.depends,
+          hooks = plugin.hooks,
+          checkout = plugin.checkout,
+          monitor = plugin.monitor,
+        })
+      end)
+
+      if ok then
+        plugin.installed = plugin:is_installed()
+        plugin.added = true
+        self.cache:set_plugin(plugin.name, plugin:to_cache())
+        Logger.info("Installed priority plugin: " .. plugin.name)
+        results[plugin.name] = true
+        -- Optionally load immediately
+        self:load(plugin)
+      else
+        Logger.error("Failed to install priority plugin: " .. plugin.name .. " - " .. tostring(err))
+        Notify.error("Failed to install priority plugin: " .. plugin.name)
+        results[plugin.name] = false
+      end
+    end
+
+    for i = 1, #priority_plugins, max_parallel do
+      local batch = {}
+      for j = i, math.min(i + max_parallel - 1, #priority_plugins) do
+        table.insert(batch, priority_plugins[j])
+      end
+
+      local threads = {}
+      for _, plugin in ipairs(batch) do
+        table.insert(threads, coroutine.create(function()
+          install_plugin(plugin)
+        end))
+      end
+
+      local running = true
+      while running do
+        running = false
+        for _, thread in ipairs(threads) do
+          if coroutine.status(thread) ~= "dead" then
+            running = true
+            coroutine.resume(thread)
+          end
+        end
+      end
+    end
+  end
+
+  -- Then install independent plugins in parallel
   if #independent_plugins > 0 then
     local function install_plugin(plugin)
       local ok, err = pcall(function()
@@ -351,7 +413,7 @@ function Manager:install_batch(plugins)
       for j = i, math.min(i + max_parallel - 1, #independent_plugins) do
         table.insert(batch, independent_plugins[j])
       end
-
+      
       -- Create a coroutine for each plugin in the batch
       local threads = {}
       for _, plugin in ipairs(batch) do
@@ -359,7 +421,7 @@ function Manager:install_batch(plugins)
           install_plugin(plugin)
         end))
       end
-
+      
       -- Run the batch of coroutines
       local running = true
       while running do
@@ -374,19 +436,38 @@ function Manager:install_batch(plugins)
     end
   end
 
-  -- Install dependent plugins
-  if #dependent_plugins > 0 then
+  -- Finally install dependent plugins sequentially
+  for _, plugin in ipairs(dependent_plugins) do
+    local ok, err = pcall(function()
+      MiniDeps.add({
+        source = plugin.source,
+        depends = plugin.depends,
+        hooks = plugin.hooks,
+        checkout = plugin.checkout,
+        monitor = plugin.monitor,
+      })
+    end)
+
+    if ok then
+      plugin.installed = plugin:is_installed()
+      plugin.added = true
+      self.cache:set_plugin(plugin.name, plugin:to_cache())
+      Logger.info("Installed dependent plugin: " .. plugin.name)
+      results[plugin.name] = true
+    else
+      Logger.error("Failed to install dependent plugin: " .. plugin.name .. " - " .. tostring(err))
+      Notify.error("Failed to install dependent plugin: " .. plugin.name)
+      results[plugin.name] = false
+    end
   end
+
+  return results
 end
 
 return Manager
 
 
 
--- local logger = require('plugman.utils.logger')
--- local notify = require('plugman.utils.notify')
-
--- local M = {}
 
 -- -- Add plugin to state
 -- function M.add_plugin(state, plugin)
