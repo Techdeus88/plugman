@@ -60,7 +60,7 @@ local function _discover_plugin_specs()
   for _, dir in ipairs(plugins_dirs) do
     local full_path = vim.fn.stdpath('config') .. '/lua/' .. dir:gsub('%.', '/')
     if vim.fn.isdirectory(full_path) == 1 then
-      local files = vim.fn.glob(dir .. '/*.lua', false, true)
+      local files = vim.fn.glob(full_path .. '/*.lua', false, true)
       for _, file in ipairs(files) do
         local filename = vim.fn.fnamemodify(file, ':t:r')
         local module_name = dir .. '.' .. filename
