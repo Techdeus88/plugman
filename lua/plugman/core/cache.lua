@@ -73,16 +73,45 @@ end
 ---@param data any Data to filter
 ---@return any Filtered data
 local function filter_serializable(data)
+  -- Handle non-table types
   if type(data) ~= 'table' then
     return data
   end
 
+  -- Handle empty tables
+  if next(data) == nil then
+    return {}
+  end
+
+  -- Handle arrays (sequential tables)
+  local is_array = true
+  local max_index = 0
+  for k, _ in pairs(data) do
+    if type(k) ~= 'number' or k < 1 or k ~= math.floor(k) then
+      is_array = false
+      break
+    end
+    max_index = math.max(max_index, k)
+  end
+
+  if is_array and max_index == #data then
+    local result = {}
+    for i = 1, max_index do
+      result[i] = filter_serializable(data[i])
+    end
+    return result
+  end
+
+  -- Handle regular tables
   local result = {}
   for k, v in pairs(data) do
-    if type(v) == 'function' then
-      -- Skip functions
+    -- Skip functions and other non-serializable types
+    if type(v) == 'function' or type(v) == 'userdata' or type(v) == 'thread' then
       goto continue
-    elseif type(v) == 'table' then
+    end
+    
+    -- Handle nested tables
+    if type(v) == 'table' then
       result[k] = filter_serializable(v)
     else
       result[k] = v
@@ -99,7 +128,7 @@ function Cache:save()
   end
 
   local filtered_data = filter_serializable(self.data)
-  local json = vim.json.encode(filtered_data)
+  local json = vim.json.encode(filtered_data, { indent = true })
   vim.fn.writefile(vim.split(json, '\n'), self.cache_file)
   self.dirty = false
   self.last_save = vim.loop.now()
