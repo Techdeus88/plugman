@@ -133,21 +133,30 @@ local function sort_plugins(plugins)
   end
 
   -- Sort each category
-  -- Priority plugins: sort by priority (highest first), then alphabetically
+  -- Priority plugins: sort by priority (highest first), then load order, then alphabetically
   table.sort(priority_plugins, function(a, b)
     if a.plugin.priority ~= b.plugin.priority then
       return a.plugin.priority > b.plugin.priority
     end
+    if a.plugin.load_order and b.plugin.load_order then
+      return a.plugin.load_order < b.plugin.load_order
+    end
     return string.lower(a.name) < string.lower(b.name)
   end)
 
-  -- Normal plugins: sort alphabetically
+  -- Normal plugins: sort by load order, then alphabetically
   table.sort(normal_plugins, function(a, b)
+    if a.plugin.load_order and b.plugin.load_order then
+      return a.plugin.load_order < b.plugin.load_order
+    end
     return string.lower(a.name) < string.lower(b.name)
   end)
 
-  -- Lazy plugins: sort alphabetically
+  -- Lazy plugins: sort by load order, then alphabetically
   table.sort(lazy_plugins, function(a, b)
+    if a.plugin.load_order and b.plugin.load_order then
+      return a.plugin.load_order < b.plugin.load_order
+    end
     return string.lower(a.name) < string.lower(b.name)
   end)
 

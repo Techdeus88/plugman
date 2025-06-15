@@ -47,6 +47,7 @@ function Plugin.new(source, opts, type)
   self.added = false
   self.installed = false
   self.loaded = false
+  self.load_order = nil
 
   -- Determine if plugin should be lazy loaded
   if self.lazy == nil then

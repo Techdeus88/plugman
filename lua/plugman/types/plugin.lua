@@ -11,7 +11,7 @@
 ---@field enabled boolean|nil Whether the plugin is enabled (default: true)
 ---@field added boolean Whether the plugin has been added to MiniDeps
 ---@field installed boolean Whether the plugin is on-disk
----@field loaded boolean Whether the plugin has been loaded
+---@field loadd boolean Whether the plugin has been loaded
 ---@field loading boolean Whether the plugin is currently loading
 ---@field load_time string|nil The time it took to load the plugin in milliseconds
 ---@field dependents table List of plugins that depend on this plugin
@@ -26,6 +26,7 @@
 ---@field keys table|nil A list of keymaps to load for the specific plugin
 ---@field priority number|nil The priority in which the plugin should be loaded versus other plugins. Lower the number -> the higher precedence
 ---@field require string|nil The require name of the plugin to set it up i.e. require("module").setup(opts)
+---@field load_order number|nil The nth plugin to be loaded in session
 
 ---@class PlugmanRegister
 ---@field source string The source URL of the plugin

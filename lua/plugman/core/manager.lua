@@ -21,6 +21,8 @@ function Manager.new(config)
   self.cache = Cache.new(config)
   self.loaded_plugins = {}
   self.pending_plugins = {}
+  self.load_order_counter = 0
+  -- Global load order counte
   -- Bootstrap and ensure MiniDeps is installed and setup
   Bootstrap.init(config.mini_deps)
   return self
@@ -159,6 +161,7 @@ function Manager:load(plugin)
   if self.loaded_plugins[plugin.name] then
     return true
   end
+  self.load_order_counter = self.load_order_counter + 1
 
   -- Install if not installed
   if not plugin.added then
@@ -195,6 +198,7 @@ function Manager:load(plugin)
 
     self.loaded_plugins[plugin.name] = true
     plugin.loaded = true
+    plugin.load_order = self.load_order_counter
 
     Logger.info("Loaded plugin: " .. plugin.name)
     return true
