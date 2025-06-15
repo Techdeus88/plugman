@@ -23,10 +23,8 @@ local SECTIONS = {
 function M.show(manager)
   local plugins = manager:get_plugins()
   local config = manager.config
-
   -- Create buffer
   local buf = vim.api.nvim_create_buf(false, true)
-
   -- Generate content asynchronously
   vim.schedule(function()
     local lines = M.generate_content(plugins, config)
@@ -61,7 +59,6 @@ function M.show(manager)
 
   -- Setup highlighting
   M.setup_highlighting()
-
   -- Setup keymaps
   M.setup_keymaps(buf, win, manager)
 
@@ -353,7 +350,12 @@ function M.setup_keymaps(buf, win, manager)
   -- Get plugin under cursor
   local function get_current_plugin()
     local line = vim.api.nvim_get_current_line()
+    -- Match the plugin name from the line format
     local name = line:match("  [●○] [✓✗] [💤 ] [⚡ ] ([%w%-%._]+)")
+    if not name then
+      -- Try matching from the details view
+      name = line:match("  │   name: ([%w%-%._]+)")
+    end
     return name and manager.plugins[name], name
   end
 

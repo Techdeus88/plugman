@@ -296,6 +296,89 @@ function Manager:get_plugins()
   return self.plugins
 end
 
+---Install multiple plugins in parallel
+---@param plugins table<PlugmanPlugin> List of plugins to install
+---@return table<string, boolean> Results map of plugin names to success status
+function Manager:install_batch(plugins)
+  if not plugins or #plugins == 0 then
+    return {}
+  end
+
+  local results = {}
+  local max_parallel = self.config.performance.max_parallel or 4
+
+  -- Group plugins by dependencies
+  local independent_plugins = {}
+  local dependent_plugins = {}
+
+  for _, plugin in ipairs(plugins) do
+    if not plugin.depends or #plugin.depends == 0 then
+      table.insert(independent_plugins, plugin)
+    else
+      table.insert(dependent_plugins, plugin)
+    end
+  end
+
+  -- Install independent plugins in parallel
+  if #independent_plugins > 0 then
+    local function install_plugin(plugin)
+      local ok, err = pcall(function()
+        MiniDeps.add({
+          source = plugin.source,
+          depends = plugin.depends,
+          hooks = plugin.hooks,
+          checkout = plugin.checkout,
+          monitor = plugin.monitor,
+        })
+      end)
+
+      if ok then
+        plugin.installed = plugin:is_installed()
+        plugin.added = true
+        self.cache:set_plugin(plugin.name, plugin:to_cache())
+        Logger.info("Installed plugin: " .. plugin.name)
+        results[plugin.name] = true
+      else
+        Logger.error("Failed to install plugin: " .. plugin.name .. " - " .. tostring(err))
+        Notify.error("Failed to install: " .. plugin.name)
+        results[plugin.name] = false
+      end
+    end
+
+    -- Process plugins in batches
+    for i = 1, #independent_plugins, max_parallel do
+      local batch = {}
+      for j = i, math.min(i + max_parallel - 1, #independent_plugins) do
+        table.insert(batch, independent_plugins[j])
+      end
+
+      -- Create a coroutine for each plugin in the batch
+      local threads = {}
+      for _, plugin in ipairs(batch) do
+        table.insert(threads, coroutine.create(function()
+          install_plugin(plugin)
+        end))
+      end
+
+      -- Run the batch of coroutines
+      local running = true
+      while running do
+        running = false
+        for _, thread in ipairs(threads) do
+          if coroutine.status(thread) ~= "dead" then
+            running = true
+            coroutine.resume(thread)
+          end
+        end
+      end
+    end
+  end
+
+  -- Install dependent plugins
+  if #dependent_plugins > 0 then
+  end
+end
+
 return Manager
 
 

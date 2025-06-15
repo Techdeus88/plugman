@@ -43,15 +43,24 @@ end
 function Loader:install_all()
   local plugins = self.manager:get_plugins()
   Logger.debug("Installing all plugins via loader:")
+  
+  -- Collect plugins that need installation
+  local to_install = {}
   for name, plugin in pairs(plugins) do
-    Logger.debug(string.format("  Plugin: %s, added: %s, installed: %s", 
-      name, 
-      tostring(plugin.added), 
-      tostring(plugin.installed)
-    ))
     if not plugin.added then
-      Logger.debug(string.format("  Installing plugin: %s", vim.inspect(plugin)))
-      self.manager:install(plugin)
+      table.insert(to_install, plugin)
+    end
+  end
+
+  -- Use the new batch installation method
+  local results = self.manager:install_batch(to_install)
+  
+  -- Log results
+  for name, success in pairs(results) do
+    if success then
+      Logger.info(string.format("Successfully installed: %s", name))
+    else
+      Logger.error(string.format("Failed to install: %s", name))
     end
   end
 end
