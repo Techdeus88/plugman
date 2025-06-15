@@ -45,8 +45,9 @@ local function log(level, message, ...)
   if level < config.level then
     return
   end
+  local opts = ... ~= nil and ... or {}
 
-  local formatted = string.format("%s %s", message, table.concat(..., "-"))
+  local formatted = string.format("%s %s", message, table.concat(opts, "-"))
   local timestamp = os.date('%Y-%m-%d %H:%M:%S')
   local level_name = level_names[level]
   local log_line = string.format('[%s] %s: %s', timestamp, level_name, formatted)
