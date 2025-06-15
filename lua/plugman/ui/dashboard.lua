@@ -351,7 +351,7 @@ function M.setup_keymaps(buf, win, manager)
   local function get_current_plugin()
     local line = vim.api.nvim_get_current_line()
     -- Match the plugin name from the line format
-    local name = line:match("  [●○] [✓✗] [💤 ] [⚡ ] ([%w%-%._]+)")
+    local name = line:match("  [●○] [✓✗] [✓○] [💤 ] [⚡ ] ([%w%-%._]+)")
     if not name then
       -- Try matching from the details view
       name = line:match("  │   name: ([%w%-%._]+)")
