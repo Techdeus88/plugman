@@ -154,7 +154,7 @@ function Events:_execute_handlers(event, args)
 
     -- Execute handlers in order
     for _, handler in ipairs(handlers) do
-        local ok, err = pcall(handler, args)
+        local ok, err = pcall(handler.callback, args)
         if not ok then
             Logger.error(string.format("Error in event handler for %s: %s", event, err))
         end

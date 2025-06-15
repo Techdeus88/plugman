@@ -116,18 +116,52 @@ local function sort_plugins(plugins)
     return cache.sorted_plugins
   end
 
-  local sorted = {}
+  -- Separate plugins into categories
+  local priority_plugins = {}
+  local normal_plugins = {}
+  local lazy_plugins = {}
+
   for name, plugin in pairs(plugins) do
-    table.insert(sorted, { name = name, plugin = plugin })
+    local entry = { name = name, plugin = plugin }
+    if plugin.priority > 0 then
+      table.insert(priority_plugins, entry)
+    elseif not plugin.lazy then
+      table.insert(normal_plugins, entry)
+    else
+      table.insert(lazy_plugins, entry)
+    end
   end
 
-  table.sort(sorted, function(a, b)
-    -- Sort by priority first, then by name
+  -- Sort each category
+  -- Priority plugins: sort by priority (highest first), then alphabetically
+  table.sort(priority_plugins, function(a, b)
     if a.plugin.priority ~= b.plugin.priority then
       return a.plugin.priority > b.plugin.priority
     end
     return string.lower(a.name) < string.lower(b.name)
   end)
+
+  -- Normal plugins: sort alphabetically
+  table.sort(normal_plugins, function(a, b)
+    return string.lower(a.name) < string.lower(b.name)
+  end)
+
+  -- Lazy plugins: sort alphabetically
+  table.sort(lazy_plugins, function(a, b)
+    return string.lower(a.name) < string.lower(b.name)
+  end)
+
+  -- Combine all categories in the desired order
+  local sorted = {}
+  for _, entry in ipairs(priority_plugins) do
+    table.insert(sorted, entry)
+  end
+  for _, entry in ipairs(normal_plugins) do
+    table.insert(sorted, entry)
+  end
+  for _, entry in ipairs(lazy_plugins) do
+    table.insert(sorted, entry)
+  end
 
   cache.sorted_plugins = sorted
   cache.last_update = now
